@@ -9,6 +9,7 @@ const PLATFORM_META: Record<Platform, { label: string; icon: string; color: stri
   instagram: { label: "Instagram", icon: "📸", color: "text-pink-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
+  facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
 };
 
 export default function Home() {
@@ -23,6 +24,7 @@ export default function Home() {
     "instagram",
     "tiktok",
     "youtube",
+    "facebook",
   ]);
 
   const fetchPosts = useCallback(async () => {
@@ -305,14 +307,10 @@ export default function Home() {
                         {result?.status ?? "pending"}
                       </div>
                       {result?.postId && p === "youtube" && (
-                        <a
-                          href={`https://www.youtube.com/shorts/${result.postId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-400 hover:underline"
-                        >
-                          View
-                        </a>
+                        <a href={`https://www.youtube.com/shorts/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
+                      )}
+                      {result?.postId && p === "facebook" && (
+                        <a href={`https://www.facebook.com/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
                       )}
                     </div>
                   );

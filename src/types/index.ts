@@ -7,7 +7,7 @@ export interface StoryContent {
   hashtags: string[];
 }
 
-export type Platform = "instagram" | "tiktok" | "youtube";
+export type Platform = "instagram" | "tiktok" | "youtube" | "facebook";
 
 export interface PlatformResult {
   status: "pending" | "posted" | "skipped" | "failed";
@@ -32,5 +32,6 @@ export function defaultPlatforms(): Record<Platform, PlatformResult> {
     instagram: { status: "pending" },
     tiktok: { status: "pending" },
     youtube: { status: "pending" },
+    facebook: { status: "pending" },
   };
 }

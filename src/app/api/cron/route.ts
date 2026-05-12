@@ -12,6 +12,7 @@ import { createMediaContainer, publishMediaContainer, checkContainerStatus } fro
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
+import { postFacebookPhoto } from "@/lib/facebook";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
@@ -99,6 +100,17 @@ export async function GET(request: Request) {
       const msg = e instanceof Error ? e.message : String(e);
       post.platforms.youtube = { status: "failed", error: msg };
       log.push(`YouTube failed: ${msg}`);
+    }
+
+    // 7. Facebook
+    try {
+      const photoId = await postFacebookPhoto(blobUrl, caption);
+      post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
+      log.push(`Facebook posted: ${photoId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.facebook = { status: "failed", error: msg };
+      log.push(`Facebook failed: ${msg}`);
     }
 
     const anyPosted = Object.values(post.platforms).some((p) => p.status === "posted");

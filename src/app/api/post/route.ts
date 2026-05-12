@@ -9,6 +9,7 @@ import {
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
+import { postFacebookPhoto } from "@/lib/facebook";
 
 export const maxDuration = 120;
 
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No blob URL on post" }, { status: 400 });
     }
 
-    const targets: Platform[] = platforms ?? ["instagram", "tiktok", "youtube"];
+    const targets: Platform[] = platforms ?? ["instagram", "tiktok", "youtube", "facebook"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
     const caption = `${post.content.caption}\n\n${hashtags}`;
     const errors: string[] = [];
@@ -104,6 +105,22 @@ export async function POST(request: Request) {
         const msg = e instanceof Error ? e.message : String(e);
         post.platforms.youtube = { status: "failed", error: msg };
         errors.push(`YouTube: ${msg}`);
+      }
+    }
+
+    // ── Facebook ───────────────────────────────────────────────────────────
+    if (targets.includes("facebook")) {
+      try {
+        const photoId = await postFacebookPhoto(post.blobUrl, caption);
+        post.platforms.facebook = {
+          status: "posted",
+          postId: photoId,
+          postedAt: new Date().toISOString(),
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        post.platforms.facebook = { status: "failed", error: msg };
+        errors.push(`Facebook: ${msg}`);
       }
     }
 
