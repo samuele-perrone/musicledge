@@ -7,15 +7,30 @@ export interface StoryContent {
   hashtags: string[];
 }
 
+export type Platform = "instagram" | "tiktok" | "youtube";
+
+export interface PlatformResult {
+  status: "pending" | "posted" | "skipped" | "failed";
+  postId?: string;
+  error?: string;
+  postedAt?: string;
+}
+
 export interface GeneratedPost {
   id: string;
   content: StoryContent;
-  imageUrl?: string;
-  imageBase64?: string;
-  instagramMediaId?: string;
-  instagramPostId?: string;
+  blobUrl?: string;         // permanent public image URL (Vercel Blob)
+  imageBase64?: string;     // local preview (not stored in blob)
+  platforms: Record<Platform, PlatformResult>;
   status: "pending" | "image_ready" | "posted" | "failed";
   error?: string;
   createdAt: string;
-  postedAt?: string;
+}
+
+export function defaultPlatforms(): Record<Platform, PlatformResult> {
+  return {
+    instagram: { status: "pending" },
+    tiktok: { status: "pending" },
+    youtube: { status: "pending" },
+  };
 }

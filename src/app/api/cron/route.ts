@@ -1,21 +1,23 @@
 /**
- * Vercel Cron endpoint — runs every 12 hours.
- * Configured in vercel.json below.
- * Protected by CRON_SECRET to prevent unauthorized calls.
+ * Vercel Cron endpoint — runs at 08:00 and 20:00 UTC daily.
+ * Generates a new music story post and publishes to all platforms.
  */
 import { NextResponse } from "next/server";
 import { generateStoryContent } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage } from "@/lib/compose";
-import { savePost, getRecentArtists, loadPosts } from "@/lib/store";
+import { uploadImageToBlob } from "@/lib/blob";
+import { savePost, getRecentArtists } from "@/lib/store";
 import { createMediaContainer, publishMediaContainer, checkContainerStatus } from "@/lib/instagram";
-import { GeneratedPost } from "@/types";
+import { postTikTokPhoto } from "@/lib/tiktok";
+import { createShortsVideo } from "@/lib/video";
+import { uploadYouTubeShort } from "@/lib/youtube";
+import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
 export const maxDuration = 300;
 
 export async function GET(request: Request) {
-  // Verify the request comes from Vercel Cron or is authorized
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
@@ -25,61 +27,89 @@ export async function GET(request: Request) {
   const log: string[] = [];
 
   try {
-    log.push("Starting content generation pipeline...");
-
+    // 1. Generate story
     const usedArtists = await getRecentArtists(20);
     const content = await generateStoryContent(usedArtists);
-    log.push(`Generated story for: ${content.artist} — "${content.title}"`);
+    log.push(`Story: "${content.title}" — ${content.artist}`);
 
     const post: GeneratedPost = {
       id: crypto.randomUUID(),
       content,
+      platforms: defaultPlatforms(),
       status: "pending",
       createdAt: new Date().toISOString(),
     };
     await savePost(post);
 
-    // Generate image
-    const imageUrl = await generateImage(content.imagePrompt);
-    const imageBase64 = await fetchImageAsBase64(imageUrl);
-    post.imageUrl = imageUrl;
-    log.push("Image generated from DALL-E");
-
-    // Compose with text overlay
+    // 2. Generate and compose image
+    const dalleUrl = await generateImage(content.imagePrompt);
+    const imageBase64 = await fetchImageAsBase64(dalleUrl);
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
+    log.push("Image composed");
+
+    // 3. Upload to Blob
+    const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
+    post.blobUrl = blobUrl;
     post.status = "image_ready";
     await savePost(post);
-    log.push("Image composed with text overlay");
+    log.push(`Uploaded to Blob: ${blobUrl}`);
 
-    // Post to Instagram
     const hashtags = content.hashtags.map((h) => `#${h}`).join(" ");
     const caption = `${content.caption}\n\n${hashtags}`;
-    const containerId = await createMediaContainer(imageUrl, caption);
-    post.instagramMediaId = containerId;
 
-    // Poll for readiness
-    let status = "IN_PROGRESS";
-    let attempts = 0;
-    while (status === "IN_PROGRESS" && attempts < 15) {
-      await new Promise((r) => setTimeout(r, 3000));
-      status = await checkContainerStatus(containerId);
-      attempts++;
+    // 4. Instagram
+    try {
+      const containerId = await createMediaContainer(blobUrl, caption);
+      let status = "IN_PROGRESS";
+      let attempts = 0;
+      while (status === "IN_PROGRESS" && attempts < 15) {
+        await new Promise((r) => setTimeout(r, 3000));
+        status = await checkContainerStatus(containerId);
+        attempts++;
+      }
+      if (status !== "FINISHED") throw new Error(`Container: ${status}`);
+      const mediaId = await publishMediaContainer(containerId);
+      post.platforms.instagram = { status: "posted", postId: mediaId, postedAt: new Date().toISOString() };
+      log.push(`Instagram posted: ${mediaId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.instagram = { status: "failed", error: msg };
+      log.push(`Instagram failed: ${msg}`);
     }
-    if (status !== "FINISHED") throw new Error(`Container status: ${status}`);
 
-    const mediaId = await publishMediaContainer(containerId);
-    post.instagramPostId = mediaId;
-    post.status = "posted";
-    post.postedAt = new Date().toISOString();
+    // 5. TikTok
+    try {
+      const publishId = await postTikTokPhoto([blobUrl], caption);
+      post.platforms.tiktok = { status: "posted", postId: publishId, postedAt: new Date().toISOString() };
+      log.push(`TikTok posted: ${publishId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.tiktok = { status: "failed", error: msg };
+      log.push(`TikTok failed: ${msg}`);
+    }
+
+    // 6. YouTube Shorts
+    try {
+      const videoBuffer = await createShortsVideo(composedBuffer);
+      const videoId = await uploadYouTubeShort(videoBuffer, content.title, caption, content.hashtags);
+      post.platforms.youtube = { status: "posted", postId: videoId, postedAt: new Date().toISOString() };
+      log.push(`YouTube Shorts posted: ${videoId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.youtube = { status: "failed", error: msg };
+      log.push(`YouTube failed: ${msg}`);
+    }
+
+    const anyPosted = Object.values(post.platforms).some((p) => p.status === "posted");
+    post.status = anyPosted ? "posted" : "failed";
     await savePost(post);
-    log.push(`Posted to Instagram — media ID: ${mediaId}`);
 
     return NextResponse.json({ success: true, log, post });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    log.push(`ERROR: ${message}`);
-    console.error("[cron] Pipeline failed:", message);
+    log.push(`FATAL: ${message}`);
+    console.error("[cron] Fatal error:", message);
     return NextResponse.json({ success: false, log, error: message }, { status: 500 });
   }
 }
