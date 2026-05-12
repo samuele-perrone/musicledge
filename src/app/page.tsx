@@ -1,65 +1,305 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { GeneratedPost } from "@/types";
+
+type Tab = "dashboard" | "generate";
 
 export default function Home() {
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [posts, setPosts] = useState<GeneratedPost[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [posting, setPosting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
+
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/history?limit=50");
+      const data = await res.json();
+      setPosts(data.posts ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  async function handleGenerate() {
+    setGenerating(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      await fetchPosts();
+      setTab("dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handlePost(postId: string) {
+    setPosting(postId);
+    setError(null);
+    try {
+      const res = await fetch("/api/post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      await fetchPosts();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPosting(null);
+    }
+  }
+
+  const statusColor = (status: GeneratedPost["status"]) => {
+    switch (status) {
+      case "posted":
+        return "bg-green-900 text-green-300";
+      case "image_ready":
+        return "bg-blue-900 text-blue-300";
+      case "failed":
+        return "bg-red-900 text-red-300";
+      default:
+        return "bg-gray-700 text-gray-300";
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-gray-950 text-gray-100 font-sans">
+      {/* Header */}
+      <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-amber-400">
+            MusicShare
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xs text-gray-500">
+            Rock &amp; Pop Stories • Auto-posting to Instagram
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <nav className="flex gap-2">
+          {(["dashboard", "generate"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
+                tab === t
+                  ? "bg-amber-500 text-black"
+                  : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+              }`}
+            >
+              {t === "dashboard" ? "Posts" : "Generate"}
+            </button>
+          ))}
+        </nav>
+      </header>
+
+      {error && (
+        <div className="mx-6 mt-4 bg-red-900/50 border border-red-700 text-red-300 px-4 py-3 rounded text-sm">
+          {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-4 text-red-400 hover:text-red-200"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            ✕
+          </button>
         </div>
+      )}
+
+      <main className="p-6">
+        {/* Generate tab */}
+        {tab === "generate" && (
+          <div className="max-w-lg mx-auto text-center mt-12">
+            <div className="text-5xl mb-4">🎸</div>
+            <h2 className="text-2xl font-bold mb-2">Generate a New Post</h2>
+            <p className="text-gray-400 mb-8 text-sm">
+              Claude picks a rock/pop story, DALL-E generates the image, and the
+              result is composited with text — ready to post to Instagram.
+            </p>
+            <button
+              onClick={handleGenerate}
+              disabled={generating}
+              className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-8 py-3 rounded-lg text-lg transition-colors"
+            >
+              {generating ? "Generating… (takes ~1 min)" : "Generate Post"}
+            </button>
+          </div>
+        )}
+
+        {/* Dashboard tab */}
+        {tab === "dashboard" && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
+                Post History ({posts.length})
+              </h2>
+              <button
+                onClick={fetchPosts}
+                className="text-sm text-gray-400 hover:text-gray-200 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {loading && <p className="text-gray-500 text-sm">Loading…</p>}
+
+            {!loading && posts.length === 0 && (
+              <div className="text-center py-20 text-gray-600">
+                <p className="text-4xl mb-4">📭</p>
+                <p>No posts yet. Generate your first one!</p>
+                <button
+                  onClick={() => setTab("generate")}
+                  className="mt-4 text-amber-400 hover:text-amber-300 text-sm"
+                >
+                  Go to Generate →
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {posts.map((post) => (
+                <div
+                  key={post.id}
+                  className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden cursor-pointer hover:border-gray-600 transition-colors"
+                  onClick={() => setSelectedPost(post)}
+                >
+                  {post.imageBase64 ? (
+                    <img
+                      src={`data:image/jpeg;base64,${post.imageBase64}`}
+                      alt={post.content.title}
+                      className="w-full aspect-square object-cover"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square bg-gray-800 flex items-center justify-center text-gray-600 text-4xl">
+                      🎵
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div>
+                        <p className="text-xs text-amber-400 font-semibold truncate">
+                          {post.content.artist}
+                        </p>
+                        <p className="text-sm font-medium truncate">
+                          {post.content.title}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${statusColor(post.status)}`}
+                      >
+                        {post.status.replace("_", " ")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      {new Date(post.createdAt).toLocaleDateString()}
+                    </p>
+                    {post.status === "image_ready" && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePost(post.id);
+                        }}
+                        disabled={posting === post.id}
+                        className="mt-2 w-full bg-pink-600 hover:bg-pink-500 disabled:opacity-50 text-white text-xs font-medium py-1.5 rounded transition-colors"
+                      >
+                        {posting === post.id ? "Posting…" : "Post to Instagram"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
+
+      {/* Post detail modal */}
+      {selectedPost && (
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedPost(null)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {selectedPost.imageBase64 && (
+              <img
+                src={`data:image/jpeg;base64,${selectedPost.imageBase64}`}
+                alt={selectedPost.content.title}
+                className="w-full rounded-t-2xl"
+              />
+            )}
+            <div className="p-6">
+              <p className="text-amber-400 text-sm font-bold mb-1">
+                {selectedPost.content.artist}
+              </p>
+              <h3 className="text-xl font-bold mb-3">
+                {selectedPost.content.title}
+              </h3>
+              <p className="text-gray-300 text-sm mb-4">
+                {selectedPost.content.story}
+              </p>
+              <div className="border-t border-gray-800 pt-4">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">
+                  Instagram Caption
+                </p>
+                <p className="text-sm text-gray-300 whitespace-pre-line">
+                  {selectedPost.content.caption}
+                </p>
+                <p className="text-sm text-blue-400 mt-2">
+                  {selectedPost.content.hashtags.map((h) => `#${h}`).join(" ")}
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span
+                  className={`text-xs px-3 py-1 rounded-full ${statusColor(selectedPost.status)}`}
+                >
+                  {selectedPost.status.replace("_", " ")}
+                </span>
+                {selectedPost.status === "image_ready" && (
+                  <button
+                    onClick={() => {
+                      handlePost(selectedPost.id);
+                      setSelectedPost(null);
+                    }}
+                    disabled={posting === selectedPost.id}
+                    className="bg-pink-600 hover:bg-pink-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Post to Instagram
+                  </button>
+                )}
+                {selectedPost.instagramPostId && (
+                  <a
+                    href={`https://www.instagram.com/p/${selectedPost.instagramPostId}/`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-pink-400 text-sm hover:text-pink-300"
+                  >
+                    View on Instagram →
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
