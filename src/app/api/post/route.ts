@@ -29,12 +29,6 @@ export async function POST(request: Request) {
     if (!post) {
       return NextResponse.json({ success: false, error: "Post not found" }, { status: 404 });
     }
-    if (post.status !== "image_ready") {
-      return NextResponse.json(
-        { success: false, error: `Post status is '${post.status}', must be 'image_ready'` },
-        { status: 400 }
-      );
-    }
     if (!post.blobUrl) {
       return NextResponse.json({ success: false, error: "No blob URL on post" }, { status: 400 });
     }
