@@ -315,6 +315,8 @@ export default function Home() {
               />
             )}
             <div className="p-6">
+              {/* DEBUG — remove after fix */}
+              <p className="text-xs text-gray-600 mb-2">blob:{String(!!selectedPost.blobUrl)} story:{String(!!selectedPost.storyBlobUrl)} pending:{String(Object.values(selectedPost.platforms).some(p => p.status === "pending"))}</p>
               <p className="text-amber-400 text-sm font-bold mb-1">{selectedPost.content.artist}</p>
               <h3 className="text-xl font-bold mb-3">{selectedPost.content.title}</h3>
               <p className="text-gray-300 text-sm mb-4">{selectedPost.content.story}</p>
