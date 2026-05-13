@@ -79,30 +79,7 @@ export async function GET(request: Request) {
       log.push(`Instagram failed: ${msg}`);
     }
 
-    // 5. TikTok
-    try {
-      const publishId = await postTikTokPhoto([blobUrl], caption);
-      post.platforms.tiktok = { status: "posted", postId: publishId, postedAt: new Date().toISOString() };
-      log.push(`TikTok posted: ${publishId}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      post.platforms.tiktok = { status: "failed", error: msg };
-      log.push(`TikTok failed: ${msg}`);
-    }
-
-    // 6. YouTube Shorts
-    try {
-      const videoBuffer = await createShortsVideo(composedBuffer);
-      const videoId = await uploadYouTubeShort(videoBuffer, content.title, caption, content.hashtags);
-      post.platforms.youtube = { status: "posted", postId: videoId, postedAt: new Date().toISOString() };
-      log.push(`YouTube Shorts posted: ${videoId}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      post.platforms.youtube = { status: "failed", error: msg };
-      log.push(`YouTube failed: ${msg}`);
-    }
-
-    // 7. Facebook
+    // 5. Facebook
     try {
       const photoId = await postFacebookPhoto(blobUrl, caption);
       post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };

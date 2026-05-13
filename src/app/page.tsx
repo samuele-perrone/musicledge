@@ -22,8 +22,6 @@ export default function Home() {
   const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
     "instagram",
-    "tiktok",
-    "youtube",
     "facebook",
   ]);
 

@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No blob URL on post" }, { status: 400 });
     }
 
-    const targets: Platform[] = platforms ?? ["instagram", "tiktok", "youtube", "facebook"];
+    const targets: Platform[] = platforms ?? ["instagram", "facebook"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
     const caption = `${post.content.caption}\n\n${hashtags}`;
     const errors: string[] = [];
