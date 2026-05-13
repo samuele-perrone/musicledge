@@ -33,10 +33,13 @@ export async function savePost(post: GeneratedPost): Promise<void> {
     else memStore.unshift(post);
     return;
   }
+  // Strip imageBase64 before persisting — it's large (~500KB+) and would exceed
+  // Upstash's free-tier request size limit. The blobUrl is the persistent image reference.
+  const { imageBase64: _, ...postToStore } = post;
   const posts = await loadPosts();
-  const idx = posts.findIndex((p) => p.id === post.id);
-  if (idx >= 0) posts[idx] = post;
-  else posts.unshift(post);
+  const idx = posts.findIndex((p) => p.id === postToStore.id);
+  if (idx >= 0) posts[idx] = postToStore;
+  else posts.unshift(postToStore);
   await redis.set(POSTS_KEY, posts);
 }
 

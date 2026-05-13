@@ -188,20 +188,29 @@ export default function Home() {
               </div>
             </div>
 
+            {generating && (
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4 text-center">
+                <div className="text-2xl mb-2 animate-pulse">⚙️</div>
+                <p className="text-sm text-gray-300 font-medium">
+                  {posting ? "Publishing to social…" : "Generating story & image…"}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">This takes about 60 seconds, please wait</p>
+              </div>
+            )}
             <div className="flex gap-3">
               <button
                 onClick={() => handleGenerate(false)}
                 disabled={generating}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-lg transition-colors"
               >
-                {generating ? "Generating…" : "Preview Only"}
+                {generating ? "Working…" : "Preview Only"}
               </button>
               <button
                 onClick={() => handleGenerate(true)}
                 disabled={generating || selectedPlatforms.length === 0}
                 className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-3 rounded-lg transition-colors"
               >
-                {generating ? "Generating… (~1 min)" : "Generate & Publish"}
+                {generating ? "Working…" : "Generate & Publish"}
               </button>
             </div>
             <p className="text-xs text-gray-600 text-center mt-3">
