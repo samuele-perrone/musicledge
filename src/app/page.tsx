@@ -354,8 +354,8 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Monetisation links */}
-              <div className="flex gap-3 mb-4">
+              {/* Monetisation + Story links */}
+              <div className="flex gap-3 mb-4 flex-wrap">
                 {selectedPost.affiliateUrl && (
                   <a
                     href={selectedPost.affiliateUrl}
@@ -374,6 +374,17 @@ export default function Home() {
                     className="flex-1 text-center bg-orange-600/20 border border-orange-600/40 text-orange-400 text-xs font-medium py-2 rounded-lg hover:bg-orange-600/30 transition-colors"
                   >
                     📧 Review Substack draft
+                  </a>
+                )}
+                {selectedPost.storyBlobUrl && (
+                  <a
+                    href={selectedPost.storyBlobUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-center bg-amber-600/20 border border-amber-600/40 text-amber-400 text-xs font-medium py-2 rounded-lg hover:bg-amber-600/30 transition-colors"
+                  >
+                    📲 Download Story
                   </a>
                 )}
               </div>

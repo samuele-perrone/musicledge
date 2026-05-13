@@ -70,16 +70,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Instagram Story ────────────────────────────────────────────────────
-    if (targets.includes("instagram") && post.storyBlobUrl) {
-      try {
-        await publishInstagramStory(post.storyBlobUrl);
-      } catch (e) {
-        // Non-fatal — story failure doesn't affect post status
-        errors.push(`Instagram Story: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-
     // ── TikTok ─────────────────────────────────────────────────────────────
     if (targets.includes("tiktok")) {
       try {

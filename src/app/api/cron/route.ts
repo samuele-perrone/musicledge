@@ -8,7 +8,7 @@ import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists } from "@/lib/store";
-import { createMediaContainer, publishMediaContainer, checkContainerStatus, publishInstagramStory } from "@/lib/instagram";
+import { createMediaContainer, publishMediaContainer, checkContainerStatus } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
@@ -104,17 +104,7 @@ export async function GET(request: Request) {
       log.push(`Instagram failed: ${msg}`);
     }
 
-    // 6. Instagram Story
-    if (post.storyBlobUrl) {
-      try {
-        const storyId = await publishInstagramStory(post.storyBlobUrl);
-        log.push(`Instagram Story posted: ${storyId}`);
-      } catch (e) {
-        log.push(`Instagram Story failed: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-
-    // 7. Facebook
+    // 6. Facebook
     try {
       const photoId = await postFacebookPhoto(blobUrl, caption);
       post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
