@@ -46,8 +46,7 @@ export async function GET(request: Request) {
     await savePost(post);
 
     // 2. Generate and compose image
-    const dalleUrl = await generateImage(content.imagePrompt);
-    const imageBase64 = await fetchImageAsBase64(dalleUrl);
+    const imageBase64 = await generateImage(content.imagePrompt);
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
     log.push("Image composed");
