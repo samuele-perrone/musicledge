@@ -280,13 +280,13 @@ export default function Home() {
 
                     <p className="text-xs text-gray-500">{new Date(post.createdAt).toLocaleDateString()}</p>
 
-                    {post.status === "image_ready" && (
+                    {post.blobUrl && selectedPlatforms.some(p => post.platforms[p]?.status === "pending") && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); handlePost(post.id, selectedPlatforms); }}
+                        onClick={(e) => { e.stopPropagation(); handlePost(post.id, selectedPlatforms.filter(p => post.platforms[p]?.status === "pending")); }}
                         disabled={posting === post.id}
                         className="mt-2 w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 text-white text-xs font-medium py-1.5 rounded transition-all"
                       >
-                        {posting === post.id ? "Posting…" : `Post to ${selectedPlatforms.length} platform${selectedPlatforms.length !== 1 ? "s" : ""}`}
+                        {posting === post.id ? "Posting…" : `Post to ${selectedPlatforms.filter(p => post.platforms[p]?.status === "pending").length} pending`}
                       </button>
                     )}
                   </div>
@@ -389,30 +389,37 @@ export default function Home() {
                 )}
               </div>
 
-              {selectedPost.status === "image_ready" && (
+              {selectedPost.blobUrl && (Object.values(selectedPost.platforms).some(p => p.status === "pending")) && (
                 <div>
                   <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Post to</p>
                   <div className="flex gap-2 mb-3">
-                    {(Object.keys(PLATFORM_META) as Platform[]).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => togglePlatform(p)}
-                        className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                          selectedPlatforms.includes(p)
-                            ? "bg-gray-700 border-gray-500 text-white"
-                            : "bg-gray-900 border-gray-700 text-gray-500"
-                        }`}
-                      >
-                        {PLATFORM_META[p].icon} {PLATFORM_META[p].label}
-                      </button>
-                    ))}
+                    {(Object.keys(PLATFORM_META) as Platform[]).map((p) => {
+                      const isPending = selectedPost.platforms[p]?.status === "pending";
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => isPending && togglePlatform(p)}
+                          disabled={!isPending}
+                          className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                            !isPending
+                              ? "bg-gray-900 border-gray-800 text-gray-600 cursor-not-allowed"
+                              : selectedPlatforms.includes(p)
+                              ? "bg-gray-700 border-gray-500 text-white"
+                              : "bg-gray-900 border-gray-700 text-gray-500"
+                          }`}
+                        >
+                          {PLATFORM_META[p].icon} {PLATFORM_META[p].label}
+                          {!isPending && <span className="block text-xs opacity-50">done</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                   <button
-                    onClick={() => { handlePost(selectedPost.id, selectedPlatforms); setSelectedPost(null); }}
-                    disabled={posting === selectedPost.id || selectedPlatforms.length === 0}
+                    onClick={() => { handlePost(selectedPost.id, selectedPlatforms.filter(p => selectedPost.platforms[p]?.status === "pending")); setSelectedPost(null); }}
+                    disabled={posting === selectedPost.id || selectedPlatforms.filter(p => selectedPost.platforms[p]?.status === "pending").length === 0}
                     className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 text-white font-medium py-2.5 rounded-lg transition-all"
                   >
-                    {posting === selectedPost.id ? "Posting…" : `Post to ${selectedPlatforms.length} platform${selectedPlatforms.length !== 1 ? "s" : ""}`}
+                    {posting === selectedPost.id ? "Posting…" : `Post to ${selectedPlatforms.filter(p => selectedPost.platforms[p]?.status === "pending").length} platform${selectedPlatforms.filter(p => selectedPost.platforms[p]?.status === "pending").length !== 1 ? "s" : ""}`}
                   </button>
                 </div>
               )}
