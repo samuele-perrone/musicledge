@@ -23,6 +23,7 @@ export async function postFacebookPhoto(
   const body = new URLSearchParams({
     url: imageUrl,
     caption,
+    published: "true",
     access_token: token,
   });
 
