@@ -69,11 +69,12 @@ Return ONLY valid JSON with this exact structure:
 {
   "artist": "${randomArtist}",
   "title": "Short punchy title (max 8 words)",
-  "story": "Image overlay text: 2-3 sentences, max 200 characters, punchy and readable at a glance",
+  "story": "2-3 sentences summarising the story, used internally",
+  "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
   "caption": "Instagram/Facebook caption: 2-3 paragraphs with the full story, context, and a question to spark discussion",
-  "imagePrompt": "DALL-E prompt for a stylized artistic image capturing the mood and era — NO real faces, abstract/symbolic imagery, vintage editorial illustration style",
+  "imagePrompt": "Detailed prompt for an AI image generator: create a stylized vintage editorial illustration that visually represents ${randomArtist} — reference their signature era, album artwork aesthetic, instruments, stage energy, or iconic imagery associated with them. NO real human faces. Symbolic, evocative, high contrast, cinematic, square format.",
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
-  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. 'Pink Floyd Dark Side Moon vinyl'",
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
   "newsletterTitle": "Email subject line: compelling, 6-10 words, no clickbait",
   "newsletterHtml": "Full newsletter article in HTML (no <html>/<body> tags). 400-600 words. Include: an engaging opening hook, the full story with rich detail and context, why it matters to music history, a closing reflection. Use <p>, <h2>, <strong>, <em> tags. End with a <p> inviting readers to reply with their thoughts."
 }`,
@@ -91,7 +92,7 @@ Return ONLY valid JSON with this exact structure:
 
 export function buildAffiliateUrl(searchTerms: string): string {
   const tag = process.env.AMAZON_AFFILIATE_TAG;
-  const encoded = encodeURIComponent(searchTerms);
+  const encoded = searchTerms.trim().replace(/\s+/g, "+");
   const base = `https://www.amazon.com/s?k=${encoded}`;
   return tag ? `${base}&tag=${tag}` : base;
 }

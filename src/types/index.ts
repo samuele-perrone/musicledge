@@ -2,6 +2,7 @@ export interface StoryContent {
   artist: string;
   title: string;
   story: string;
+  imageCaption: string;        // short 1-line teaser for image overlay (max 60 chars)
   caption: string;
   imagePrompt: string;
   hashtags: string[];

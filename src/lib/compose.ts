@@ -1,24 +1,10 @@
 import sharp from "sharp";
+import fs from "fs";
+import path from "path";
 import { StoryContent } from "@/types";
 
 const WIDTH = 1080;
 const HEIGHT = 1080;
-
-function wrapText(text: string, maxCharsPerLine: number): string[] {
-  const words = text.split(" ");
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    if ((current + " " + word).trim().length > maxCharsPerLine) {
-      if (current) lines.push(current.trim());
-      current = word;
-    } else {
-      current = (current + " " + word).trim();
-    }
-  }
-  if (current) lines.push(current.trim());
-  return lines;
-}
 
 function escapeXml(str: string): string {
   return str
@@ -29,64 +15,82 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function loadFont(filename: string): string {
+  const fontPath = path.join(process.cwd(), "public", "fonts", filename);
+  const fontData = fs.readFileSync(fontPath);
+  return fontData.toString("base64");
+}
+
 export async function composeImage(
   imageBase64: string,
   content: StoryContent
 ): Promise<Buffer> {
   const imageBuffer = Buffer.from(imageBase64, "base64");
 
-  // Resize background to square
   const bg = await sharp(imageBuffer)
     .resize(WIDTH, HEIGHT, { fit: "cover" })
     .toBuffer();
 
-  const storyLines = wrapText(content.story, 38);
-  const lineHeight = 52;
-  const storyBlockHeight = storyLines.length * lineHeight;
-  const overlayHeight = storyBlockHeight + 200; // padding + artist name + title
+  const regularB64 = loadFont("Inter-Regular.ttf");
+  const boldB64 = loadFont("Inter-Bold.ttf");
 
   const artistSafe = escapeXml(content.artist.toUpperCase());
   const titleSafe = escapeXml(content.title);
-
-  // Build text SVG lines
-  const textY = HEIGHT - overlayHeight + 60;
-  const storyTextElements = storyLines
-    .map(
-      (line, i) =>
-        `<text x="54" y="${textY + 80 + i * lineHeight}" font-family="Georgia, serif" font-size="36" fill="white" opacity="0.95">${escapeXml(line)}</text>`
-    )
-    .join("\n");
+  const captionSafe = escapeXml(content.imageCaption || "");
 
   const svg = `<svg width="${WIDTH}" height="${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-    <!-- Gradient overlay at bottom -->
     <defs>
-      <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+      <style>
+        @font-face {
+          font-family: 'Inter';
+          font-weight: 400;
+          src: url('data:font/truetype;base64,${regularB64}') format('truetype');
+        }
+        @font-face {
+          font-family: 'Inter';
+          font-weight: 700;
+          src: url('data:font/truetype;base64,${boldB64}') format('truetype');
+        }
+      </style>
+      <!-- Top gradient -->
+      <linearGradient id="topGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="black" stop-opacity="0.72"/>
+        <stop offset="100%" stop-color="black" stop-opacity="0"/>
+      </linearGradient>
+      <!-- Bottom gradient -->
+      <linearGradient id="botGrad" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="black" stop-opacity="0"/>
-        <stop offset="40%" stop-color="black" stop-opacity="0.75"/>
-        <stop offset="100%" stop-color="black" stop-opacity="0.92"/>
+        <stop offset="100%" stop-color="black" stop-opacity="0.85"/>
       </linearGradient>
     </defs>
-    <rect x="0" y="${HEIGHT - overlayHeight - 100}" width="${WIDTH}" height="${overlayHeight + 100}" fill="url(#grad)"/>
 
-    <!-- Artist name -->
-    <text x="54" y="${textY}" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#f59e0b" letter-spacing="4" text-transform="uppercase">${artistSafe}</text>
+    <!-- Top overlay: brand + artist -->
+    <rect x="0" y="0" width="${WIDTH}" height="180" fill="url(#topGrad)"/>
+
+    <!-- Brand label -->
+    <rect x="48" y="44" width="140" height="32" rx="4" fill="#f59e0b"/>
+    <text x="118" y="65" font-family="Inter" font-weight="700" font-size="15" fill="black" text-anchor="middle" letter-spacing="2">MUSICLEDGE</text>
+
+    <!-- Artist name top right -->
+    <text x="${WIDTH - 48}" y="68" font-family="Inter" font-weight="700" font-size="22" fill="white" text-anchor="end" letter-spacing="3" opacity="0.9">${artistSafe}</text>
+
+    <!-- Bottom overlay: title + caption -->
+    <rect x="0" y="${HEIGHT - 220}" width="${WIDTH}" height="220" fill="url(#botGrad)"/>
 
     <!-- Title -->
-    <text x="54" y="${textY + 44}" font-family="Georgia, serif" font-size="42" font-weight="bold" fill="white" font-style="italic">${titleSafe}</text>
+    <text x="48" y="${HEIGHT - 120}" font-family="Inter" font-weight="700" font-size="46" fill="white">${titleSafe}</text>
 
-    <!-- Story text -->
-    ${storyTextElements}
+    <!-- Short caption line -->
+    <text x="48" y="${HEIGHT - 64}" font-family="Inter" font-weight="400" font-size="26" fill="white" opacity="0.85">${captionSafe}</text>
 
-    <!-- Bottom bar -->
-    <rect x="0" y="${HEIGHT - 10}" width="${WIDTH}" height="10" fill="#f59e0b"/>
+    <!-- Amber bottom bar -->
+    <rect x="0" y="${HEIGHT - 8}" width="${WIDTH}" height="8" fill="#f59e0b"/>
   </svg>`;
 
   const svgBuffer = Buffer.from(svg);
 
-  const composed = await sharp(bg)
+  return sharp(bg)
     .composite([{ input: svgBuffer, top: 0, left: 0 }])
     .jpeg({ quality: 92 })
     .toBuffer();
-
-  return composed;
 }
