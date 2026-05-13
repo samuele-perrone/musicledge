@@ -3,7 +3,7 @@
  * Generates a new music story post and publishes to all platforms.
  */
 import { NextResponse } from "next/server";
-import { generateStoryContent } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob } from "@/lib/blob";
@@ -13,6 +13,7 @@ import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
 import { postFacebookPhoto } from "@/lib/facebook";
+import { createSubstackDraft } from "@/lib/substack";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
@@ -33,9 +34,11 @@ export async function GET(request: Request) {
     const content = await generateStoryContent(usedArtists);
     log.push(`Story: "${content.title}" — ${content.artist}`);
 
+    const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
     const post: GeneratedPost = {
       id: crypto.randomUUID(),
       content,
+      affiliateUrl,
       platforms: defaultPlatforms(),
       status: "pending",
       createdAt: new Date().toISOString(),
@@ -57,9 +60,26 @@ export async function GET(request: Request) {
     log.push(`Uploaded to Blob: ${blobUrl}`);
 
     const hashtags = content.hashtags.map((h) => `#${h}`).join(" ");
-    const caption = `${content.caption}\n\n${hashtags}`;
+    const affiliateLine = affiliateUrl ? `\n\n🎵 Find this album: ${affiliateUrl}` : "";
+    const caption = `${content.caption}\n\n${hashtags}${affiliateLine}`;
 
-    // 4. Instagram
+    // 4. Substack draft
+    try {
+      const { id, url } = await createSubstackDraft(
+        content.newsletterTitle,
+        content.title,
+        content.newsletterHtml,
+        affiliateUrl
+      );
+      post.substackDraftId = id;
+      post.substackDraftUrl = url;
+      await savePost(post);
+      log.push(`Substack draft created: ${url}`);
+    } catch (e) {
+      log.push(`Substack draft failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // 5. Instagram
     try {
       const containerId = await createMediaContainer(blobUrl, caption);
       let status = "IN_PROGRESS";
@@ -79,7 +99,7 @@ export async function GET(request: Request) {
       log.push(`Instagram failed: ${msg}`);
     }
 
-    // 5. Facebook
+    // 6. Facebook
     try {
       const photoId = await postFacebookPhoto(blobUrl, caption);
       post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };

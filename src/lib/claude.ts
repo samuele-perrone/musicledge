@@ -57,22 +57,25 @@ export async function generateStoryContent(
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-6",
-    max_tokens: 1024,
+    max_tokens: 2048,
     messages: [
       {
         role: "user",
-        content: `You are creating content for an Instagram account similar to @explainingpaintings but for rock and pop music.
+        content: `You are creating content for a music history brand across Instagram, Facebook, and a Substack newsletter — similar to @explainingpaintings but for rock and pop music.
 
-Generate a fascinating, lesser-known story about ${randomArtist} — it can be about a specific song, album, recording session, or a pivotal moment in their career.
+Generate a fascinating, lesser-known story about ${randomArtist} — a specific song, album, recording session, or pivotal career moment.
 
 Return ONLY valid JSON with this exact structure:
 {
   "artist": "${randomArtist}",
   "title": "Short punchy title (max 8 words)",
-  "story": "The main story text to display on the image (2-3 sentences, max 200 characters — must be concise enough to read at a glance on a phone screen)",
-  "caption": "Engaging Instagram caption (2-3 paragraphs) with the full story, some context, and a question to spark discussion",
-  "imagePrompt": "A detailed DALL-E prompt for a stylized, artistic image that captures the mood and era of this story — NO real faces, use abstract or symbolic imagery, vintage aesthetic, editorial illustration style",
-  "hashtags": ["list", "of", "10", "relevant", "hashtags", "without", "the", "hash", "symbol"]
+  "story": "Image overlay text: 2-3 sentences, max 200 characters, punchy and readable at a glance",
+  "caption": "Instagram/Facebook caption: 2-3 paragraphs with the full story, context, and a question to spark discussion",
+  "imagePrompt": "DALL-E prompt for a stylized artistic image capturing the mood and era — NO real faces, abstract/symbolic imagery, vintage editorial illustration style",
+  "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. 'Pink Floyd Dark Side Moon vinyl'",
+  "newsletterTitle": "Email subject line: compelling, 6-10 words, no clickbait",
+  "newsletterHtml": "Full newsletter article in HTML (no <html>/<body> tags). 400-600 words. Include: an engaging opening hook, the full story with rich detail and context, why it matters to music history, a closing reflection. Use <p>, <h2>, <strong>, <em> tags. End with a <p> inviting readers to reply with their thoughts."
 }`,
       },
     ],
@@ -84,4 +87,11 @@ Return ONLY valid JSON with this exact structure:
   if (!jsonMatch) throw new Error("Failed to parse Claude response as JSON");
 
   return JSON.parse(jsonMatch[0]) as StoryContent;
+}
+
+export function buildAffiliateUrl(searchTerms: string): string {
+  const tag = process.env.AMAZON_AFFILIATE_TAG;
+  const encoded = encodeURIComponent(searchTerms);
+  const base = `https://www.amazon.com/s?k=${encoded}`;
+  return tag ? `${base}&tag=${tag}` : base;
 }

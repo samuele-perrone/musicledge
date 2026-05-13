@@ -5,6 +5,9 @@ export interface StoryContent {
   caption: string;
   imagePrompt: string;
   hashtags: string[];
+  amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
+  newsletterTitle: string;     // email subject line
+  newsletterHtml: string;      // full story in HTML for Substack
 }
 
 export type Platform = "instagram" | "tiktok" | "youtube" | "facebook";
@@ -19,8 +22,11 @@ export interface PlatformResult {
 export interface GeneratedPost {
   id: string;
   content: StoryContent;
-  blobUrl?: string;         // permanent public image URL (Vercel Blob)
-  imageBase64?: string;     // local preview (not stored in blob)
+  blobUrl?: string;
+  imageBase64?: string;
+  affiliateUrl?: string;       // constructed Amazon affiliate link
+  substackDraftId?: number;
+  substackDraftUrl?: string;
   platforms: Record<Platform, PlatformResult>;
   status: "pending" | "image_ready" | "posted" | "failed";
   error?: string;

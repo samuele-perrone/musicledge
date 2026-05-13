@@ -323,6 +323,30 @@ export default function Home() {
                 </p>
               </div>
 
+              {/* Monetisation links */}
+              <div className="flex gap-3 mb-4">
+                {selectedPost.affiliateUrl && (
+                  <a
+                    href={selectedPost.affiliateUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-center bg-yellow-600/20 border border-yellow-600/40 text-yellow-400 text-xs font-medium py-2 rounded-lg hover:bg-yellow-600/30 transition-colors"
+                  >
+                    🛒 Amazon affiliate link
+                  </a>
+                )}
+                {selectedPost.substackDraftUrl && (
+                  <a
+                    href={selectedPost.substackDraftUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-center bg-orange-600/20 border border-orange-600/40 text-orange-400 text-xs font-medium py-2 rounded-lg hover:bg-orange-600/30 transition-colors"
+                  >
+                    📧 Review Substack draft
+                  </a>
+                )}
+              </div>
+
               {selectedPost.status === "image_ready" && (
                 <div>
                   <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Post to</p>

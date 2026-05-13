@@ -40,7 +40,8 @@ export async function POST(request: Request) {
 
     const targets: Platform[] = platforms ?? ["instagram", "facebook"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
-    const caption = `${post.content.caption}\n\n${hashtags}`;
+    const affiliateLine = post.affiliateUrl ? `\n\n🎵 Find this album: ${post.affiliateUrl}` : "";
+    const caption = `${post.content.caption}\n\n${hashtags}${affiliateLine}`;
     const errors: string[] = [];
 
     // ── Instagram ──────────────────────────────────────────────────────────
