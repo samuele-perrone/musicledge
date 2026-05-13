@@ -1,38 +1,43 @@
 /**
- * Simple file-based store for post history.
- * In production, replace with a database (Neon Postgres, Upstash Redis, etc.)
+ * Post store backed by Upstash Redis.
+ * Falls back to in-memory for local dev if env vars are missing.
  */
-import fs from "fs/promises";
-import path from "path";
 import { GeneratedPost } from "@/types";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const POSTS_FILE = path.join(DATA_DIR, "posts.json");
+const POSTS_KEY = "musicledge:posts";
 
-async function ensureDir() {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+function getRedis() {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { Redis } = require("@upstash/redis");
+  return new Redis({ url, token });
 }
 
+// In-memory fallback for local dev without Redis
+const memStore: GeneratedPost[] = [];
+
 export async function loadPosts(): Promise<GeneratedPost[]> {
-  await ensureDir();
-  try {
-    const raw = await fs.readFile(POSTS_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
+  const redis = getRedis();
+  if (!redis) return [...memStore];
+  const posts = (await redis.get(POSTS_KEY)) as GeneratedPost[] | null;
+  return posts ?? [];
 }
 
 export async function savePost(post: GeneratedPost): Promise<void> {
-  await ensureDir();
+  const redis = getRedis();
+  if (!redis) {
+    const idx = memStore.findIndex((p) => p.id === post.id);
+    if (idx >= 0) memStore[idx] = post;
+    else memStore.unshift(post);
+    return;
+  }
   const posts = await loadPosts();
   const idx = posts.findIndex((p) => p.id === post.id);
-  if (idx >= 0) {
-    posts[idx] = post;
-  } else {
-    posts.unshift(post);
-  }
-  await fs.writeFile(POSTS_FILE, JSON.stringify(posts, null, 2));
+  if (idx >= 0) posts[idx] = post;
+  else posts.unshift(post);
+  await redis.set(POSTS_KEY, posts);
 }
 
 export async function getPost(id: string): Promise<GeneratedPost | null> {

@@ -44,3 +44,4 @@ next-env.d.ts
 
 # data (post history — use a DB in production)
 /data/
+.env*.local
