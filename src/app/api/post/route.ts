@@ -5,6 +5,7 @@ import {
   createMediaContainer,
   publishMediaContainer,
   checkContainerStatus,
+  publishInstagramStory,
 } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
@@ -66,6 +67,16 @@ export async function POST(request: Request) {
         const msg = e instanceof Error ? e.message : String(e);
         post.platforms.instagram = { status: "failed", error: msg };
         errors.push(`Instagram: ${msg}`);
+      }
+    }
+
+    // ── Instagram Story ────────────────────────────────────────────────────
+    if (targets.includes("instagram") && post.storyBlobUrl) {
+      try {
+        await publishInstagramStory(post.storyBlobUrl);
+      } catch (e) {
+        // Non-fatal — story failure doesn't affect post status
+        errors.push(`Instagram Story: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 

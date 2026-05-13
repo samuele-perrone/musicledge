@@ -24,6 +24,7 @@ export interface GeneratedPost {
   id: string;
   content: StoryContent;
   blobUrl?: string;
+  storyBlobUrl?: string;       // 1080×1920 Instagram Story image
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
   substackDraftId?: number;

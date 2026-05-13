@@ -64,3 +64,32 @@ export async function checkContainerStatus(
   });
   return data.status_code as string;
 }
+
+/**
+ * Publishes an image as an Instagram Story.
+ * Uses media_type=STORIES — requires instagram_content_publish permission.
+ */
+export async function publishInstagramStory(imageUrl: string): Promise<string> {
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
+
+  const container = await igFetch(`/${accountId}/media`, "POST", {
+    image_url: imageUrl,
+    media_type: "STORIES",
+  });
+  const containerId = container.id as string;
+
+  // Wait for container to be ready
+  let status = "IN_PROGRESS";
+  let attempts = 0;
+  while (status === "IN_PROGRESS" && attempts < 15) {
+    await new Promise((r) => setTimeout(r, 3000));
+    status = await checkContainerStatus(containerId);
+    attempts++;
+  }
+  if (status !== "FINISHED") throw new Error(`Story container not ready: ${status}`);
+
+  const published = await igFetch(`/${accountId}/media_publish`, "POST", {
+    creation_id: containerId,
+  });
+  return published.id as string;
+}

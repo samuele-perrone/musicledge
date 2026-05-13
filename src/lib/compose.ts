@@ -5,6 +5,9 @@ import fs from "fs";
 import path from "path";
 import { StoryContent } from "@/types";
 
+const STORY_W = 1080;
+const STORY_H = 1920;
+
 const WIDTH = 1080;
 const HEIGHT = 1080;
 
@@ -146,6 +149,117 @@ export async function composeImage(
 
   return sharp(bg)
     .composite([{ input: overlayBuffer, top: 0, left: 0 }])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
+
+/**
+ * Composes a 1080×1920 Instagram Story image.
+ * Layout: amber gradient bg → top branding → square post image → bottom text.
+ */
+export async function composeStory(
+  composedImageBuffer: Buffer,
+  content: StoryContent
+): Promise<Buffer> {
+  const regularFont = loadFontBuffer("Inter-Regular.ttf");
+  const boldFont    = loadFontBuffer("Inter-Bold.ttf");
+  const fonts = [
+    { name: "Inter", data: regularFont, weight: 400 as const, style: "normal" as const },
+    { name: "Inter", data: boldFont,    weight: 700 as const, style: "normal" as const },
+  ];
+
+  const artist  = content.artist.toUpperCase();
+  const title   = content.title;
+  const caption = content.imageCaption || "";
+
+  // Resize the square post image to fill story width with side padding
+  const postImageSize = 1000;
+  const postImageResized = await sharp(composedImageBuffer)
+    .resize(postImageSize, postImageSize, { fit: "cover" })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  const postImageB64 = `data:image/jpeg;base64,${postImageResized.toString("base64")}`;
+
+  // Build full story layout in Satori (supports img data URIs)
+  const svg = await satori(
+    h("div", {
+      style: {
+        width: STORY_W, height: STORY_H,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "space-between",
+        fontFamily: "Inter",
+        background: "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)",
+        padding: "60px 0 70px 0",
+      },
+    },
+      // ── Top branding ──────────────────────────────────────────────
+      h("div", {
+        style: {
+          display: "flex", flexDirection: "column",
+          alignItems: "center", gap: 16,
+        },
+      },
+        // Vinyl icon
+        h("div", {
+          style: {
+            width: 100, height: 100, borderRadius: 50,
+            border: "5px solid white",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          },
+        },
+          h("div", { style: { width: 28, height: 28, borderRadius: 14, border: "5px solid white" } })
+        ),
+        h("div", {
+          style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 5 },
+        }, "MUSICLEDGE"),
+        h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
+      ),
+
+      // ── Post image ────────────────────────────────────────────────
+      h("img", {
+        src: postImageB64,
+        style: {
+          width: postImageSize, height: postImageSize,
+          borderRadius: 16,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+        },
+      }),
+
+      // ── Bottom text ───────────────────────────────────────────────
+      h("div", {
+        style: {
+          display: "flex", flexDirection: "column",
+          alignItems: "center", gap: 12, paddingTop: 8,
+        },
+      },
+        h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
+        h("div", {
+          style: {
+            fontSize: 22, fontWeight: 700, color: "white",
+            letterSpacing: 4, textTransform: "uppercase",
+          },
+        }, artist),
+        h("div", {
+          style: {
+            fontSize: 34, fontWeight: 700, color: "white",
+            textAlign: "center", lineHeight: 1.2,
+            paddingLeft: 60, paddingRight: 60,
+          },
+        }, title),
+        h("div", {
+          style: {
+            fontSize: 22, fontWeight: 400,
+            color: "rgba(255,255,255,0.85)",
+            textAlign: "center",
+            paddingLeft: 60, paddingRight: 60,
+          },
+        }, caption),
+      ),
+    ),
+    { width: STORY_W, height: STORY_H, fonts }
+  );
+
+  return sharp(Buffer.from(svg))
     .jpeg({ quality: 92 })
     .toBuffer();
 }

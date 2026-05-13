@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
-import { composeImage } from "@/lib/compose";
+import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob } from "@/lib/blob";
 import { createSubstackDraft } from "@/lib/substack";
 import { savePost, getRecentArtists } from "@/lib/store";
@@ -37,9 +37,15 @@ export async function POST(request: Request) {
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
 
-    // Upload to Vercel Blob
+    // Upload post image to Vercel Blob
     const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
     post.blobUrl = blobUrl;
+
+    // Compose and upload Story image
+    const storyBuffer = await composeStory(composedBuffer, content);
+    const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
+    post.storyBlobUrl = storyBlobUrl;
+
     post.status = "image_ready";
     await savePost(post);
 
