@@ -40,7 +40,7 @@ export default function Home() {
     fetchPosts();
   }, [fetchPosts]);
 
-  async function handleGenerate() {
+  async function handleGenerate(publish: boolean) {
     setGenerating(true);
     setError(null);
     try {
@@ -51,12 +51,25 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
+
+      if (publish && data.post?.id && selectedPlatforms.length > 0) {
+        setPosting(data.post.id);
+        const postRes = await fetch("/api/post", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: data.post.id, platforms: selectedPlatforms }),
+        });
+        const postData = await postRes.json();
+        if (postData.errors?.length) setError(postData.errors.join(" | "));
+      }
+
       await fetchPosts();
       setTab("dashboard");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setGenerating(false);
+      setPosting(null);
     }
   }
 
@@ -114,9 +127,9 @@ export default function Home() {
     <div className="min-h-screen bg-gray-950 text-gray-100 font-sans">
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-amber-400">MusicShare</h1>
+          <h1 className="text-xl font-bold tracking-tight text-amber-400">MusicLedge</h1>
           <p className="text-xs text-gray-500">
-            Rock &amp; Pop Stories • Instagram · TikTok · YouTube Shorts
+            Rock &amp; Pop Stories • Instagram · Facebook
           </p>
         </div>
         <nav className="flex gap-2">
@@ -151,7 +164,7 @@ export default function Home() {
               <div className="text-5xl mb-4">🎸</div>
               <h2 className="text-2xl font-bold mb-2">Generate a New Post</h2>
               <p className="text-gray-400 text-sm">
-                Claude picks a story → DALL-E creates the image → posts to all selected platforms.
+                Claude picks a story → AI creates the image → optionally publishes to social.
               </p>
             </div>
 
@@ -175,15 +188,24 @@ export default function Home() {
               </div>
             </div>
 
-            <button
-              onClick={handleGenerate}
-              disabled={generating}
-              className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-8 py-3 rounded-lg text-lg transition-colors"
-            >
-              {generating ? "Generating… (takes ~1 min)" : "Generate Post"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleGenerate(false)}
+                disabled={generating}
+                className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-lg transition-colors"
+              >
+                {generating ? "Generating…" : "Preview Only"}
+              </button>
+              <button
+                onClick={() => handleGenerate(true)}
+                disabled={generating || selectedPlatforms.length === 0}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold px-6 py-3 rounded-lg transition-colors"
+              >
+                {generating ? "Generating… (~1 min)" : "Generate & Publish"}
+              </button>
+            </div>
             <p className="text-xs text-gray-600 text-center mt-3">
-              Platform selection applies when you click "Post" on a generated image.
+              Preview Only saves the post for manual review. Generate &amp; Publish posts immediately to selected platforms.
             </p>
           </div>
         )}
