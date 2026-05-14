@@ -184,7 +184,7 @@ export default function Home() {
                         : "bg-gray-900 border-gray-700 text-gray-500"
                     }`}
                   >
-                    {PLATFORM_META[p].icon} {PLATFORM_META[p].label}
+                    {PLATFORM_META[p]?.icon} {PLATFORM_META[p]?.label}
                   </button>
                 ))}
               </div>
@@ -425,7 +425,7 @@ export default function Home() {
                               : "bg-gray-900 border-gray-700 text-gray-500"
                           }`}
                         >
-                          {PLATFORM_META[p].icon} {PLATFORM_META[p].label}
+                          {PLATFORM_META[p]?.icon} {PLATFORM_META[p]?.label}
                           {!isPending && <span className="block text-xs opacity-50">done</span>}
                         </button>
                       );
