@@ -117,7 +117,7 @@ export async function composeImage(
           "div",
           {
             style: {
-              fontSize: 32,
+              fontSize: 38,
               fontWeight: 400,
               color: "rgba(255,255,255,0.85)",
               paddingBottom: 24,
