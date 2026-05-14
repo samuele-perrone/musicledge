@@ -136,16 +136,9 @@ export async function GET(request: Request) {
       }
     }
 
-    // 7. Facebook
-    try {
-      const photoId = await postFacebookPhoto(blobUrl, caption);
-      post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
-      log.push(`Facebook posted: ${photoId}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      post.platforms.facebook = { status: "failed", error: msg };
-      log.push(`Facebook failed: ${msg}`);
-    }
+    // Facebook is handled via Instagram cross-posting (no direct API call needed)
+    post.platforms.facebook = { status: "skipped" };
+    log.push("Facebook: handled via Instagram cross-posting");
 
     const anyPosted = Object.values(post.platforms).some((p) => p.status === "posted");
     post.status = anyPosted ? "posted" : "failed";

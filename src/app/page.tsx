@@ -24,7 +24,6 @@ export default function Home() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
     "instagram",
     "reel",
-    "facebook",
   ]);
 
   const fetchPosts = useCallback(async () => {
