@@ -5,12 +5,11 @@ import { GeneratedPost, Platform } from "@/types";
 
 type Tab = "dashboard" | "generate";
 
-const PLATFORM_META: Record<Platform, { label: string; icon: string; color: string }> = {
+const PLATFORM_META: Partial<Record<Platform, { label: string; icon: string; color: string }>> = {
   instagram: { label: "Instagram", icon: "📸", color: "text-pink-400" },
   reel: { label: "Reel", icon: "🎬", color: "text-purple-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
-  facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
 };
 
 export default function Home() {
@@ -105,13 +104,15 @@ export default function Home() {
   }
 
   const platformBadge = (post: GeneratedPost, p: Platform) => {
+    const meta = PLATFORM_META[p];
+    if (!meta) return null;
     const result = post.platforms?.[p];
     if (!result || result.status === "pending")
-      return <span key={p} className="text-gray-600 text-xs">{PLATFORM_META[p].icon}</span>;
+      return <span key={p} className="text-gray-600 text-xs">{meta.icon}</span>;
     if (result.status === "posted")
-      return <span key={p} className={`text-xs ${PLATFORM_META[p].color}`}>{PLATFORM_META[p].icon}✓</span>;
+      return <span key={p} className={`text-xs ${meta.color}`}>{meta.icon}✓</span>;
     if (result.status === "failed")
-      return <span key={p} className="text-xs text-red-500">{PLATFORM_META[p].icon}✗</span>;
+      return <span key={p} className="text-xs text-red-500">{meta.icon}✗</span>;
     return null;
   };
 
@@ -325,6 +326,7 @@ export default function Home() {
                 {(Object.keys(PLATFORM_META) as Platform[]).map((p) => {
                   const result = selectedPost.platforms?.[p];
                   const meta = PLATFORM_META[p];
+                  if (!meta) return null;
                   return (
                     <div key={p} className="bg-gray-800 rounded-lg p-3 text-center">
                       <div className="text-lg mb-1">{meta.icon}</div>
