@@ -19,6 +19,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [posting, setPosting] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
@@ -72,6 +73,21 @@ export default function Home() {
     } finally {
       setGenerating(false);
       setPosting(null);
+    }
+  }
+
+  async function handleDelete(postId: string) {
+    setDeleting(postId);
+    try {
+      await fetch("/api/history", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: postId }),
+      });
+      await fetchPosts();
+      if (selectedPost?.id === postId) setSelectedPost(null);
+    } finally {
+      setDeleting(null);
     }
   }
 
@@ -293,6 +309,15 @@ export default function Home() {
                         {posting === post.id ? "Posting…" : `Post to ${selectedPlatforms.filter(p => post.platforms[p]?.status === "pending").length} pending`}
                       </button>
                     )}
+                    {post.status === "pending" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(post.id); }}
+                        disabled={deleting === post.id}
+                        className="mt-1 w-full bg-gray-800 hover:bg-red-900/40 disabled:opacity-50 text-gray-500 hover:text-red-400 text-xs py-1 rounded transition-all"
+                      >
+                        {deleting === post.id ? "Removing…" : "Remove"}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -311,6 +336,17 @@ export default function Home() {
             className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
+            {selectedPost.status === "pending" && (
+              <div className="p-4 border-b border-gray-800 flex justify-end">
+                <button
+                  onClick={() => handleDelete(selectedPost.id)}
+                  disabled={deleting === selectedPost.id}
+                  className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                >
+                  {deleting === selectedPost.id ? "Removing…" : "🗑 Remove this post"}
+                </button>
+              </div>
+            )}
             {(selectedPost.imageBase64 || selectedPost.blobUrl) && (
               <img
                 src={selectedPost.imageBase64 ? `data:image/jpeg;base64,${selectedPost.imageBase64}` : selectedPost.blobUrl}

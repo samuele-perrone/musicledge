@@ -49,6 +49,18 @@ export async function getPost(id: string): Promise<GeneratedPost | null> {
   return posts.find((p) => p.id === id) ?? null;
 }
 
+export async function deletePost(id: string): Promise<void> {
+  const redis = getRedis();
+  if (!redis) {
+    const idx = memStore.findIndex((p) => p.id === id);
+    if (idx >= 0) memStore.splice(idx, 1);
+    return;
+  }
+  const posts = await loadPosts();
+  const filtered = posts.filter((p) => p.id !== id);
+  await redis.set(POSTS_KEY, filtered);
+}
+
 export async function getRecentArtists(limit = 20): Promise<string[]> {
   const posts = await loadPosts();
   return posts.slice(0, limit).map((p) => p.content.artist);
