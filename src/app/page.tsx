@@ -298,7 +298,13 @@ export default function Home() {
                       {(Object.keys(PLATFORM_META) as Platform[]).map((p) => platformBadge(post, p))}
                     </div>
 
-                    <p className="text-xs text-gray-500">{new Date(post.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(post.createdAt).toLocaleDateString()}
+                      {(() => {
+                        const postedAt = Object.values(post.platforms).find(p => p.postedAt)?.postedAt;
+                        return postedAt ? ` · ${new Date(postedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "";
+                      })()}
+                    </p>
 
                     {post.blobUrl && selectedPlatforms.some(p => post.platforms[p]?.status === "pending") && (
                       <button
