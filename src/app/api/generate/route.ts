@@ -9,7 +9,7 @@ import { savePost, getRecentArtists } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
