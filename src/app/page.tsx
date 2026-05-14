@@ -8,6 +8,7 @@ type Tab = "dashboard" | "generate";
 const PLATFORM_META: Partial<Record<Platform, { label: string; icon: string; color: string }>> = {
   instagram: { label: "Instagram", icon: "📸", color: "text-pink-400" },
   reel: { label: "Reel", icon: "🎬", color: "text-purple-400" },
+  facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
 };
@@ -23,6 +24,7 @@ export default function Home() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
     "instagram",
     "reel",
+    "facebook",
   ]);
 
   const fetchPosts = useCallback(async () => {
