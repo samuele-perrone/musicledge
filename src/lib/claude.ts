@@ -72,7 +72,7 @@ Return ONLY valid JSON with this exact structure:
   "story": "2-3 sentences summarising the story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
   "caption": "Instagram/Facebook caption: 2-3 paragraphs with the full story, context, and a question to spark discussion",
-  "imagePrompt": "Detailed prompt for an AI image generator: create a stylized vintage editorial illustration that visually represents ${randomArtist} — reference their signature era, album artwork aesthetic, instruments, stage energy, or iconic imagery associated with them. NO real human faces. Symbolic, evocative, high contrast, cinematic, square format.",
+  "imagePrompt": "Detailed prompt for an AI image generator: create a stylized vintage editorial illustration evoking the era and mood of this music story — reference the signature album artwork aesthetic, instruments, recording studio atmosphere, stage lighting, or iconic visual symbols associated with this artist's era. Do NOT mention any real person's name. Do NOT depict any human face or figure. Focus on objects, environments, light, color, and mood. Symbolic, evocative, high contrast, cinematic, square format.",
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
   "newsletterTitle": "Email subject line: compelling, 6-10 words, no clickbait",

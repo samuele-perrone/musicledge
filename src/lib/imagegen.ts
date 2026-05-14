@@ -7,7 +7,7 @@ function getClient() {
 export async function generateImage(prompt: string): Promise<string> {
   const response = await getClient().images.generate({
     model: "gpt-image-1",
-    prompt: `${prompt}. Style: vintage editorial illustration, high contrast, no text in image, cinematic mood, square format.`,
+    prompt: `${prompt}. Style: vintage editorial illustration, high contrast, no text in image, cinematic mood, square format. No real people, no human faces, no human figures — only objects, instruments, environments, and abstract symbols.`,
     n: 1,
     size: "1024x1024",
     quality: "high",
