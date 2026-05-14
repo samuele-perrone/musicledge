@@ -23,6 +23,7 @@ export async function composeImage(
 
   const bg = await sharp(imageBuffer)
     .resize(WIDTH, HEIGHT, { fit: "cover" })
+    .modulate({ brightness: 1.25 })
     .toBuffer();
 
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
@@ -78,7 +79,7 @@ export async function composeImage(
           "div",
           {
             style: {
-              fontSize: 22,
+              fontSize: 28,
               fontWeight: 700,
               color: "white",
               letterSpacing: 3,
@@ -105,7 +106,7 @@ export async function composeImage(
           "div",
           {
             style: {
-              fontSize: 46,
+              fontSize: 58,
               fontWeight: 700,
               color: "white",
               lineHeight: 1.15,
@@ -117,7 +118,7 @@ export async function composeImage(
           "div",
           {
             style: {
-              fontSize: 26,
+              fontSize: 32,
               fontWeight: 400,
               color: "rgba(255,255,255,0.85)",
               paddingBottom: 24,
