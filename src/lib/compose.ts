@@ -23,7 +23,6 @@ export async function composeImage(
 
   const bg = await sharp(imageBuffer)
     .resize(WIDTH, HEIGHT, { fit: "cover" })
-    .modulate({ brightness: 1.25 })
     .toBuffer();
 
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
