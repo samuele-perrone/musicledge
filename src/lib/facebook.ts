@@ -1,12 +1,10 @@
 /**
- * Facebook Graph API — Page photo post
+ * Facebook Graph API — Page post with photo
  *
- * Setup:
- * 1. You likely already have a Facebook Page linked for Instagram
- * 2. Get your Page Access Token (long-lived):
- *    GET https://graph.facebook.com/v21.0/me/accounts?access_token={USER_TOKEN}
- *    → copy access_token for your page
- * 3. Get your Page ID from the same response (or Page → About → Page ID)
+ * Two-step approach:
+ *   1. Upload photo (unpublished) to get a media ID
+ *   2. Create a feed post with the photo attached — this shows in the public Posts feed
+ *
  * Env vars: FACEBOOK_PAGE_ID, FACEBOOK_PAGE_ACCESS_TOKEN
  */
 
@@ -20,19 +18,34 @@ export async function postFacebookPhoto(
   const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
   if (!pageId || !token) throw new Error("FACEBOOK_PAGE_ID or FACEBOOK_PAGE_ACCESS_TOKEN not set");
 
-  const body = new URLSearchParams({
+  // Step 1: upload photo as unpublished to get a media fbid
+  const uploadBody = new URLSearchParams({
     url: imageUrl,
-    caption,
-    published: "true",
+    published: "false",
     access_token: token,
   });
 
-  const res = await fetch(`${BASE}/${pageId}/photos`, {
+  const uploadRes = await fetch(`${BASE}/${pageId}/photos`, {
     method: "POST",
-    body,
+    body: uploadBody,
+  });
+  const uploadData = await uploadRes.json();
+  if (uploadData.error) throw new Error(`Facebook upload: ${uploadData.error.message}`);
+  const photoId = uploadData.id as string;
+
+  // Step 2: create a feed post with the photo attached — appears in public Posts feed
+  const feedBody = new URLSearchParams({
+    message: caption,
+    attached_media: JSON.stringify([{ media_fbid: photoId }]),
+    access_token: token,
   });
 
-  const data = await res.json();
-  if (data.error) throw new Error(`Facebook API: ${data.error.message}`);
-  return data.id as string; // photo post ID
+  const feedRes = await fetch(`${BASE}/${pageId}/feed`, {
+    method: "POST",
+    body: feedBody,
+  });
+  const feedData = await feedRes.json();
+  if (feedData.error) throw new Error(`Facebook feed: ${feedData.error.message}`);
+
+  return feedData.id as string; // post ID
 }
