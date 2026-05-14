@@ -65,8 +65,8 @@ export async function composeImage(
             style: {
               background: "#f59e0b",
               borderRadius: 4,
-              padding: "6px 14px",
-              fontSize: 15,
+              padding: "8px 18px",
+              fontSize: 22,
               fontWeight: 700,
               color: "black",
               letterSpacing: 2,
