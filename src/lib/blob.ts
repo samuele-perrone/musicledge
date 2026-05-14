@@ -14,3 +14,18 @@ export async function uploadImageToBlob(
   });
   return url;
 }
+
+/**
+ * Upload a video buffer to Vercel Blob for a permanent public URL.
+ * Instagram Reels require a publicly accessible MP4 URL.
+ */
+export async function uploadVideoToBlob(
+  videoBuffer: Buffer,
+  filename: string
+): Promise<string> {
+  const { url } = await put(filename, videoBuffer, {
+    access: "public",
+    contentType: "video/mp4",
+  });
+  return url;
+}

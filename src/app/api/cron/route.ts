@@ -6,11 +6,11 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
-import { uploadImageToBlob } from "@/lib/blob";
+import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists } from "@/lib/store";
-import { createMediaContainer, publishMediaContainer, checkContainerStatus } from "@/lib/instagram";
+import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
-import { createShortsVideo } from "@/lib/video";
+import { createShortsVideo, createReelVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
 import { postFacebookPhoto } from "@/lib/facebook";
 import { createSubstackDraft } from "@/lib/substack";
@@ -60,6 +60,16 @@ export async function GET(request: Request) {
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
+    // Reel video
+    try {
+      const reelBuffer = await createReelVideo(composedBuffer);
+      const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
+      post.reelBlobUrl = reelBlobUrl;
+      log.push("Reel video generated");
+    } catch (e) {
+      log.push(`Reel video generation failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
     post.status = "image_ready";
     await savePost(post);
     log.push(`Uploaded to Blob: ${blobUrl}`);
@@ -104,7 +114,29 @@ export async function GET(request: Request) {
       log.push(`Instagram failed: ${msg}`);
     }
 
-    // 6. Facebook
+    // 6. Instagram Reel
+    if (post.reelBlobUrl) {
+      try {
+        const reelContainerId = await createReelContainer(post.reelBlobUrl, caption);
+        let reelStatus = "IN_PROGRESS";
+        let reelAttempts = 0;
+        while (reelStatus === "IN_PROGRESS" && reelAttempts < 20) {
+          await new Promise((r) => setTimeout(r, 5000));
+          reelStatus = await checkContainerStatus(reelContainerId);
+          reelAttempts++;
+        }
+        if (reelStatus !== "FINISHED") throw new Error(`Reel container: ${reelStatus}`);
+        const reelMediaId = await publishMediaContainer(reelContainerId);
+        post.platforms.reel = { status: "posted", postId: reelMediaId, postedAt: new Date().toISOString() };
+        log.push(`Reel posted: ${reelMediaId}`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        post.platforms.reel = { status: "failed", error: msg };
+        log.push(`Reel failed: ${msg}`);
+      }
+    }
+
+    // 7. Facebook
     try {
       const photoId = await postFacebookPhoto(blobUrl, caption);
       post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };

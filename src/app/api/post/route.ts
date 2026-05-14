@@ -5,6 +5,7 @@ import {
   createMediaContainer,
   publishMediaContainer,
   checkContainerStatus,
+  createReelContainer,
   publishInstagramStory,
 } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
@@ -101,6 +102,32 @@ export async function POST(request: Request) {
         const msg = e instanceof Error ? e.message : String(e);
         post.platforms.youtube = { status: "failed", error: msg };
         errors.push(`YouTube: ${msg}`);
+      }
+    }
+
+    // ── Instagram Reel ─────────────────────────────────────────────────────
+    if (targets.includes("reel")) {
+      try {
+        if (!post.reelBlobUrl) throw new Error("No reel video URL on post — regenerate to create it");
+        const containerId = await createReelContainer(post.reelBlobUrl, caption);
+        let status = "IN_PROGRESS";
+        let attempts = 0;
+        while (status === "IN_PROGRESS" && attempts < 20) {
+          await new Promise((r) => setTimeout(r, 5000));
+          status = await checkContainerStatus(containerId);
+          attempts++;
+        }
+        if (status !== "FINISHED") throw new Error(`Reel container not ready: ${status}`);
+        const mediaId = await publishMediaContainer(containerId);
+        post.platforms.reel = {
+          status: "posted",
+          postId: mediaId,
+          postedAt: new Date().toISOString(),
+        };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        post.platforms.reel = { status: "failed", error: msg };
+        errors.push(`Reel: ${msg}`);
       }
     }
 

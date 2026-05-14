@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
-import { uploadImageToBlob } from "@/lib/blob";
+import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
+import { createShortsVideo, createReelVideo } from "@/lib/video";
 import { createSubstackDraft } from "@/lib/substack";
 import { savePost, getRecentArtists } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms } from "@/types";
@@ -45,6 +46,15 @@ export async function POST(request: Request) {
     const storyBuffer = await composeStory(composedBuffer, content);
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
     post.storyBlobUrl = storyBlobUrl;
+
+    // Generate and upload Reel video (non-fatal if it fails)
+    try {
+      const reelBuffer = await createReelVideo(composedBuffer);
+      const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
+      post.reelBlobUrl = reelBlobUrl;
+    } catch (reelErr) {
+      console.warn("[generate] Reel video creation failed:", reelErr);
+    }
 
     post.status = "image_ready";
     await savePost(post);

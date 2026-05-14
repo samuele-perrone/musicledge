@@ -7,6 +7,7 @@ type Tab = "dashboard" | "generate";
 
 const PLATFORM_META: Record<Platform, { label: string; icon: string; color: string }> = {
   instagram: { label: "Instagram", icon: "📸", color: "text-pink-400" },
+  reel: { label: "Reel", icon: "🎬", color: "text-purple-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
   facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
@@ -22,6 +23,7 @@ export default function Home() {
   const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
     "instagram",
+    "reel",
     "facebook",
   ]);
 
@@ -341,6 +343,9 @@ export default function Home() {
                       {result?.postId && p === "facebook" && (
                         <a href={`https://www.facebook.com/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
                       )}
+                      {result?.postId && p === "reel" && (
+                        <a href={`https://www.instagram.com/reel/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
+                      )}
                     </div>
                   );
                 })}
@@ -385,6 +390,17 @@ export default function Home() {
                     className="flex-1 text-center bg-amber-600/20 border border-amber-600/40 text-amber-400 text-xs font-medium py-2 rounded-lg hover:bg-amber-600/30 transition-colors"
                   >
                     📲 Download Story
+                  </a>
+                )}
+                {selectedPost.reelBlobUrl && (
+                  <a
+                    href={selectedPost.reelBlobUrl}
+                    download
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 text-center bg-purple-600/20 border border-purple-600/40 text-purple-400 text-xs font-medium py-2 rounded-lg hover:bg-purple-600/30 transition-colors"
+                  >
+                    🎬 Download Reel
                   </a>
                 )}
               </div>

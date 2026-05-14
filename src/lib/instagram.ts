@@ -66,6 +66,23 @@ export async function checkContainerStatus(
 }
 
 /**
+ * Creates a Reels media container from a public video URL.
+ * Requires the video to be 23-60 fps, 9:16 aspect ratio, up to 90 seconds.
+ */
+export async function createReelContainer(
+  videoUrl: string,
+  caption: string
+): Promise<string> {
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
+  const data = await igFetch(`/${accountId}/media`, "POST", {
+    video_url: videoUrl,
+    caption,
+    media_type: "REELS",
+  });
+  return data.id as string;
+}
+
+/**
  * Publishes an image as an Instagram Story.
  * Uses media_type=STORIES — requires instagram_content_publish permission.
  */

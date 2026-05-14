@@ -11,7 +11,7 @@ export interface StoryContent {
   newsletterHtml: string;      // full story in HTML for Substack
 }
 
-export type Platform = "instagram" | "tiktok" | "youtube" | "facebook";
+export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel";
 
 export interface PlatformResult {
   status: "pending" | "posted" | "skipped" | "failed";
@@ -25,6 +25,7 @@ export interface GeneratedPost {
   content: StoryContent;
   blobUrl?: string;
   storyBlobUrl?: string;       // 1080×1920 Instagram Story image
+  reelBlobUrl?: string;        // 1080×1920 MP4 for Instagram Reels
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
   substackDraftId?: number;
@@ -41,5 +42,6 @@ export function defaultPlatforms(): Record<Platform, PlatformResult> {
     tiktok: { status: "pending" },
     youtube: { status: "pending" },
     facebook: { status: "pending" },
+    reel: { status: "pending" },
   };
 }

@@ -60,3 +60,56 @@ export async function createShortsVideo(
   await Promise.allSettled([unlink(inputPath), unlink(outputPath)]);
   return videoBuffer;
 }
+
+/**
+ * Creates a 15-second vertical MP4 video (1080x1920) suitable for Instagram Reels.
+ * Uses 24fps as required by Instagram's minimum frame rate for Reels.
+ */
+export async function createReelVideo(
+  squareImageBuffer: Buffer,
+  durationSeconds = 15
+): Promise<Buffer> {
+  const bgBlurred = await sharp(squareImageBuffer)
+    .resize(1080, 1920, { fit: "cover" })
+    .blur(20)
+    .jpeg({ quality: 60 })
+    .toBuffer();
+
+  const overlay = await sharp(squareImageBuffer)
+    .resize(1080, 1080, { fit: "contain", background: "#000000" })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  const vertical = await sharp(bgBlurred)
+    .composite([{ input: overlay, gravity: "centre" }])
+    .jpeg({ quality: 88 })
+    .toBuffer();
+
+  const tmpId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const inputPath = join("/tmp", `reel_frame_${tmpId}.jpg`);
+  const outputPath = join("/tmp", `reel_${tmpId}.mp4`);
+
+  await writeFile(inputPath, vertical);
+
+  await new Promise<void>((resolve, reject) => {
+    ffmpeg(inputPath)
+      .inputOptions(["-loop 1"])
+      .videoCodec("libx264")
+      .outputOptions([
+        `-t ${durationSeconds}`,
+        "-r 24",
+        "-pix_fmt yuv420p",
+        "-preset ultrafast",
+        "-crf 28",
+        "-movflags +faststart",
+      ])
+      .output(outputPath)
+      .on("end", () => resolve())
+      .on("error", (err) => reject(new Error(`ffmpeg: ${err.message}`)))
+      .run();
+  });
+
+  const videoBuffer = await readFile(outputPath);
+  await Promise.allSettled([unlink(inputPath), unlink(outputPath)]);
+  return videoBuffer;
+}
