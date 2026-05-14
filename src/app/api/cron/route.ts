@@ -60,9 +60,9 @@ export async function GET(request: Request) {
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
-    // Reel video
+    // Reel video using story layout (amber gradient background)
     try {
-      const reelBuffer = await createReelVideo(composedBuffer);
+      const reelBuffer = await createReelVideo(storyBuffer);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
       log.push("Reel video generated");

@@ -47,9 +47,9 @@ export async function POST(request: Request) {
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
-    // Generate and upload Reel video (non-fatal if it fails)
+    // Generate and upload Reel video using story layout (amber gradient background)
     try {
-      const reelBuffer = await createReelVideo(composedBuffer);
+      const reelBuffer = await createReelVideo(storyBuffer);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (reelErr) {

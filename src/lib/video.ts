@@ -63,26 +63,17 @@ export async function createShortsVideo(
 
 /**
  * Creates a 15-second vertical MP4 video (1080x1920) suitable for Instagram Reels.
+ * Accepts an already-composed 1080x1920 story-style image (amber gradient layout).
  * Uses 24fps as required by Instagram's minimum frame rate for Reels.
  */
 export async function createReelVideo(
-  squareImageBuffer: Buffer,
+  verticalImageBuffer: Buffer,
   durationSeconds = 15
 ): Promise<Buffer> {
-  const bgBlurred = await sharp(squareImageBuffer)
+  // Ensure the frame is exactly 1080x1920 JPEG
+  const vertical = await sharp(verticalImageBuffer)
     .resize(1080, 1920, { fit: "cover" })
-    .blur(20)
-    .jpeg({ quality: 60 })
-    .toBuffer();
-
-  const overlay = await sharp(squareImageBuffer)
-    .resize(1080, 1080, { fit: "contain", background: "#000000" })
     .jpeg({ quality: 90 })
-    .toBuffer();
-
-  const vertical = await sharp(bgBlurred)
-    .composite([{ input: overlay, gravity: "centre" }])
-    .jpeg({ quality: 88 })
     .toBuffer();
 
   const tmpId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
