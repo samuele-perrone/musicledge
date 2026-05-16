@@ -32,6 +32,9 @@ export async function composeImage(
   const title = content.title;
   const caption = content.imageCaption || "";
 
+  // Accent colour: amber for music stories, teal for vinyl art
+  const accent = content.category === "vinyl_art" ? "#0891b2" : "#f59e0b";
+
   // Satori renders HTML/CSS to SVG using our bundled fonts — no system font needed
   const svg = await satori(
     h(
@@ -63,12 +66,12 @@ export async function composeImage(
           "div",
           {
             style: {
-              background: "#f59e0b",
+              background: accent,
               borderRadius: 4,
               padding: "8px 18px",
               fontSize: 22,
               fontWeight: 700,
-              color: "black",
+              color: content.category === "vinyl_art" ? "white" : "black",
               letterSpacing: 2,
             },
           },
@@ -128,7 +131,7 @@ export async function composeImage(
         h("div", {
           style: {
             height: 8,
-            background: "#f59e0b",
+            background: accent,
             marginLeft: -48,
             marginRight: -48,
           },
@@ -171,6 +174,9 @@ export async function composeStory(
   const artist  = content.artist.toUpperCase();
   const title   = content.title;
   const caption = content.imageCaption || "";
+  const storyAccent = content.category === "vinyl_art"
+    ? "linear-gradient(160deg, #0891b2 0%, #0e7490 100%)"
+    : "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)";
 
   // Resize the square post image to fill story width with side padding
   const postImageSize = 1000;
@@ -188,7 +194,7 @@ export async function composeStory(
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "space-between",
         fontFamily: "Inter",
-        background: "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)",
+        background: storyAccent,
         padding: "60px 0 70px 0",
       },
     },

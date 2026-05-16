@@ -293,7 +293,12 @@ export default function Home() {
                   <div className="p-3">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="min-w-0">
-                        <p className="text-xs text-amber-400 font-semibold truncate">{post.content.artist}</p>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <p className={`text-xs font-semibold truncate ${post.content.category === "vinyl_art" ? "text-cyan-400" : "text-amber-400"}`}>{post.content.artist}</p>
+                          {post.content.category === "vinyl_art" && (
+                            <span className="text-xs bg-cyan-900/50 text-cyan-400 px-1.5 py-0.5 rounded shrink-0">Vinyl Art</span>
+                          )}
+                        </div>
                         <p className="text-sm font-medium truncate">{post.content.title}</p>
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${overallStatusColor(post.status)}`}>
@@ -369,7 +374,12 @@ export default function Home() {
               />
             )}
             <div className="p-6">
-<p className="text-amber-400 text-sm font-bold mb-1">{selectedPost.content.artist}</p>
+<div className="flex items-center gap-2 mb-1">
+                <p className={`text-sm font-bold ${selectedPost.content.category === "vinyl_art" ? "text-cyan-400" : "text-amber-400"}`}>{selectedPost.content.artist}</p>
+                {selectedPost.content.category === "vinyl_art" && (
+                  <span className="text-xs bg-cyan-900/50 text-cyan-400 px-2 py-0.5 rounded">Vinyl Art</span>
+                )}
+              </div>
               <h3 className="text-xl font-bold mb-3">{selectedPost.content.title}</h3>
               <p className="text-gray-300 text-sm mb-4">{selectedPost.content.story}</p>
 

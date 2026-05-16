@@ -1,4 +1,7 @@
+export type PostCategory = "music_story" | "vinyl_art";
+
 export interface StoryContent {
+  category: PostCategory;
   artist: string;
   title: string;
   story: string;
