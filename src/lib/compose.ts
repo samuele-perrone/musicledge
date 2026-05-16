@@ -77,8 +77,8 @@ export async function composeImage(
               style: {
                 background: accent,
                 borderRadius: 4,
-                padding: "8px 18px",
-                fontSize: 22,
+                padding: "10px 22px",
+                fontSize: 30,
                 fontWeight: 700,
                 color: content.category === "vinyl_art" ? "white" : "black",
                 letterSpacing: 2,
@@ -90,10 +90,10 @@ export async function composeImage(
             "div",
             {
               style: {
-                fontSize: 14,
+                fontSize: 20,
                 fontWeight: 700,
                 color: accent,
-                letterSpacing: 3,
+                letterSpacing: 4,
                 paddingLeft: 4,
                 textTransform: "uppercase",
               },
@@ -240,12 +240,12 @@ export async function composeStory(
           h("div", { style: { width: 28, height: 28, borderRadius: 14, border: "5px solid white" } })
         ),
         h("div", {
-          style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 5 },
+          style: { fontSize: 38, fontWeight: 700, color: "white", letterSpacing: 5 },
         }, "MUSICLEDGE"),
         h("div", {
           style: {
-            fontSize: 13, fontWeight: 700,
-            color: "rgba(255,255,255,0.75)", letterSpacing: 4,
+            fontSize: 20, fontWeight: 700,
+            color: "rgba(255,255,255,0.85)", letterSpacing: 4,
           },
         }, content.category === "vinyl_art" ? "VINYL ART" : "MUSIC STORY"),
         h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
