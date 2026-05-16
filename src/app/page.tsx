@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { GeneratedPost, Platform } from "@/types";
+import { GeneratedPost, Platform, PostCategory } from "@/types";
+import { ImageStyle, IMAGE_STYLE_LABELS } from "@/lib/imagegen";
 
 type Tab = "dashboard" | "generate";
 
@@ -29,6 +30,8 @@ export default function Home() {
     "reel",
     "facebook",
   ]);
+  const [selectedCategory, setSelectedCategory] = useState<PostCategory | "random">("random");
+  const [selectedStyle, setSelectedStyle] = useState<ImageStyle>("random");
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -51,7 +54,10 @@ export default function Home() {
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          category: selectedCategory === "random" ? undefined : selectedCategory,
+          imageStyle: selectedStyle,
+        }),
         headers: { "Content-Type": "application/json" },
       });
       const data = await res.json();
@@ -215,6 +221,40 @@ export default function Home() {
                 ))}
               </div>
             </div>
+
+            {/* Category selector */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Content type</p>
+              <div className="flex gap-2">
+                {([["random", "🎲 Random"], ["music_story", "🎵 Music Story"], ["vinyl_art", "💿 Vinyl Art"]] as [PostCategory | "random", string][]).map(([val, label]) => (
+                  <button key={val} onClick={() => setSelectedCategory(val)}
+                    className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                      selectedCategory === val
+                        ? val === "vinyl_art" ? "bg-cyan-900/50 border-cyan-600 text-cyan-300" : "bg-gray-700 border-gray-500 text-white"
+                        : "bg-gray-900 border-gray-700 text-gray-500"
+                    }`}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Image style selector — shown for music story or random */}
+            {selectedCategory !== "vinyl_art" && (
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Image style</p>
+                <div className="flex gap-2">
+                  {(Object.entries(IMAGE_STYLE_LABELS) as [ImageStyle, string][]).map(([val, label]) => (
+                    <button key={val} onClick={() => setSelectedStyle(val)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
+                        selectedStyle === val
+                          ? "bg-gray-700 border-gray-500 text-white"
+                          : "bg-gray-900 border-gray-700 text-gray-500"
+                      }`}
+                    >{val === "random" ? "🎲 Random" : val === "vintage" ? "📷 Vintage" : val === "concert" ? "🎤 Concert" : "🎬 Editorial"}</button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {generating && (
               <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4 text-center">

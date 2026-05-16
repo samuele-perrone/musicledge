@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
-import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
+import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createShortsVideo, createReelVideo } from "@/lib/video";
 import { createSubstackDraft } from "@/lib/substack";
 import { savePost, getRecentArtists } from "@/lib/store";
-import { GeneratedPost, defaultPlatforms } from "@/types";
+import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
 export const maxDuration = 300;
@@ -15,9 +15,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const forceArtist: string | undefined = body?.artist;
+    const forceCategory: PostCategory | undefined = body?.category;
+    const forceStyle: ImageStyle | undefined = body?.imageStyle;
 
     const usedArtists = await getRecentArtists(20);
-    const content = await generateStoryContent(forceArtist ? [] : usedArtists);
+    const content = await generateStoryContent(
+      forceArtist ? [] : usedArtists,
+      forceCategory
+    );
     if (forceArtist) content.artist = forceArtist;
 
     // Build Amazon affiliate URL
@@ -34,7 +39,7 @@ export async function POST(request: Request) {
     await savePost(post);
 
     // Generate and compose image
-    const imageBase64 = await generateImage(content.imagePrompt);
+    const imageBase64 = await generateImage(content.imagePrompt, forceStyle);
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
 

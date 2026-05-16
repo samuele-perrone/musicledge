@@ -91,14 +91,15 @@ Return ONLY valid JSON with this exact structure:
 }
 
 export async function generateStoryContent(
-  usedArtists: string[] = []
+  usedArtists: string[] = [],
+  forcedCategory?: PostCategory
 ): Promise<StoryContent> {
   const available = ARTISTS_POOL.filter((a) => !usedArtists.includes(a));
   const pool = available.length > 0 ? available : ARTISTS_POOL;
   const randomArtist = pool[Math.floor(Math.random() * pool.length)];
 
-  // Randomly pick category — 50/50 split
-  const category: PostCategory = Math.random() < 0.5 ? "music_story" : "vinyl_art";
+  // Use forced category if provided, otherwise 50/50 split
+  const category: PostCategory = forcedCategory ?? (Math.random() < 0.5 ? "music_story" : "vinyl_art");
   const prompt = category === "vinyl_art"
     ? buildVinylArtPrompt(randomArtist)
     : buildMusicStoryPrompt(randomArtist);

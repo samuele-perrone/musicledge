@@ -15,12 +15,30 @@ const IMAGE_STYLES = [
   "Dark moody studio still life photography, single dramatic key light, deep blacks, rich textures, professional editorial quality, like a Rolling Stone or NME magazine feature photograph. Photorealistic. No text, no people, no human figures.",
 ];
 
-export async function generateImage(prompt: string): Promise<string> {
-  const style = IMAGE_STYLES[Math.floor(Math.random() * IMAGE_STYLES.length)];
+export type ImageStyle = "vintage" | "concert" | "editorial" | "random";
+
+export const IMAGE_STYLE_LABELS: Record<ImageStyle, string> = {
+  vintage: "Vintage Film",
+  concert: "Live Concert",
+  editorial: "Moody Editorial",
+  random: "Random",
+};
+
+const STYLE_MAP: Record<Exclude<ImageStyle, "random">, number> = {
+  vintage: 0,
+  concert: 1,
+  editorial: 2,
+};
+
+export async function generateImage(prompt: string, style: ImageStyle = "random"): Promise<string> {
+  const idx = style === "random"
+    ? Math.floor(Math.random() * IMAGE_STYLES.length)
+    : STYLE_MAP[style];
+  const selectedStyle = IMAGE_STYLES[idx];
 
   const response = await getClient().images.generate({
     model: "gpt-image-1",
-    prompt: `${prompt}. ${style}`,
+    prompt: `${prompt}. ${selectedStyle}`,
     n: 1,
     size: "1024x1024",
     quality: "high",
