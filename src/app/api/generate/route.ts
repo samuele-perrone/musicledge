@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml, getTodaysMusicEvent } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -17,16 +17,23 @@ export async function POST(request: Request) {
     const forceArtist: string | undefined = body?.artist;
     const forceCategory: PostCategory | undefined = body?.category;
     const forceStyle: ImageStyle | undefined = body?.imageStyle;
+    const manualNews: string | undefined = body?.breakingNews;
 
-    const todayEvent = await getTodaysMusicEvent(new Date());
+    const [todayEvent, autoNews] = await Promise.all([
+      getTodaysMusicEvent(new Date()),
+      manualNews ? Promise.resolve(null) : getBreakingMusicNews(),
+    ]);
+    const breakingNews = manualNews ?? autoNews ?? undefined;
+
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
     const category = forceCategory ?? todayEvent?.suggestedCategory;
     const content = await generateStoryContent(
       forceArtist ? [] : usedArtists,
       category,
-      todayEvent ?? undefined,
-      recentSummaries
+      breakingNews ? undefined : (todayEvent ?? undefined),
+      recentSummaries,
+      breakingNews
     );
     if (forceArtist) content.artist = forceArtist;
 

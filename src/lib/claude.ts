@@ -52,6 +52,53 @@ function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
 
+export async function getBreakingMusicNews(): Promise<string | null> {
+  const feeds = [
+    "https://www.nme.com/feed",
+    "https://www.rollingstone.com/music/feed/",
+    "https://pitchfork.com/rss/news/feed/rss",
+  ];
+
+  const headlines: string[] = [];
+
+  for (const feedUrl of feeds) {
+    try {
+      const res = await fetch(feedUrl, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) continue;
+      const xml = await res.text();
+      const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g);
+      for (const item of itemMatches) {
+        const titleMatch = item[1].match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/);
+        const pubDateMatch = item[1].match(/<pubDate>(.*?)<\/pubDate>/);
+        if (titleMatch && pubDateMatch) {
+          const pubDate = new Date(pubDateMatch[1]);
+          if (Date.now() - pubDate.getTime() < 48 * 60 * 60 * 1000) {
+            const title = (titleMatch[1] ?? titleMatch[2] ?? "").trim();
+            if (title) headlines.push(title);
+          }
+        }
+      }
+    } catch {
+      // ignore failed feeds
+    }
+  }
+
+  if (headlines.length === 0) return null;
+
+  const response = await getClient().messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 256,
+    messages: [{
+      role: "user",
+      content: `Here are recent music news headlines from the last 48 hours. Is any of these significant breaking news that a rock/pop music history brand should feature immediately? Look for: band reunions, surprise album drops, major artist deaths, landmark tours, major awards, or cultural moments.\n\nHeadlines:\n${headlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join("\n")}\n\nIf yes, return ONLY the single most significant headline as plain text. If nothing is significant enough for an immediate post, return null.`,
+    }],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+  if (!text || text.toLowerCase() === "null") return null;
+  return text;
+}
+
 const ARTISTS_POOL = [
   "The Beatles",
   "Led Zeppelin",
@@ -141,7 +188,8 @@ export async function generateStoryContent(
   usedArtists: string[] = [],
   forcedCategory?: PostCategory,
   todayEvent?: TodayEvent,
-  recentSummaries: { artist: string; title: string; category: string }[] = []
+  recentSummaries: { artist: string; title: string; category: string }[] = [],
+  breakingNews?: string
 ): Promise<StoryContent> {
   const available = ARTISTS_POOL.filter((a) => !usedArtists.includes(a));
   const pool = available.length > 0 ? available : ARTISTS_POOL;
@@ -155,8 +203,13 @@ export async function generateStoryContent(
     ? buildVinylArtPrompt(artist)
     : buildMusicStoryPrompt(artist);
 
+  // Append breaking news context — takes highest priority if present
+  const newsSuffix = breakingNews
+    ? `\n\nBREAKING NEWS CONTEXT: The following music news just broke: "${breakingNews}". Make this the focus of your story — write about this event, the artist(s) involved, and why it matters. Make the post feel timely, relevant, and exciting. Adjust the artist and title fields to match the news subject.`
+    : "";
+
   // Append event context so Claude tailors the story to the specific anniversary/birthday
-  const eventSuffix = todayEvent
+  const eventSuffix = !breakingNews && todayEvent
     ? `\n\nIMPORTANT: Today is specifically the ${todayEvent.event}. Make the story directly about this occasion — mention the anniversary/milestone in the caption opening and make it feel timely and celebratory.`
     : "";
 
@@ -169,7 +222,7 @@ export async function generateStoryContent(
     ? `\n\nDO NOT repeat any of the following stories that have already been published. Choose a completely different song, album, event, or aspect of the artist's career:\n${dedupeLines}${artistSummaries.length > 0 ? `\n\nThis artist (${artist}) has already been featured ${artistSummaries.length} time(s) — pick a different era, album, or story angle.` : ""}`
     : "";
 
-  const prompt = basePrompt + eventSuffix + dedupeSuffix;
+  const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix;
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-6",

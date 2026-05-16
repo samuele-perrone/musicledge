@@ -3,7 +3,7 @@
  * Generates a new music story post and publishes to all platforms.
  */
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -29,22 +29,34 @@ export async function GET(request: Request) {
   const log: string[] = [];
 
   try {
-    // 1. Check for today's music event, then generate story
+    // 1. Check for breaking news, today's music event, then generate story
     const today = new Date();
-    const todayEvent = await getTodaysMusicEvent(today);
+    const [todayEvent, breakingNews] = await Promise.all([
+      getTodaysMusicEvent(today),
+      getBreakingMusicNews(),
+    ]);
+
+    if (breakingNews) {
+      log.push(`Breaking news: ${breakingNews}`);
+    }
     if (todayEvent) {
       log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
     }
 
-    // Alternate category by day of month: odd = vinyl_art, even = music_story
-    // Event's suggested category takes priority if an event is found
+    // Breaking news takes priority over events; events take priority over day alternation
     const dayCategory = today.getUTCDate() % 2 !== 0 ? "vinyl_art" : "music_story";
-    const category = todayEvent?.suggestedCategory ?? dayCategory;
-    log.push(`Category: ${category} (${todayEvent ? "event-driven" : `day ${today.getUTCDate()} alternating`})`);
+    const category = breakingNews ? "music_story" : (todayEvent?.suggestedCategory ?? dayCategory);
+    log.push(`Category: ${category} (${breakingNews ? "breaking news" : todayEvent ? "event-driven" : `day ${today.getUTCDate()} alternating`})`);
 
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
-    const content = await generateStoryContent(usedArtists, category, todayEvent ?? undefined, recentSummaries);
+    const content = await generateStoryContent(
+      usedArtists,
+      category,
+      breakingNews ? undefined : (todayEvent ?? undefined),
+      recentSummaries,
+      breakingNews ?? undefined
+    );
     log.push(`Story: "${content.title}" — ${content.artist}${todayEvent ? " (event-driven)" : ""}`);
 
     const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);

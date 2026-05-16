@@ -33,6 +33,7 @@ export default function Home() {
   ]);
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | "random">("random");
   const [selectedStyle, setSelectedStyle] = useState<ImageStyle>("random");
+  const [breakingNews, setBreakingNews] = useState("");
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -58,6 +59,7 @@ export default function Home() {
         body: JSON.stringify({
           category: selectedCategory === "random" ? undefined : selectedCategory,
           imageStyle: selectedStyle,
+          breakingNews: breakingNews.trim() || undefined,
         }),
         headers: { "Content-Type": "application/json" },
       });
@@ -276,6 +278,18 @@ export default function Home() {
                 </div>
               </div>
             )}
+
+            {/* Breaking news override */}
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
+              <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Breaking news <span className="normal-case text-gray-600">(optional — overrides auto-pick)</span></p>
+              <textarea
+                value={breakingNews}
+                onChange={(e) => setBreakingNews(e.target.value)}
+                placeholder="e.g. Oasis announces reunion tour — Liam and Noel Gallagher to perform together again"
+                rows={2}
+                className="w-full bg-gray-800 border border-gray-700 text-gray-200 text-sm rounded-lg px-3 py-2 placeholder-gray-600 focus:outline-none focus:border-amber-500 resize-none"
+              />
+            </div>
 
             {generating && (
               <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4 text-center">
