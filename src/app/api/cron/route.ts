@@ -43,8 +43,10 @@ export async function GET(request: Request) {
       log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
     }
 
-    // Breaking news takes priority over events; events take priority over day alternation
-    const dayCategory = today.getUTCDate() % 2 !== 0 ? "vinyl_art" : "music_story";
+    // Breaking news takes priority over events; events take priority over day rotation
+    // Day rotation: 0=music_story, 1=vinyl_art, 2=harmony (repeating)
+    const dayCategoryMap = ["music_story", "vinyl_art", "harmony"] as const;
+    const dayCategory = dayCategoryMap[today.getUTCDate() % 3];
     const category = breakingNews ? "music_story" : (todayEvent?.suggestedCategory ?? dayCategory);
     log.push(`Category: ${category} (${breakingNews ? "breaking news" : todayEvent ? "event-driven" : `day ${today.getUTCDate()} alternating`})`);
 

@@ -163,6 +163,33 @@ Return ONLY valid JSON with this exact structure:
 }`;
 }
 
+function buildHarmonyPrompt(artist: string): string {
+  return `You are creating content for a music history brand — exploring musical DNA, influence, and the lineage of sound across rock and pop history.
+
+Generate a "Harmony" post exploring how a specific riff, chord progression, or musical motif connected to ${artist} was borrowed, adapted, or directly copied between songs. Pick a pair of songs where the musical connection is clear, specific, and musically interesting — one that established the sound and one that borrowed it (or vice versa involving ${artist}).
+
+Return ONLY valid JSON with this exact structure:
+{
+  "category": "harmony",
+  "artist": "${artist}",
+  "title": "Short punchy title about the musical connection (max 8 words)",
+  "story": "2-3 sentences summarising the musical DNA connection, used internally",
+  "imageCaption": "One punchy line for the image overlay — max 55 characters, about the sonic connection",
+  "caption": "Instagram/Facebook caption: name both songs and artists. Describe the specific riff, chord progression, or motif that was borrowed. Explain the genre lineage. Rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
+  "influenceSource": "Original artist — Song title (year)",
+  "influencedWork": "Later artist — Song title (year)",
+  "similarityLevel": "subtle_nod OR clear_influence OR nearly_identical",
+  "genre": "the genre lineage e.g. blues → hard rock, or soul → funk → hip-hop",
+  "emotion": "one word: the primary emotion this sound evokes e.g. euphoric / melancholic / defiant / tender / tense / nostalgic / energetic",
+  "activityTags": ["2-4 tags from this list only: workout, running, driving, cycling, background, chill out, party, focus, romance, morning, late night"],
+  "imagePrompt": "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures that span both eras. No human faces or figures. Square format, cinematic, high contrast.",
+  "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD",
+  "newsletterTitle": "Email subject line: compelling, 6-10 words about the musical connection",
+  "newsletterHtml": "Full newsletter article in HTML (no <html>/<body> tags). 400-600 words. Deep dive into the musical DNA: describe the specific notes, chords, or rhythm borrowed. Discuss whether it crosses into plagiarism. Include listener cues ('Listen at 0:32 for the moment...'). Explore how influence works in music history. Use <p>, <h2>, <strong>, <em> tags. End with a <p> inviting readers to share which version they prefer."
+}`;
+}
+
 function buildVinylArtPrompt(artist: string): string {
   return `You are creating content for a music history brand across Instagram, Facebook, and a Substack newsletter — similar to @explainingpaintings but for rock and pop music.
 
@@ -197,10 +224,18 @@ export async function generateStoryContent(
 
   // Event takes priority: use the event's artist and suggested category
   const artist = todayEvent?.artist ?? randomArtist;
-  const category: PostCategory = forcedCategory ?? todayEvent?.suggestedCategory ?? (Math.random() < 0.5 ? "music_story" : "vinyl_art");
+  const randomCategory = (): PostCategory => {
+    const r = Math.random();
+    if (r < 0.4) return "music_story";
+    if (r < 0.7) return "vinyl_art";
+    return "harmony";
+  };
+  const category: PostCategory = forcedCategory ?? todayEvent?.suggestedCategory ?? randomCategory();
 
   const basePrompt = category === "vinyl_art"
     ? buildVinylArtPrompt(artist)
+    : category === "harmony"
+    ? buildHarmonyPrompt(artist)
     : buildMusicStoryPrompt(artist);
 
   // Append breaking news context — takes highest priority if present

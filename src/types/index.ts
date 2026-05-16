@@ -1,4 +1,4 @@
-export type PostCategory = "music_story" | "vinyl_art";
+export type PostCategory = "music_story" | "vinyl_art" | "harmony";
 
 export interface StoryContent {
   category: PostCategory;
@@ -12,6 +12,13 @@ export interface StoryContent {
   amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
   newsletterTitle: string;     // email subject line
   newsletterHtml: string;      // full story in HTML for Substack
+  // Harmony-specific fields
+  influenceSource?: string;    // e.g. "Led Zeppelin — Whole Lotta Love (1969)"
+  influencedWork?: string;     // e.g. "The White Stripes — Seven Nation Army (2003)"
+  similarityLevel?: "subtle_nod" | "clear_influence" | "nearly_identical";
+  genre?: string;              // e.g. "blues → hard rock"
+  emotion?: string;            // e.g. "euphoric"
+  activityTags?: string[];     // e.g. ["workout", "driving"]
 }
 
 export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel";

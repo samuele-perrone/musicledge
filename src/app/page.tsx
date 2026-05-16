@@ -249,11 +249,13 @@ export default function Home() {
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Content type</p>
               <div className="flex gap-2">
-                {([["random", "🎲 Random"], ["music_story", "🎵 Music Story"], ["vinyl_art", "💿 Vinyl Art"]] as [PostCategory | "random", string][]).map(([val, label]) => (
+                {([["random", "🎲 Random"], ["music_story", "🎵 Music Story"], ["vinyl_art", "💿 Vinyl Art"], ["harmony", "🎸 Harmony"]] as [PostCategory | "random", string][]).map(([val, label]) => (
                   <button key={val} onClick={() => setSelectedCategory(val)}
                     className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
                       selectedCategory === val
-                        ? val === "vinyl_art" ? "bg-cyan-900/50 border-cyan-600 text-cyan-300" : "bg-gray-700 border-gray-500 text-white"
+                        ? val === "vinyl_art" ? "bg-cyan-900/50 border-cyan-600 text-cyan-300"
+                        : val === "harmony" ? "bg-purple-900/50 border-purple-600 text-purple-300"
+                        : "bg-gray-700 border-gray-500 text-white"
                         : "bg-gray-900 border-gray-700 text-gray-500"
                     }`}
                   >{label}</button>
@@ -369,9 +371,12 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className={`text-xs font-semibold truncate ${post.content.category === "vinyl_art" ? "text-cyan-400" : "text-amber-400"}`}>{post.content.artist}</p>
+                          <p className={`text-xs font-semibold truncate ${post.content.category === "vinyl_art" ? "text-cyan-400" : post.content.category === "harmony" ? "text-purple-400" : "text-amber-400"}`}>{post.content.artist}</p>
                           {post.content.category === "vinyl_art" && (
                             <span className="text-xs bg-cyan-900/50 text-cyan-400 px-1.5 py-0.5 rounded shrink-0">Vinyl Art</span>
+                          )}
+                          {post.content.category === "harmony" && (
+                            <span className="text-xs bg-purple-900/50 text-purple-400 px-1.5 py-0.5 rounded shrink-0">Harmony</span>
                           )}
                         </div>
                         <p className="text-sm font-medium truncate">{post.content.title}</p>
@@ -472,9 +477,12 @@ export default function Home() {
             )}
             <div className="p-6">
 <div className="flex items-center gap-2 mb-1">
-                <p className={`text-sm font-bold ${selectedPost.content.category === "vinyl_art" ? "text-cyan-400" : "text-amber-400"}`}>{selectedPost.content.artist}</p>
+                <p className={`text-sm font-bold ${selectedPost.content.category === "vinyl_art" ? "text-cyan-400" : selectedPost.content.category === "harmony" ? "text-purple-400" : "text-amber-400"}`}>{selectedPost.content.artist}</p>
                 {selectedPost.content.category === "vinyl_art" && (
                   <span className="text-xs bg-cyan-900/50 text-cyan-400 px-2 py-0.5 rounded">Vinyl Art</span>
+                )}
+                {selectedPost.content.category === "harmony" && (
+                  <span className="text-xs bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded">Harmony</span>
                 )}
               </div>
               <h3 className="text-xl font-bold mb-1">{selectedPost.content.title}</h3>
@@ -482,6 +490,42 @@ export default function Home() {
                 <p className="text-xs text-green-400 mb-3">🎂 {selectedPost.todayEvent}</p>
               )}
               <p className="text-gray-300 text-sm mb-4">{selectedPost.content.story}</p>
+
+              {/* Harmony details */}
+              {selectedPost.content.category === "harmony" && (
+                <div className="bg-purple-950/30 border border-purple-800/40 rounded-xl p-4 mb-4 space-y-2">
+                  {selectedPost.content.influenceSource && (
+                    <div className="text-xs"><span className="text-purple-400 font-semibold">Original: </span><span className="text-gray-300">{selectedPost.content.influenceSource}</span></div>
+                  )}
+                  {selectedPost.content.influencedWork && (
+                    <div className="text-xs"><span className="text-purple-400 font-semibold">Influenced: </span><span className="text-gray-300">{selectedPost.content.influencedWork}</span></div>
+                  )}
+                  {selectedPost.content.genre && (
+                    <div className="text-xs"><span className="text-purple-400 font-semibold">Genre lineage: </span><span className="text-gray-300">{selectedPost.content.genre}</span></div>
+                  )}
+                  {selectedPost.content.similarityLevel && (
+                    <div className="text-xs"><span className="text-purple-400 font-semibold">Similarity: </span>
+                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                        selectedPost.content.similarityLevel === "nearly_identical" ? "bg-red-900/50 text-red-300" :
+                        selectedPost.content.similarityLevel === "clear_influence" ? "bg-yellow-900/50 text-yellow-300" :
+                        "bg-green-900/50 text-green-300"
+                      }`}>
+                        {selectedPost.content.similarityLevel.replace(/_/g, " ")}
+                      </span>
+                    </div>
+                  )}
+                  {selectedPost.content.emotion && (
+                    <div className="text-xs"><span className="text-purple-400 font-semibold">Emotion: </span><span className="text-gray-300 capitalize">{selectedPost.content.emotion}</span></div>
+                  )}
+                  {selectedPost.content.activityTags && selectedPost.content.activityTags.length > 0 && (
+                    <div className="flex gap-1.5 flex-wrap pt-1">
+                      {selectedPost.content.activityTags.map((tag) => (
+                        <span key={tag} className="text-xs bg-purple-900/40 text-purple-300 px-2 py-0.5 rounded-full">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Platform status */}
               <div className="grid grid-cols-3 gap-3 mb-4">

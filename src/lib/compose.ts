@@ -32,8 +32,8 @@ export async function composeImage(
   const title = content.title;
   const caption = content.imageCaption || "";
 
-  // Accent colour: amber for music stories, teal for vinyl art
-  const accent = content.category === "vinyl_art" ? "#0891b2" : "#f59e0b";
+  // Accent colour: amber for music stories, teal for vinyl art, purple for harmony
+  const accent = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
 
   // Satori renders HTML/CSS to SVG using our bundled fonts — no system font needed
   const svg = await satori(
@@ -80,7 +80,7 @@ export async function composeImage(
                 padding: "10px 22px",
                 fontSize: 30,
                 fontWeight: 700,
-                color: content.category === "vinyl_art" ? "white" : "black",
+                color: content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black",
                 letterSpacing: 2,
               },
             },
@@ -98,7 +98,7 @@ export async function composeImage(
                 textTransform: "uppercase",
               },
             },
-            content.category === "vinyl_art" ? "VINYL ART" : "MUSIC STORY"
+            content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY"
           )
         ),
         h(
@@ -200,6 +200,8 @@ export async function composeStory(
   const caption = content.imageCaption || "";
   const storyAccent = content.category === "vinyl_art"
     ? "linear-gradient(160deg, #0891b2 0%, #0e7490 100%)"
+    : content.category === "harmony"
+    ? "linear-gradient(160deg, #a855f7 0%, #7c3aed 100%)"
     : "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)";
 
   // Resize the square post image to fill story width with side padding
@@ -247,7 +249,7 @@ export async function composeStory(
             fontSize: 20, fontWeight: 700,
             color: "rgba(255,255,255,0.85)", letterSpacing: 4,
           },
-        }, content.category === "vinyl_art" ? "VINYL ART" : "MUSIC STORY"),
+        }, content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY"),
         h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
       ),
 
