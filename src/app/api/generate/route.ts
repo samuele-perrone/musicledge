@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml, getTodaysMusicEvent } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -18,12 +18,14 @@ export async function POST(request: Request) {
     const forceCategory: PostCategory | undefined = body?.category;
     const forceStyle: ImageStyle | undefined = body?.imageStyle;
 
+    const todayEvent = await getTodaysMusicEvent(new Date());
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
+    const category = forceCategory ?? todayEvent?.suggestedCategory;
     const content = await generateStoryContent(
       forceArtist ? [] : usedArtists,
-      forceCategory,
-      undefined,
+      category,
+      todayEvent ?? undefined,
       recentSummaries
     );
     if (forceArtist) content.artist = forceArtist;
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       content,
       affiliateUrl,
+      todayEvent: todayEvent?.event,
       platforms: defaultPlatforms(),
       status: "pending",
       createdAt: new Date().toISOString(),
