@@ -7,7 +7,7 @@ import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreaki
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
+import { savePost, getRecentArtists, getRecentPostSummaries, getLastPostedCategory } from "@/lib/store";
 import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo, createReelVideo } from "@/lib/video";
@@ -43,12 +43,14 @@ export async function GET(request: Request) {
       log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
     }
 
-    // Breaking news takes priority over events; events take priority over day rotation
-    // Day rotation: 0=music_story, 1=vinyl_art, 2=harmony (repeating)
-    const dayCategoryMap = ["music_story", "vinyl_art", "harmony"] as const;
-    const dayCategory = dayCategoryMap[today.getUTCDate() % 3];
-    const category = breakingNews ? "music_story" : (todayEvent?.suggestedCategory ?? dayCategory);
-    log.push(`Category: ${category} (${breakingNews ? "breaking news" : todayEvent ? "event-driven" : `day ${today.getUTCDate()} alternating`})`);
+    // Breaking news takes priority over events; events take priority over rotation
+    // Rotation: music_story → vinyl_art → harmony → music_story (always next after last posted)
+    const rotation = ["music_story", "vinyl_art", "harmony"] as const;
+    const lastCategory = await getLastPostedCategory();
+    const lastIndex = lastCategory ? rotation.indexOf(lastCategory as typeof rotation[number]) : -1;
+    const nextCategory = rotation[(lastIndex + 1) % rotation.length];
+    const category = breakingNews ? "music_story" : (todayEvent?.suggestedCategory ?? nextCategory);
+    log.push(`Category: ${category} (${breakingNews ? "breaking news" : todayEvent ? "event-driven" : `next after last posted: ${lastCategory ?? "none"}`})`);
 
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
