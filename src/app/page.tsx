@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { GeneratedPost, Platform } from "@/types";
 
 type Tab = "dashboard" | "generate";
@@ -20,6 +21,7 @@ export default function Home() {
   const [generating, setGenerating] = useState(false);
   const [posting, setPosting] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
@@ -152,7 +154,7 @@ export default function Home() {
             Rock &amp; Pop Stories • Instagram · Facebook
           </p>
         </div>
-        <nav className="flex gap-2">
+        <nav className="flex gap-2 items-center">
           {(["dashboard", "generate"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -166,6 +168,12 @@ export default function Home() {
               {t === "dashboard" ? "Posts" : "Generate"}
             </button>
           ))}
+          <button
+            onClick={async () => { await fetch("/api/auth", { method: "DELETE" }); router.push("/login"); }}
+            className="px-3 py-2 rounded text-sm text-gray-500 hover:text-gray-300 transition-colors"
+          >
+            Sign out
+          </button>
         </nav>
       </header>
 
