@@ -3,7 +3,7 @@
  * Generates a new music story post and publishes to all platforms.
  */
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -29,16 +29,21 @@ export async function GET(request: Request) {
   const log: string[] = [];
 
   try {
-    // 1. Generate story
+    // 1. Check for today's music event, then generate story
+    const todayEvent = await getTodaysMusicEvent(new Date());
+    if (todayEvent) {
+      log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
+    }
     const usedArtists = await getRecentArtists(20);
-    const content = await generateStoryContent(usedArtists);
-    log.push(`Story: "${content.title}" — ${content.artist}`);
+    const content = await generateStoryContent(usedArtists, undefined, todayEvent ?? undefined);
+    log.push(`Story: "${content.title}" — ${content.artist}${todayEvent ? " (event-driven)" : ""}`);
 
     const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
     const post: GeneratedPost = {
       id: crypto.randomUUID(),
       content,
       affiliateUrl,
+      todayEvent: todayEvent?.event,
       platforms: defaultPlatforms(),
       status: "pending",
       createdAt: new Date().toISOString(),

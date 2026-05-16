@@ -1,6 +1,53 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { StoryContent, PostCategory } from "@/types";
 
+export interface TodayEvent {
+  artist: string;
+  event: string;          // e.g. "70th birthday" or "50th anniversary of Dark Side of the Moon"
+  suggestedCategory: PostCategory; // vinyl_art for album anniversaries, music_story for birthdays/milestones
+}
+
+export async function getTodaysMusicEvent(date: Date): Promise<TodayEvent | null> {
+  const dateStr = date.toLocaleDateString("en-GB", {
+    day: "numeric", month: "long", year: "numeric",
+  });
+  const monthDay = date.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+
+  const response = await getClient().messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 512,
+    messages: [{
+      role: "user",
+      content: `Today is ${dateStr}. Is there a significant rock or pop music anniversary, birthday, or milestone on ${monthDay} that would make a compelling social media post for a music history brand?
+
+Focus on: artist birthdays (round numbers preferred), iconic album release anniversaries (especially round years like 25th, 30th, 40th, 50th), landmark recording sessions, or major career events.
+
+Only return an event if you are confident it is historically accurate. If nothing significant falls on this date, return null.
+
+Return ONLY valid JSON in one of these two formats:
+
+If an event exists:
+{"artist": "Artist Name", "event": "description of the event e.g. 70th birthday or 50th anniversary of Abbey Road", "suggestedCategory": "music_story"}
+
+For album cover/release anniversaries where the artwork is iconic, use "vinyl_art" instead.
+
+If nothing significant: null`,
+    }],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
+  if (text === "null" || !text || text.toLowerCase().includes("null")) return null;
+
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+
+  try {
+    return JSON.parse(jsonMatch[0]) as TodayEvent;
+  } catch {
+    return null;
+  }
+}
+
 function getClient() {
   return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 }
@@ -92,17 +139,27 @@ Return ONLY valid JSON with this exact structure:
 
 export async function generateStoryContent(
   usedArtists: string[] = [],
-  forcedCategory?: PostCategory
+  forcedCategory?: PostCategory,
+  todayEvent?: TodayEvent
 ): Promise<StoryContent> {
   const available = ARTISTS_POOL.filter((a) => !usedArtists.includes(a));
   const pool = available.length > 0 ? available : ARTISTS_POOL;
   const randomArtist = pool[Math.floor(Math.random() * pool.length)];
 
-  // Use forced category if provided, otherwise 50/50 split
-  const category: PostCategory = forcedCategory ?? (Math.random() < 0.5 ? "music_story" : "vinyl_art");
-  const prompt = category === "vinyl_art"
-    ? buildVinylArtPrompt(randomArtist)
-    : buildMusicStoryPrompt(randomArtist);
+  // Event takes priority: use the event's artist and suggested category
+  const artist = todayEvent?.artist ?? randomArtist;
+  const category: PostCategory = forcedCategory ?? todayEvent?.suggestedCategory ?? (Math.random() < 0.5 ? "music_story" : "vinyl_art");
+
+  const basePrompt = category === "vinyl_art"
+    ? buildVinylArtPrompt(artist)
+    : buildMusicStoryPrompt(artist);
+
+  // Append event context so Claude tailors the story to the specific anniversary/birthday
+  const eventSuffix = todayEvent
+    ? `\n\nIMPORTANT: Today is specifically the ${todayEvent.event}. Make the story directly about this occasion — mention the anniversary/milestone in the caption opening and make it feel timely and celebratory.`
+    : "";
+
+  const prompt = basePrompt + eventSuffix;
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-6",
@@ -116,8 +173,9 @@ export async function generateStoryContent(
   if (!jsonMatch) throw new Error("Failed to parse Claude response as JSON");
 
   const content = JSON.parse(jsonMatch[0]) as StoryContent;
-  // Ensure category is always set correctly
+  // Ensure category and artist are always set correctly
   content.category = category;
+  content.artist = artist;
   return content;
 }
 

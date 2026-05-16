@@ -351,6 +351,9 @@ export default function Home() {
                       {(Object.keys(PLATFORM_META) as Platform[]).map((p) => platformBadge(post, p))}
                     </div>
 
+                    {post.todayEvent && (
+                      <p className="text-xs text-green-400 mb-1">🎂 {post.todayEvent}</p>
+                    )}
                     <p className="text-xs text-gray-500">
                       {new Date(post.createdAt).toLocaleDateString()}
                       {(() => {
@@ -420,7 +423,10 @@ export default function Home() {
                   <span className="text-xs bg-cyan-900/50 text-cyan-400 px-2 py-0.5 rounded">Vinyl Art</span>
                 )}
               </div>
-              <h3 className="text-xl font-bold mb-3">{selectedPost.content.title}</h3>
+              <h3 className="text-xl font-bold mb-1">{selectedPost.content.title}</h3>
+              {selectedPost.todayEvent && (
+                <p className="text-xs text-green-400 mb-3">🎂 {selectedPost.todayEvent}</p>
+              )}
               <p className="text-gray-300 text-sm mb-4">{selectedPost.content.story}</p>
 
               {/* Platform status */}

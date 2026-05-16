@@ -29,6 +29,7 @@ export interface GeneratedPost {
   blobUrl?: string;
   storyBlobUrl?: string;       // 1080×1920 Instagram Story image
   reelBlobUrl?: string;        // 1080×1920 MP4 for Instagram Reels
+  todayEvent?: string;         // e.g. "50th anniversary of Dark Side of the Moon"
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
   substackDraftId?: number;
