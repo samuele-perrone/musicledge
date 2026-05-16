@@ -508,6 +508,38 @@ export default function Home() {
                 </p>
               </div>
 
+              {/* Related music links */}
+              <div className="border-t border-gray-800 pt-4 mb-4">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wider">Music Links</p>
+                <div className="flex gap-2 flex-wrap">
+                  {(() => {
+                    const artistQ = encodeURIComponent(selectedPost.content.artist);
+                    const fullQ = encodeURIComponent(`${selectedPost.content.artist} ${selectedPost.content.title}`);
+                    const wikiSlug = encodeURIComponent(selectedPost.content.artist.trim().replace(/ /g, "_"));
+                    return (
+                      <>
+                        <a href={`https://open.spotify.com/search/${fullQ}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 text-center bg-green-900/20 border border-green-700/40 text-green-400 text-xs font-medium py-2 rounded-lg hover:bg-green-900/40 transition-colors">
+                          🎧 Spotify
+                        </a>
+                        <a href={`https://www.youtube.com/results?search_query=${fullQ}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 text-center bg-red-900/20 border border-red-700/40 text-red-400 text-xs font-medium py-2 rounded-lg hover:bg-red-900/40 transition-colors">
+                          ▶️ YouTube
+                        </a>
+                        <a href={`https://en.wikipedia.org/wiki/${wikiSlug}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 text-center bg-gray-700/30 border border-gray-600/40 text-gray-300 text-xs font-medium py-2 rounded-lg hover:bg-gray-700/50 transition-colors">
+                          📖 Wikipedia
+                        </a>
+                        <a href={`https://music.apple.com/search?term=${artistQ}`} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 text-center bg-pink-900/20 border border-pink-700/40 text-pink-400 text-xs font-medium py-2 rounded-lg hover:bg-pink-900/40 transition-colors">
+                          🍎 Apple Music
+                        </a>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
               {/* Monetisation + Story links */}
               <div className="flex gap-3 mb-4 flex-wrap">
                 {selectedPost.affiliateUrl && (
