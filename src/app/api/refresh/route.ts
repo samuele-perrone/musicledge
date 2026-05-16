@@ -24,22 +24,23 @@ export async function POST(request: Request) {
 
     const { content } = post;
 
-    // Re-generate AI image from stored imagePrompt, then re-compose with latest layout
+    // Re-generate AI image from stored imagePrompt, then re-compose with latest layout.
+    // Use a fresh filename suffix to bust the Vercel Blob CDN cache.
+    const v = Date.now();
     const imageBase64 = await generateImage(content.imagePrompt, "random" as ImageStyle);
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
 
-    // Overwrite existing blobs (same filenames)
-    const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
+    const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}-v${v}.jpg`);
     post.blobUrl = blobUrl;
 
     const storyBuffer = await composeStory(composedBuffer, content);
-    const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
+    const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story-v${v}.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
     try {
       const reelBuffer = await createReelVideo(storyBuffer);
-      const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
+      const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel-v${v}.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (e) {
       console.warn("[refresh] Reel generation failed:", e);
