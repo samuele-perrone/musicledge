@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPost, savePost } from "@/lib/store";
 import { Platform } from "@/types";
+import { buildRelatedLinks, buildRelatedLinksCaption } from "@/lib/claude";
 import {
   createMediaContainer,
   publishMediaContainer,
@@ -36,8 +37,9 @@ export async function POST(request: Request) {
 
     const targets: Platform[] = platforms ?? ["instagram", "facebook"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
-    const affiliateLine = post.affiliateUrl ? `\n\n🎵 Find this album: ${post.affiliateUrl}` : "";
-    const caption = `${post.content.caption}\n\n${hashtags}${affiliateLine}`;
+    const relatedLinks = buildRelatedLinks(post.content.artist, post.content.title);
+    const linksBlock = buildRelatedLinksCaption(relatedLinks, post.affiliateUrl ?? "");
+    const caption = `${post.content.caption}\n\n${hashtags}\n\n${linksBlock}`;
     const errors: string[] = [];
 
     // ── Instagram ──────────────────────────────────────────────────────────
