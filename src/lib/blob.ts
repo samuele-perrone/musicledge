@@ -11,6 +11,7 @@ export async function uploadImageToBlob(
   const { url } = await put(filename, imageBuffer, {
     access: "public",
     contentType: "image/jpeg",
+    allowOverwrite: true,
   });
   return url;
 }
@@ -26,6 +27,7 @@ export async function uploadVideoToBlob(
   const { url } = await put(filename, videoBuffer, {
     access: "public",
     contentType: "video/mp4",
+    allowOverwrite: true,
   });
   return url;
 }
