@@ -3,7 +3,7 @@
  * Generates a new music story post and publishes to all platforms.
  */
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -89,15 +89,17 @@ export async function GET(request: Request) {
     log.push(`Uploaded to Blob: ${blobUrl}`);
 
     const hashtags = content.hashtags.map((h) => `#${h}`).join(" ");
-    const affiliateLine = affiliateUrl ? `\n\n🎵 Find this album: ${affiliateUrl}` : "";
-    const caption = `${content.caption}\n\n${hashtags}${affiliateLine}`;
+    const relatedLinks = buildRelatedLinks(content.artist, content.title);
+    const linksBlock = buildRelatedLinksCaption(relatedLinks, affiliateUrl);
+    const caption = `${content.caption}\n\n${hashtags}\n\n${linksBlock}`;
+    const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
 
     // 4. Substack draft
     try {
       const { id, url } = await createSubstackDraft(
         content.newsletterTitle,
         content.title,
-        content.newsletterHtml,
+        newsletterHtmlWithLinks,
         affiliateUrl
       );
       post.substackDraftId = id;

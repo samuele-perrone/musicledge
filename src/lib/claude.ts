@@ -195,3 +195,43 @@ export function buildAffiliateUrl(searchTerms: string): string {
   const base = `https://www.amazon.com/s?k=${encoded}`;
   return tag ? `${base}&tag=${tag}` : base;
 }
+
+export interface RelatedLinks {
+  spotify: string;
+  youtube: string;
+  wikipedia: string;
+  appleMusic: string;
+}
+
+export function buildRelatedLinks(artist: string, title: string): RelatedLinks {
+  const artistQ = encodeURIComponent(artist);
+  const fullQ = encodeURIComponent(`${artist} ${title}`);
+  const wikiSlug = artist.trim().replace(/ /g, "_");
+  return {
+    spotify: `https://open.spotify.com/search/${fullQ}`,
+    youtube: `https://www.youtube.com/results?search_query=${fullQ}`,
+    wikipedia: `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiSlug)}`,
+    appleMusic: `https://music.apple.com/search?term=${artistQ}`,
+  };
+}
+
+export function buildRelatedLinksCaption(links: RelatedLinks, affiliateUrl: string): string {
+  return [
+    `🎵 Spotify: ${links.spotify}`,
+    `▶️ YouTube: ${links.youtube}`,
+    `📖 Wikipedia: ${links.wikipedia}`,
+    `🍎 Apple Music: ${links.appleMusic}`,
+    affiliateUrl ? `🛒 Find the vinyl: ${affiliateUrl}` : "",
+  ].filter(Boolean).join("\n");
+}
+
+export function buildRelatedLinksHtml(links: RelatedLinks, affiliateUrl: string): string {
+  const items = [
+    `<a href="${links.spotify}">🎵 Listen on Spotify</a>`,
+    `<a href="${links.youtube}">▶️ Watch on YouTube</a>`,
+    `<a href="${links.wikipedia}">📖 Read more on Wikipedia</a>`,
+    `<a href="${links.appleMusic}">🍎 Find on Apple Music</a>`,
+    affiliateUrl ? `<a href="${affiliateUrl}">🛒 Find the vinyl on Amazon</a>` : "",
+  ].filter(Boolean).map((item) => `<li>${item}</li>`).join("\n");
+  return `<h2>Related Links</h2>\n<ul>\n${items}\n</ul>`;
+}

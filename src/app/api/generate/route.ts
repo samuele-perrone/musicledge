@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -68,11 +68,13 @@ export async function POST(request: Request) {
     await savePost(post);
 
     // Create Substack draft (non-fatal if it fails)
+    const relatedLinks = buildRelatedLinks(content.artist, content.title);
+    const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
     try {
       const { id, url } = await createSubstackDraft(
         content.newsletterTitle,
         content.title,
-        content.newsletterHtml,
+        newsletterHtmlWithLinks,
         affiliateUrl
       );
       post.substackDraftId = id;
