@@ -66,16 +66,40 @@ export async function composeImage(
           "div",
           {
             style: {
-              background: accent,
-              borderRadius: 4,
-              padding: "8px 18px",
-              fontSize: 22,
-              fontWeight: 700,
-              color: content.category === "vinyl_art" ? "white" : "black",
-              letterSpacing: 2,
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
             },
           },
-          "MUSICLEDGE"
+          h(
+            "div",
+            {
+              style: {
+                background: accent,
+                borderRadius: 4,
+                padding: "8px 18px",
+                fontSize: 22,
+                fontWeight: 700,
+                color: content.category === "vinyl_art" ? "white" : "black",
+                letterSpacing: 2,
+              },
+            },
+            "MUSICLEDGE"
+          ),
+          h(
+            "div",
+            {
+              style: {
+                fontSize: 14,
+                fontWeight: 700,
+                color: accent,
+                letterSpacing: 3,
+                paddingLeft: 4,
+                textTransform: "uppercase",
+              },
+            },
+            content.category === "vinyl_art" ? "VINYL ART" : "MUSIC STORY"
+          )
         ),
         h(
           "div",
@@ -218,6 +242,12 @@ export async function composeStory(
         h("div", {
           style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 5 },
         }, "MUSICLEDGE"),
+        h("div", {
+          style: {
+            fontSize: 13, fontWeight: 700,
+            color: "rgba(255,255,255,0.75)", letterSpacing: 4,
+          },
+        }, content.category === "vinyl_art" ? "VINYL ART" : "MUSIC STORY"),
         h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
       ),
 
