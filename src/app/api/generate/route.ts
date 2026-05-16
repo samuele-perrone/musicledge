@@ -5,7 +5,7 @@ import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createShortsVideo, createReelVideo } from "@/lib/video";
 import { createSubstackDraft } from "@/lib/substack";
-import { savePost, getRecentArtists } from "@/lib/store";
+import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
@@ -18,10 +18,13 @@ export async function POST(request: Request) {
     const forceCategory: PostCategory | undefined = body?.category;
     const forceStyle: ImageStyle | undefined = body?.imageStyle;
 
-    const usedArtists = await getRecentArtists(20);
+    const usedArtists = await getRecentArtists(40);
+    const recentSummaries = await getRecentPostSummaries(40);
     const content = await generateStoryContent(
       forceArtist ? [] : usedArtists,
-      forceCategory
+      forceCategory,
+      undefined,
+      recentSummaries
     );
     if (forceArtist) content.artist = forceArtist;
 

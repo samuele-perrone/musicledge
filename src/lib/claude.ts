@@ -140,7 +140,8 @@ Return ONLY valid JSON with this exact structure:
 export async function generateStoryContent(
   usedArtists: string[] = [],
   forcedCategory?: PostCategory,
-  todayEvent?: TodayEvent
+  todayEvent?: TodayEvent,
+  recentSummaries: { artist: string; title: string; category: string }[] = []
 ): Promise<StoryContent> {
   const available = ARTISTS_POOL.filter((a) => !usedArtists.includes(a));
   const pool = available.length > 0 ? available : ARTISTS_POOL;
@@ -159,7 +160,16 @@ export async function generateStoryContent(
     ? `\n\nIMPORTANT: Today is specifically the ${todayEvent.event}. Make the story directly about this occasion — mention the anniversary/milestone in the caption opening and make it feel timely and celebratory.`
     : "";
 
-  const prompt = basePrompt + eventSuffix;
+  // Append deduplication context — list previously covered stories to avoid repeats
+  const artistSummaries = recentSummaries.filter((s) => s.artist === artist);
+  const dedupeLines = recentSummaries
+    .map((s) => `- ${s.artist}: "${s.title}" (${s.category})`)
+    .join("\n");
+  const dedupeSuffix = dedupeLines
+    ? `\n\nDO NOT repeat any of the following stories that have already been published. Choose a completely different song, album, event, or aspect of the artist's career:\n${dedupeLines}${artistSummaries.length > 0 ? `\n\nThis artist (${artist}) has already been featured ${artistSummaries.length} time(s) — pick a different era, album, or story angle.` : ""}`
+    : "";
+
+  const prompt = basePrompt + eventSuffix + dedupeSuffix;
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-6",

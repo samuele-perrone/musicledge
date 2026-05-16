@@ -65,3 +65,12 @@ export async function getRecentArtists(limit = 20): Promise<string[]> {
   const posts = await loadPosts();
   return posts.slice(0, limit).map((p) => p.content.artist);
 }
+
+export async function getRecentPostSummaries(limit = 40): Promise<{ artist: string; title: string; category: string }[]> {
+  const posts = await loadPosts();
+  return posts.slice(0, limit).map((p) => ({
+    artist: p.content.artist,
+    title: p.content.title,
+    category: p.content.category,
+  }));
+}

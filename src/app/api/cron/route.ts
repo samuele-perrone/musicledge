@@ -7,7 +7,7 @@ import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent } from "@/
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
 import { composeImage, composeStory } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { savePost, getRecentArtists } from "@/lib/store";
+import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo, createReelVideo } from "@/lib/video";
@@ -30,12 +30,21 @@ export async function GET(request: Request) {
 
   try {
     // 1. Check for today's music event, then generate story
-    const todayEvent = await getTodaysMusicEvent(new Date());
+    const today = new Date();
+    const todayEvent = await getTodaysMusicEvent(today);
     if (todayEvent) {
       log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
     }
-    const usedArtists = await getRecentArtists(20);
-    const content = await generateStoryContent(usedArtists, undefined, todayEvent ?? undefined);
+
+    // Alternate category by day of month: odd = vinyl_art, even = music_story
+    // Event's suggested category takes priority if an event is found
+    const dayCategory = today.getUTCDate() % 2 !== 0 ? "vinyl_art" : "music_story";
+    const category = todayEvent?.suggestedCategory ?? dayCategory;
+    log.push(`Category: ${category} (${todayEvent ? "event-driven" : `day ${today.getUTCDate()} alternating`})`);
+
+    const usedArtists = await getRecentArtists(40);
+    const recentSummaries = await getRecentPostSummaries(40);
+    const content = await generateStoryContent(usedArtists, category, todayEvent ?? undefined, recentSummaries);
     log.push(`Story: "${content.title}" — ${content.artist}${todayEvent ? " (event-driven)" : ""}`);
 
     const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
