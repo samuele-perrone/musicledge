@@ -264,7 +264,7 @@ export async function generateStoryContent(
 
   const response = await getClient().messages.create({
     model: "claude-opus-4-6",
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -273,7 +273,17 @@ export async function generateStoryContent(
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) throw new Error("Failed to parse Claude response as JSON");
 
-  const content = JSON.parse(jsonMatch[0]) as StoryContent;
+  let content: StoryContent;
+  try {
+    content = JSON.parse(jsonMatch[0]) as StoryContent;
+  } catch {
+    // Attempt to salvage by stripping control characters and smart quotes
+    const sanitized = jsonMatch[0]
+      .replace(/[\u0000-\u001F\u007F]/g, " ")
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"');
+    content = JSON.parse(sanitized) as StoryContent;
+  }
   // Always enforce category; only enforce artist when no breaking news
   // (breaking news lets Claude set the artist from the news subject)
   content.category = category;
