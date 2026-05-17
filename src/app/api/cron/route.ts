@@ -27,9 +27,11 @@ export async function GET(request: Request) {
   }
 
   const log: string[] = [];
+  const { searchParams } = new URL(request.url);
+  const forcedCategory = searchParams.get("category") as PostCategory | null;
 
   try {
-    // 1. Check for breaking news, today's music event, then generate story
+    // 1. Check for breaking news and today's music event
     const today = new Date();
     const [todayEvent, breakingNews] = await Promise.all([
       getTodaysMusicEvent(today),
@@ -43,14 +45,13 @@ export async function GET(request: Request) {
       log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
     }
 
-    // Breaking news takes priority over events; events take priority over rotation
-    // Rotation: music_story → vinyl_art → harmony → music_story (always next after last posted)
+    // Use forced category from query param if provided, otherwise fall back to rotation/event/news
     const rotation = ["music_story", "vinyl_art", "harmony"] as const;
     const lastCategory = await getLastPostedCategory();
     const lastIndex = lastCategory ? rotation.indexOf(lastCategory as typeof rotation[number]) : -1;
     const nextCategory = rotation[(lastIndex + 1) % rotation.length];
-    const category = breakingNews ? "music_story" : (todayEvent?.suggestedCategory ?? nextCategory);
-    log.push(`Category: ${category} (${breakingNews ? "breaking news" : todayEvent ? "event-driven" : `next after last posted: ${lastCategory ?? "none"}`})`);
+    const category: PostCategory = forcedCategory ?? (breakingNews ? "music_story" : (todayEvent?.suggestedCategory ?? nextCategory));
+    log.push(`Category: ${category} (${forcedCategory ? "forced" : breakingNews ? "breaking news" : todayEvent ? "event-driven" : `next after last posted: ${lastCategory ?? "none"}`})`);
 
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
