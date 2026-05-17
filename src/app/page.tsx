@@ -34,6 +34,7 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | "random">("random");
   const [selectedStyle, setSelectedStyle] = useState<ImageStyle>("random");
   const [breakingNews, setBreakingNews] = useState("");
+  const [generatingStep, setGeneratingStep] = useState(0);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -52,7 +53,16 @@ export default function Home() {
 
   async function handleGenerate(publish: boolean) {
     setGenerating(true);
+    setGeneratingStep(0);
     setError(null);
+
+    // Advance steps on a timer matching approximate server durations
+    const stepDelays = [4000, 10000, 28000, 38000, 55000, 100000, 115000, 130000];
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    stepDelays.forEach((delay, i) => {
+      timers.push(setTimeout(() => setGeneratingStep(i + 1), delay));
+    });
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -82,7 +92,9 @@ export default function Home() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      timers.forEach(clearTimeout);
       setGenerating(false);
+      setGeneratingStep(0);
       setPosting(null);
     }
   }
@@ -293,15 +305,47 @@ export default function Home() {
               />
             </div>
 
-            {generating && (
-              <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-4 text-center">
-                <div className="text-2xl mb-2 animate-pulse">⚙️</div>
-                <p className="text-sm text-gray-300 font-medium">
-                  {posting ? "Publishing to social…" : "Generating story & image…"}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">This takes about 60 seconds, please wait</p>
-              </div>
-            )}
+            {generating && (() => {
+              const steps = [
+                { label: "Checking today's music events & news", icon: "📡", delay: 0 },
+                { label: "Generating story with Claude", icon: "✍️", delay: 4000 },
+                { label: "Creating AI image", icon: "🎨", delay: 10000 },
+                { label: "Composing main slide", icon: "🖼️", delay: 28000 },
+                { label: "Composing carousel slides 2–4", icon: "📐", delay: 38000 },
+                { label: "Generating animated reel", icon: "🎬", delay: 55000 },
+                { label: "Uploading to cloud", icon: "☁️", delay: 100000 },
+                { label: "Creating Substack draft", icon: "📧", delay: 115000 },
+                { label: posting ? "Publishing to social platforms" : "Finalising…", icon: posting ? "📲" : "✅", delay: 130000 },
+              ];
+              return (
+                <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 mb-4">
+                  <div className="space-y-2.5">
+                    {steps.map((step, i) => {
+                      const active = i === generatingStep;
+                      const done = i < generatingStep;
+                      return (
+                        <div key={i} className={`flex items-center gap-3 transition-opacity duration-300 ${done || active ? "opacity-100" : "opacity-25"}`}>
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs ${done ? "bg-green-500" : active ? "bg-amber-500 animate-pulse" : "bg-gray-700"}`}>
+                            {done ? "✓" : active ? "…" : ""}
+                          </div>
+                          <span className={`text-sm ${active ? "text-white font-medium" : done ? "text-gray-500 line-through" : "text-gray-600"}`}>
+                            {step.icon} {step.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Progress bar */}
+                  <div className="mt-4 h-1 bg-gray-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-amber-500 rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.round((generatingStep / (steps.length - 1)) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-600 mt-2 text-center">Takes 2–3 minutes · please wait</p>
+                </div>
+              );
+            })()}
             <div className="flex gap-3">
               <button
                 onClick={() => handleGenerate(false)}
