@@ -433,6 +433,75 @@ export async function makeVerticalSlide(squareBuffer: Buffer): Promise<Buffer> {
 }
 
 /**
+ * Composes a branded 1080×1080 "Follow Us" slide — always the last carousel slide.
+ * Pure gradient background matching the post's category accent colour.
+ */
+export async function composeFollowSlide(content: StoryContent): Promise<Buffer> {
+  const accent      = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
+  const accentDark  = content.category === "vinyl_art" ? "#0e7490" : content.category === "harmony" ? "#7c3aed" : "#d97706";
+  const textColor   = content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black";
+
+  const regularFont = loadFontBuffer("Inter-Regular.ttf");
+  const boldFont    = loadFontBuffer("Inter-Bold.ttf");
+
+  const svg = await satori(
+    h("div", {
+      style: {
+        width: WIDTH, height: HEIGHT,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: `linear-gradient(140deg, ${accent} 0%, ${accentDark} 100%)`,
+        fontFamily: "Inter",
+        gap: 28,
+      },
+    },
+      // Vinyl record icon
+      h("div", {
+        style: {
+          width: 110, height: 110, borderRadius: 55,
+          border: "5px solid rgba(255,255,255,0.35)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        },
+      },
+        h("div", { style: { width: 32, height: 32, borderRadius: 16, border: "5px solid rgba(255,255,255,0.35)" } })
+      ),
+      // MUSICLEDGE wordmark
+      h("div", { style: { fontSize: 44, fontWeight: 700, color: "white", letterSpacing: 5 } }, "MUSICLEDGE"),
+      // Divider
+      h("div", { style: { width: 50, height: 3, background: "rgba(255,255,255,0.45)", borderRadius: 2 } }),
+      // Call to action
+      h("div", {
+        style: {
+          fontSize: 30, fontWeight: 700, color: "white",
+          textAlign: "center", lineHeight: 1.45, padding: "0 90px",
+        },
+      }, "Follow us for daily music stories, vinyl deep dives & more"),
+      // Handle
+      h("div", { style: { fontSize: 22, fontWeight: 400, color: "rgba(255,255,255,0.7)", letterSpacing: 2 } }, "@musicledge"),
+      // Badge
+      h("div", {
+        style: {
+          marginTop: 12,
+          background: "rgba(255,255,255,0.2)",
+          borderRadius: 30, padding: "10px 28px",
+          fontSize: 18, fontWeight: 700,
+          color: "white", letterSpacing: 1,
+        },
+      }, "🎵 New post every day"),
+    ),
+    {
+      width: WIDTH, height: HEIGHT,
+      fonts: [
+        { name: "Inter", data: regularFont, weight: 400, style: "normal" },
+        { name: "Inter", data: boldFont, weight: 700, style: "normal" },
+      ],
+    }
+  );
+
+  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
+}
+
+/**
  * Composes a 1080×1920 Instagram Story image.
  * Layout: amber gradient bg → top branding → square post image → bottom text.
  */

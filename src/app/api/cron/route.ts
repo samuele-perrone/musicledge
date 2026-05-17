@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
-import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries, getLastPostedCategory } from "@/lib/store";
 import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
@@ -103,18 +103,29 @@ export async function GET(request: Request) {
         }
       }
     }
+    // Add follow slide as final carousel slide
+    try {
+      const followBuffer = await composeFollowSlide(content);
+      const followUrl = await uploadImageToBlob(followBuffer, `posts/${post.id}-follow.jpg`);
+      carouselBlobUrls.push(followUrl);
+      log.push("Follow slide generated");
+    } catch (e) {
+      log.push(`Follow slide failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
     post.carouselBlobUrls = carouselBlobUrls;
 
     // Reel video using animated carousel frames
     try {
-      const slide1Vertical = storyBuffer; // already 1080x1920
+      const slide1Vertical = storyBuffer;
       const verticalFrames: Buffer[] = [slide1Vertical];
       if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
-        for (let i = 1; i < carouselBlobUrls.length; i++) {
-          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, 4);
+        for (let i = 1; i < carouselBlobUrls.length - 1; i++) {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, carouselBlobUrls.length);
           verticalFrames.push(await makeVerticalSlide(slideBuffer));
         }
       }
+      const followBuffer = await composeFollowSlide(content);
+      verticalFrames.push(await makeVerticalSlide(followBuffer));
       const reelBuffer = await createAnimatedReelVideo(verticalFrames);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;

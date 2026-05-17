@@ -4,7 +4,7 @@
  */
 import { NextResponse } from "next/server";
 import { generateImage, ImageStyle } from "@/lib/imagegen";
-import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createAnimatedReelVideo } from "@/lib/video";
 import { createSubstackDraft } from "@/lib/substack";
@@ -51,17 +51,27 @@ export async function POST(request: Request) {
         }
       }
     }
+    // Add follow slide as final carousel slide
+    try {
+      const followBuffer = await composeFollowSlide(content);
+      const followUrl = await uploadImageToBlob(followBuffer, `posts/${post.id}-follow-v${v}.jpg`);
+      carouselBlobUrls.push(followUrl);
+    } catch (e) {
+      console.warn("[refresh] Follow slide failed:", e);
+    }
     post.carouselBlobUrls = carouselBlobUrls;
 
     // Animated reel from carousel frames
     try {
       const verticalFrames: Buffer[] = [storyBuffer];
       if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
-        for (let i = 1; i < carouselBlobUrls.length; i++) {
-          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, 4);
+        for (let i = 1; i < carouselBlobUrls.length - 1; i++) {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, carouselBlobUrls.length);
           verticalFrames.push(await makeVerticalSlide(slideBuffer));
         }
       }
+      const followBuffer = await composeFollowSlide(content);
+      verticalFrames.push(await makeVerticalSlide(followBuffer));
       const reelBuffer = await createAnimatedReelVideo(verticalFrames);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel-v${v}.mp4`);
       post.reelBlobUrl = reelBlobUrl;

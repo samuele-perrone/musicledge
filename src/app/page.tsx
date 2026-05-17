@@ -35,6 +35,7 @@ export default function Home() {
   const [selectedStyle, setSelectedStyle] = useState<ImageStyle>("random");
   const [breakingNews, setBreakingNews] = useState("");
   const [generatingStep, setGeneratingStep] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -50,6 +51,10 @@ export default function Home() {
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
+
+  useEffect(() => {
+    setActiveSlide(0);
+  }, [selectedPost?.id]);
 
   async function handleGenerate(publish: boolean) {
     setGenerating(true);
@@ -512,28 +517,58 @@ export default function Home() {
                 </button>
               </div>
             )}
-            {(selectedPost.imageBase64 || selectedPost.blobUrl) && (
-              <img
-                src={selectedPost.imageBase64 ? `data:image/jpeg;base64,${selectedPost.imageBase64}` : selectedPost.blobUrl}
-                alt={selectedPost.content.title}
-                className="w-full rounded-t-2xl"
-              />
-            )}
-            {/* Carousel slides preview */}
-            {selectedPost.carouselBlobUrls && selectedPost.carouselBlobUrls.length > 1 && (
-              <div className="border-b border-gray-800">
-                <div className="flex overflow-x-auto gap-1">
-                  {selectedPost.carouselBlobUrls.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Slide ${i + 1}`}
-                      className="w-24 h-24 object-cover flex-shrink-0 first:rounded-none last:rounded-none"
-                    />
-                  ))}
+            {/* Carousel viewer — uses carouselBlobUrls when available, else main image */}
+            {(() => {
+              const slides = selectedPost.carouselBlobUrls?.length
+                ? selectedPost.carouselBlobUrls
+                : selectedPost.imageBase64
+                ? [`data:image/jpeg;base64,${selectedPost.imageBase64}`]
+                : selectedPost.blobUrl
+                ? [selectedPost.blobUrl]
+                : [];
+              if (!slides.length) return null;
+              const total = slides.length;
+              return (
+                <div className="relative rounded-t-2xl overflow-hidden">
+                  <img
+                    src={slides[activeSlide]}
+                    alt={`Slide ${activeSlide + 1}`}
+                    className="w-full"
+                  />
+                  {/* Prev / Next */}
+                  {activeSlide > 0 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setActiveSlide(i => i - 1); }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full w-9 h-9 flex items-center justify-center text-lg transition-colors"
+                    >‹</button>
+                  )}
+                  {activeSlide < total - 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setActiveSlide(i => i + 1); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full w-9 h-9 flex items-center justify-center text-lg transition-colors"
+                    >›</button>
+                  )}
+                  {/* Dot indicators */}
+                  {total > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {slides.map((_, i) => (
+                        <button
+                          key={i}
+                          onClick={(e) => { e.stopPropagation(); setActiveSlide(i); }}
+                          className={`rounded-full transition-all ${i === activeSlide ? "w-4 h-2 bg-white" : "w-2 h-2 bg-white/40"}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Counter */}
+                  {total > 1 && (
+                    <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+                      {activeSlide + 1} / {total}
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
             <div className="p-6">
 <div className="flex items-center gap-2 mb-1">
                 <p className={`text-sm font-bold ${selectedPost.content.category === "vinyl_art" ? "text-cyan-400" : selectedPost.content.category === "harmony" ? "text-purple-400" : "text-amber-400"}`}>{selectedPost.content.artist}</p>
