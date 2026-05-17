@@ -469,15 +469,13 @@ export default function Home() {
                         {refreshing === post.id ? "Refreshing…" : "🔄 Refresh images"}
                       </button>
                     )}
-                    {post.status === "pending" && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(post.id); }}
-                        disabled={deleting === post.id}
-                        className="mt-1 w-full bg-gray-800 hover:bg-red-900/40 disabled:opacity-50 text-gray-500 hover:text-red-400 text-xs py-1 rounded transition-all"
-                      >
-                        {deleting === post.id ? "Removing…" : "Remove"}
-                      </button>
-                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(post.id); }}
+                      disabled={deleting === post.id}
+                      className="mt-1 w-full bg-gray-800 hover:bg-red-900/40 disabled:opacity-50 text-gray-500 hover:text-red-400 text-xs py-1 rounded transition-all"
+                    >
+                      {deleting === post.id ? "Removing…" : "Remove"}
+                    </button>
                   </div>
                 </div>
               ))}
