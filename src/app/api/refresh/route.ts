@@ -4,9 +4,9 @@
  */
 import { NextResponse } from "next/server";
 import { generateImage, ImageStyle } from "@/lib/imagegen";
-import { composeImage, composeStory } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createReelVideo } from "@/lib/video";
+import { createAnimatedReelVideo } from "@/lib/video";
 import { createSubstackDraft } from "@/lib/substack";
 import { getPost, savePost } from "@/lib/store";
 import { buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml } from "@/lib/claude";
@@ -38,8 +38,31 @@ export async function POST(request: Request) {
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story-v${v}.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
+    // Regenerate carousel slides
+    const carouselBlobUrls: string[] = [blobUrl];
+    if (content.carouselSlides?.length) {
+      for (let i = 0; i < content.carouselSlides.length; i++) {
+        try {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i], i + 2, 4);
+          const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-slide${i + 2}-v${v}.jpg`);
+          carouselBlobUrls.push(slideUrl);
+        } catch (e) {
+          console.warn(`[refresh] Slide ${i + 2} failed:`, e);
+        }
+      }
+    }
+    post.carouselBlobUrls = carouselBlobUrls;
+
+    // Animated reel from carousel frames
     try {
-      const reelBuffer = await createReelVideo(storyBuffer);
+      const verticalFrames: Buffer[] = [storyBuffer];
+      if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
+        for (let i = 1; i < carouselBlobUrls.length; i++) {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, 4);
+          verticalFrames.push(await makeVerticalSlide(slideBuffer));
+        }
+      }
+      const reelBuffer = await createAnimatedReelVideo(verticalFrames);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel-v${v}.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (e) {
