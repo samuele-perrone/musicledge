@@ -141,7 +141,12 @@ export async function GET(request: Request) {
     const hashtags = content.hashtags.map((h) => `#${h}`).join(" ");
     const relatedLinks = buildRelatedLinks(content.artist, content.title);
     const linksBlock = buildRelatedLinksCaption(relatedLinks, affiliateUrl);
-    const caption = `${content.caption}\n\n${hashtags}\n\n${linksBlock}`;
+    const suffix = `\n\n${hashtags}\n\n${linksBlock}`;
+    const maxBody = 2200 - suffix.length - 4;
+    const captionBody = content.caption.length > maxBody
+      ? content.caption.slice(0, maxBody).trimEnd() + "…"
+      : content.caption;
+    const caption = `${captionBody}${suffix}`;
     const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
 
     // 4. Substack draft
