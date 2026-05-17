@@ -1,16 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron?category=music_story",
+      "path": "/api/cron",
       "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/cron?category=vinyl_art",
-      "schedule": "20 7 * * *"
-    },
-    {
-      "path": "/api/cron?category=harmony",
-      "schedule": "40 7 * * *"
     }
   ]
 }
