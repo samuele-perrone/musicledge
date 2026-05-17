@@ -70,10 +70,9 @@ export async function createAnimatedReelVideo(
   slideBuffers: Buffer[]
 ): Promise<Buffer> {
   const tmpId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const slideDuration = 4;
-  const fadeDuration = 0.5;
+  const slideDuration = 4; // seconds per slide
 
-  // Resize all slides to 1080x1920 and write to /tmp
+  // Resize all slides and write to /tmp
   const slidePaths = await Promise.all(
     slideBuffers.map(async (buf, i) => {
       const resized = await sharp(buf)
@@ -89,26 +88,16 @@ export async function createAnimatedReelVideo(
   const outputPath = join("/tmp", `reel_anim_${tmpId}.mp4`);
   const n = slideBuffers.length;
 
-  // Build filter_complex: scale each input + xfade chain
-  const scaleFilters = slidePaths
-    .map((_, i) => `[${i}:v]scale=1080:1920,fps=24[v${i}]`)
-    .join(";");
-
-  let xfadeChain = "";
-  let lastLabel = "v0";
-  for (let i = 1; i < n; i++) {
-    const offset = i * (slideDuration - fadeDuration);
-    const outLabel = i === n - 1 ? "out" : `xf${i}`;
-    xfadeChain += `;[${lastLabel}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${outLabel}]`;
-    lastLabel = outLabel;
-  }
-
-  const filterComplex = scaleFilters + xfadeChain;
+  // Use concat filter: each image loops for slideDuration seconds, then concat sequentially
+  // Much more reliable than xfade for Vercel's ffmpeg environment
+  const scaleFilters = slidePaths.map((_, i) => `[${i}:v]scale=1080:1920,fps=24,setsar=1[v${i}]`).join(";");
+  const concatInputs = slidePaths.map((_, i) => `[v${i}]`).join("");
+  const filterComplex = `${scaleFilters};${concatInputs}concat=n=${n}:v=1:a=0[out]`;
 
   await new Promise<void>((resolve, reject) => {
     let cmd = ffmpeg();
     slidePaths.forEach((p) => {
-      cmd = cmd.addInput(p).inputOptions(["-loop 1", `-t ${slideDuration + fadeDuration}`]);
+      cmd = cmd.addInput(p).inputOptions(["-loop 1", `-t ${slideDuration}`]);
     });
     cmd
       .complexFilter(filterComplex)
@@ -119,7 +108,6 @@ export async function createAnimatedReelVideo(
         "-crf 26",
         "-pix_fmt yuv420p",
         "-movflags +faststart",
-        `-t ${n * slideDuration}`,
       ])
       .output(outputPath)
       .on("end", () => resolve())

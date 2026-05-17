@@ -296,8 +296,8 @@ export interface RelatedLinks {
 }
 
 export function buildRelatedLinks(artist: string, title: string): RelatedLinks {
-  const artistQ = encodeURIComponent(artist);
-  const fullQ = encodeURIComponent(`${artist} ${title}`);
+  const artistQ = artist.trim().replace(/\s+/g, "+");
+  const fullQ = `${artist} ${title}`.trim().replace(/\s+/g, "+");
   const wikiSlug = artist.trim().replace(/ /g, "_");
   return {
     spotify: `https://open.spotify.com/search/${fullQ}`,

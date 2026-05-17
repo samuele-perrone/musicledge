@@ -487,7 +487,7 @@ export async function composeFollowSlide(content: StoryContent): Promise<Buffer>
           fontSize: 18, fontWeight: 700,
           color: "white", letterSpacing: 1,
         },
-      }, "🎵 New post every day"),
+      }, "New post every day"),
     ),
     {
       width: WIDTH, height: HEIGHT,
