@@ -16,6 +16,22 @@ import crypto from "crypto";
 
 export const maxDuration = 300;
 
+async function sendErrorAlert(errors: string[]) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.ALERT_EMAIL;
+  if (!apiKey || !to) return;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "Musicledge <onboarding@resend.dev>",
+      to,
+      subject: "Musicledge cron errors",
+      html: `<p>The following errors occurred during today's cron run:</p><ul>${errors.map(e => `<li>${e}</li>`).join("")}</ul>`,
+    }),
+  });
+}
+
 async function generateAndPost(
   category: PostCategory,
   usedArtists: string[],
@@ -176,13 +192,23 @@ export async function GET(request: Request) {
     const recentSummaries = await getRecentPostSummaries(40);
 
     // Run all 3 categories sequentially — each generation naturally spaces them out
+    const errors: string[] = [];
     const categories: PostCategory[] = ["music_story", "vinyl_art", "harmony"];
     for (const category of categories) {
       try {
         await generateAndPost(category, usedArtists, recentSummaries, todayEvent, breakingNews, log);
       } catch (e) {
-        log.push(`${category} FATAL: ${e instanceof Error ? e.message : String(e)}`);
+        const msg = `${category} FATAL: ${e instanceof Error ? e.message : String(e)}`;
+        log.push(msg);
+        errors.push(msg);
       }
+    }
+
+    // Also collect any platform failures from the log
+    const platformErrors = log.filter(l => l.includes("failed:") || l.includes("FATAL"));
+    const allErrors = [...new Set([...errors, ...platformErrors])];
+    if (allErrors.length > 0) {
+      await sendErrorAlert(allErrors).catch(() => {});
     }
 
     return NextResponse.json({ success: true, log });
