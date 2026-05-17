@@ -147,6 +147,8 @@ function buildMusicStoryPrompt(artist: string): string {
 
 Generate a fascinating, lesser-known story about ${artist} — a specific song, album, recording session, or pivotal career moment.
 
+Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.
+
 Return ONLY valid JSON with this exact structure:
 {
   "category": "music_story",
@@ -166,6 +168,8 @@ function buildHarmonyPrompt(artist: string): string {
   return `You are creating content for a music history brand — exploring musical DNA, influence, and the lineage of sound across rock and pop history.
 
 Generate a "Harmony" post exploring how a specific riff, chord progression, or musical motif connected to ${artist} was borrowed, adapted, or directly copied between songs. Pick a pair of songs where the musical connection is clear, specific, and musically interesting — one that established the sound and one that borrowed it (or vice versa involving ${artist}).
+
+Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -192,6 +196,8 @@ function buildVinylArtPrompt(artist: string): string {
   return `You are creating content for a music history brand across Instagram and Facebook — similar to @explainingpaintings but for rock and pop music.
 
 Generate a fascinating, lesser-known story about the album cover artwork or sleeve design of a specific ${artist} record — focusing on the photographer, art director, visual concept, hidden meaning, or behind-the-scenes story of how the artwork was created.
+
+Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.
 
 Return ONLY valid JSON with this exact structure:
 {

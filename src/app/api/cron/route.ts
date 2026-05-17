@@ -142,9 +142,9 @@ async function generateAndPost(
   });
   const linksBlock = buildRelatedLinksCaption(relatedLinks, affiliateUrl);
   const creditLine = albumInfo
-    ? `\n📷 Album artwork © ${albumInfo.artistName} — via @applemusic`
+    ? `\n📷 Album artwork © ${albumInfo.artistName}, via @applemusic`
     : artistInfo
-    ? `\n📷 Photo © ${artistInfo.artistName} — via @spotify`
+    ? `\n📷 Photo © ${artistInfo.artistName}, via @spotify`
     : "";
   const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
   const maxBody = 2200 - suffix.length - 4;

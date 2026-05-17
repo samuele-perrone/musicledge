@@ -45,9 +45,9 @@ export async function POST(request: Request) {
     });
     const linksBlock = buildRelatedLinksCaption(relatedLinks, post.affiliateUrl ?? "");
     const creditLine = post.albumInfo
-      ? `\n📷 Album artwork © ${post.albumInfo.artistName} — via @applemusic`
+      ? `\n📷 Album artwork © ${post.albumInfo.artistName}, via @applemusic`
       : post.artistInfo
-      ? `\n📷 Photo © ${post.artistInfo.artistName} — via @spotify`
+      ? `\n📷 Photo © ${post.artistInfo.artistName}, via @spotify`
       : "";
     // Instagram limit is 2,200 characters — truncate caption body if needed
     const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
