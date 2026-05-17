@@ -494,27 +494,24 @@ export default function Home() {
             className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            {(selectedPost.status === "pending" || selectedPost.status === "image_ready") && (
-              <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-                {selectedPost.status === "image_ready" && (
-                  <button
-                    onClick={() => handleRefresh(selectedPost.id)}
-                    disabled={refreshing === selectedPost.id}
-                    className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
-                  >
-                    {refreshing === selectedPost.id ? "Refreshing images…" : "🔄 Refresh images"}
-                  </button>
-                )}
-                {selectedPost.status === "pending" && <span />}
+            <div className="p-4 border-b border-gray-800 flex justify-between items-center">
+              {selectedPost.status === "image_ready" ? (
                 <button
-                  onClick={() => handleDelete(selectedPost.id)}
-                  disabled={deleting === selectedPost.id}
-                  className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                  onClick={() => handleRefresh(selectedPost.id)}
+                  disabled={refreshing === selectedPost.id}
+                  className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
                 >
-                  {deleting === selectedPost.id ? "Removing…" : "🗑 Remove this post"}
+                  {refreshing === selectedPost.id ? "Refreshing images…" : "🔄 Refresh images"}
                 </button>
-              </div>
-            )}
+              ) : <span />}
+              <button
+                onClick={() => handleDelete(selectedPost.id)}
+                disabled={deleting === selectedPost.id}
+                className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+              >
+                {deleting === selectedPost.id ? "Removing…" : "🗑 Remove this post"}
+              </button>
+            </div>
             {/* Carousel viewer — uses carouselBlobUrls when available, else main image */}
             {(() => {
               const slides = selectedPost.carouselBlobUrls?.length
