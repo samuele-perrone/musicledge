@@ -80,6 +80,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
+      if (data.substackWarning) setError(`Substack: ${data.substackWarning}`);
 
       if (publish && data.post?.id && selectedPlatforms.length > 0) {
         setPosting(data.post.id);

@@ -114,6 +114,7 @@ export async function POST(request: Request) {
     // Create Substack draft (non-fatal if it fails)
     const relatedLinks = buildRelatedLinks(content.artist, content.title);
     const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
+    let substackWarning: string | undefined;
     try {
       const { id, url } = await createSubstackDraft(
         content.newsletterTitle,
@@ -125,10 +126,11 @@ export async function POST(request: Request) {
       post.substackDraftUrl = url;
       await savePost(post);
     } catch (substackErr) {
-      console.warn("[generate] Substack draft failed:", substackErr);
+      substackWarning = substackErr instanceof Error ? substackErr.message : String(substackErr);
+      console.warn("[generate] Substack draft failed:", substackWarning);
     }
 
-    return NextResponse.json({ success: true, post });
+    return NextResponse.json({ success: true, post, ...(substackWarning ? { substackWarning } : {}) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });

@@ -29,9 +29,11 @@ function getSubstackBase() {
 function getHeaders() {
   const sid = process.env.SUBSTACK_SID;
   if (!sid) throw new Error("SUBSTACK_SID not set");
+  // Decode URL-encoded value in case user copied it from the browser URL bar
+  const decoded = decodeURIComponent(sid);
   return {
     "Content-Type": "application/json",
-    Cookie: `substack.sid=${sid}`,
+    Cookie: `substack.sid=${decoded}`,
   };
 }
 
