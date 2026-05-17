@@ -274,9 +274,10 @@ export async function generateStoryContent(
   if (!jsonMatch) throw new Error("Failed to parse Claude response as JSON");
 
   const content = JSON.parse(jsonMatch[0]) as StoryContent;
-  // Ensure category and artist are always set correctly
+  // Always enforce category; only enforce artist when no breaking news
+  // (breaking news lets Claude set the artist from the news subject)
   content.category = category;
-  content.artist = artist;
+  if (!breakingNews) content.artist = artist;
   return content;
 }
 
