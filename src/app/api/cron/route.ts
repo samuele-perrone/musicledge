@@ -5,13 +5,12 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
 import { generateImage } from "@/lib/imagegen";
-import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
-import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
+import { createMediaContainer, publishMediaContainer, checkContainerStatus, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
 import { postFacebookPhoto } from "@/lib/facebook";
 import { createSubstackDraft } from "@/lib/substack";
-import { createAnimatedReelVideo } from "@/lib/video";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
@@ -83,25 +82,6 @@ async function generateAndPost(
   }
   post.carouselBlobUrls = carouselBlobUrls;
 
-  // Reel video
-  try {
-    const verticalFrames: Buffer[] = [storyBuffer];
-    if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
-      for (let i = 1; i < carouselBlobUrls.length - 1; i++) {
-        const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, carouselBlobUrls.length);
-        verticalFrames.push(await makeVerticalSlide(slideBuffer));
-      }
-    }
-    const followBuffer = await composeFollowSlide(content);
-    verticalFrames.push(await makeVerticalSlide(followBuffer));
-    const reelBuffer = await createAnimatedReelVideo(verticalFrames);
-    const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
-    post.reelBlobUrl = reelBlobUrl;
-    log.push("Reel generated");
-  } catch (e) {
-    log.push(`Reel failed: ${e instanceof Error ? e.message : String(e)}`);
-  }
-
   post.status = "image_ready";
   await savePost(post);
 
@@ -152,28 +132,6 @@ async function generateAndPost(
     const msg = e instanceof Error ? e.message : String(e);
     post.platforms.instagram = { status: "failed", error: msg };
     log.push(`Instagram failed: ${msg}`);
-  }
-
-  // Instagram Reel
-  if (post.reelBlobUrl) {
-    try {
-      const reelContainerId = await createReelContainer(post.reelBlobUrl, caption);
-      let reelStatus = "IN_PROGRESS";
-      let reelAttempts = 0;
-      while (reelStatus === "IN_PROGRESS" && reelAttempts < 20) {
-        await new Promise((r) => setTimeout(r, 5000));
-        reelStatus = await checkContainerStatus(reelContainerId);
-        reelAttempts++;
-      }
-      if (reelStatus !== "FINISHED") throw new Error(`Reel container: ${reelStatus}`);
-      const reelMediaId = await publishMediaContainer(reelContainerId);
-      post.platforms.reel = { status: "posted", postId: reelMediaId, postedAt: new Date().toISOString() };
-      log.push(`Reel: ${reelMediaId}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      post.platforms.reel = { status: "failed", error: msg };
-      log.push(`Reel failed: ${msg}`);
-    }
   }
 
   // Facebook
