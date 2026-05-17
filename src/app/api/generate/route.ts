@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
 import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createShortsVideo, createReelVideo, createAnimatedReelVideo } from "@/lib/video";
-import { createSubstackDraft } from "@/lib/substack";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
@@ -51,9 +51,35 @@ export async function POST(request: Request) {
     };
     await savePost(post);
 
-    // Generate and compose image — vinyl_art defaults to editorial style unless overridden
-    const effectiveStyle = forceStyle ?? (category === "vinyl_art" ? "editorial" : "random");
-    const imageBase64 = await generateImage(content.imagePrompt, effectiveStyle);
+    // Try to use real images: album art for vinyl_art, artist photo for others
+    let imageBase64: string;
+    if (!forceStyle && content.category === "vinyl_art" && content.albumName) {
+      try {
+        const albumInfo = await searchAlbum(content.artist, content.albumName);
+        if (albumInfo) {
+          imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
+          post.albumInfo = albumInfo;
+        } else {
+          imageBase64 = await generateImage(content.imagePrompt, "editorial");
+        }
+      } catch {
+        imageBase64 = await generateImage(content.imagePrompt, "editorial");
+      }
+    } else if (!forceStyle) {
+      try {
+        const artistInfo = await searchArtistInfo(content.artist);
+        if (artistInfo) {
+          imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+          post.artistInfo = artistInfo;
+        } else {
+          imageBase64 = await generateImage(content.imagePrompt, "random");
+        }
+      } catch {
+        imageBase64 = await generateImage(content.imagePrompt, "random");
+      }
+    } else {
+      imageBase64 = await generateImage(content.imagePrompt, forceStyle);
+    }
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
 
@@ -112,26 +138,7 @@ export async function POST(request: Request) {
     post.status = "image_ready";
     await savePost(post);
 
-    // Create Substack draft (non-fatal if it fails)
-    const relatedLinks = buildRelatedLinks(content.artist, content.title);
-    const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
-    let substackWarning: string | undefined;
-    try {
-      const { id, url } = await createSubstackDraft(
-        content.newsletterTitle,
-        content.title,
-        newsletterHtmlWithLinks,
-        affiliateUrl
-      );
-      post.substackDraftId = id;
-      post.substackDraftUrl = url;
-      await savePost(post);
-    } catch (substackErr) {
-      substackWarning = substackErr instanceof Error ? substackErr.message : String(substackErr);
-      console.warn("[generate] Substack draft failed:", substackWarning);
-    }
-
-    return NextResponse.json({ success: true, post, ...(substackWarning ? { substackWarning } : {}) });
+    return NextResponse.json({ success: true, post });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });

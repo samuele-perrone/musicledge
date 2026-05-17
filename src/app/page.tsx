@@ -700,16 +700,6 @@ export default function Home() {
                     🛒 Amazon affiliate link
                   </a>
                 )}
-                {selectedPost.substackDraftUrl && (
-                  <a
-                    href={selectedPost.substackDraftUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 text-center bg-orange-600/20 border border-orange-600/40 text-orange-400 text-xs font-medium py-2 rounded-lg hover:bg-orange-600/30 transition-colors"
-                  >
-                    📧 Review Substack draft
-                  </a>
-                )}
                 {selectedPost.storyBlobUrl && (
                   <a
                     href={selectedPost.storyBlobUrl}

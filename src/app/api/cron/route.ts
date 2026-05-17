@@ -3,14 +3,14 @@
  * Generates and publishes one post per category: music_story, vinyl_art, harmony.
  */
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption } from "@/lib/claude";
 import { generateImage } from "@/lib/imagegen";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
 import { composeImage, composeStory, composeCarouselSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { createMediaContainer, publishMediaContainer, checkContainerStatus, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
 import { postFacebookPhoto } from "@/lib/facebook";
-import { createSubstackDraft } from "@/lib/substack";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
@@ -63,9 +63,41 @@ async function generateAndPost(
   };
   await savePost(post);
 
-  // Generate and compose image — vinyl_art always uses editorial (studio still life) style
-  const imageStyle = category === "vinyl_art" ? "editorial" : "random";
-  const imageBase64 = await generateImage(content.imagePrompt, imageStyle);
+  // Try to use real images: album art for vinyl_art, artist photo for others
+  let imageBase64: string;
+  let albumInfo = null;
+  let artistInfo = null;
+  if (category === "vinyl_art" && content.albumName) {
+    try {
+      albumInfo = await searchAlbum(content.artist, content.albumName);
+      if (albumInfo) {
+        imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
+        post.albumInfo = albumInfo;
+        log.push(`Album art: ${albumInfo.albumName} — ${albumInfo.artistName}`);
+      } else {
+        log.push("Album art not found on iTunes, falling back to AI generation");
+        imageBase64 = await generateImage(content.imagePrompt, "editorial");
+      }
+    } catch (e) {
+      log.push(`Album art fetch failed: ${e instanceof Error ? e.message : String(e)}, falling back to AI`);
+      imageBase64 = await generateImage(content.imagePrompt, "editorial");
+    }
+  } else {
+    try {
+      artistInfo = await searchArtistInfo(content.artist);
+      if (artistInfo) {
+        imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+        post.artistInfo = artistInfo;
+        log.push(`Artist photo: ${artistInfo.artistName}`);
+      } else {
+        log.push("Artist photo not found, falling back to AI generation");
+        imageBase64 = await generateImage(content.imagePrompt, "random");
+      }
+    } catch (e) {
+      log.push(`Artist photo fetch failed: ${e instanceof Error ? e.message : String(e)}, falling back to AI`);
+      imageBase64 = await generateImage(content.imagePrompt, "random");
+    }
+  }
   const composedBuffer = await composeImage(imageBase64, content);
   post.imageBase64 = composedBuffer.toString("base64");
 
@@ -104,26 +136,22 @@ async function generateAndPost(
 
   // Build caption
   const hashtags = content.hashtags.map((h) => `#${h}`).join(" ");
-  const relatedLinks = buildRelatedLinks(content.artist, content.title);
+  const relatedLinks = buildRelatedLinks(content.artist, content.title, {
+    spotifyUrl: albumInfo?.spotifyUrl ?? artistInfo?.spotifyUrl,
+    appleMusicUrl: albumInfo?.appleMusicUrl ?? artistInfo?.appleMusicUrl,
+  });
   const linksBlock = buildRelatedLinksCaption(relatedLinks, affiliateUrl);
-  const suffix = `\n\n${hashtags}\n\n${linksBlock}`;
+  const creditLine = albumInfo
+    ? `\n📷 Album artwork © ${albumInfo.artistName} — via @applemusic`
+    : artistInfo
+    ? `\n📷 Photo © ${artistInfo.artistName} — via @spotify`
+    : "";
+  const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
   const maxBody = 2200 - suffix.length - 4;
   const captionBody = content.caption.length > maxBody
     ? content.caption.slice(0, maxBody).trimEnd() + "…"
     : content.caption;
   const caption = `${captionBody}${suffix}`;
-  const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
-
-  // Substack draft
-  try {
-    const { id, url } = await createSubstackDraft(content.newsletterTitle, content.title, newsletterHtmlWithLinks, affiliateUrl);
-    post.substackDraftId = id;
-    post.substackDraftUrl = url;
-    await savePost(post);
-    log.push(`Substack: ${url}`);
-  } catch (e) {
-    log.push(`Substack failed: ${e instanceof Error ? e.message : String(e)}`);
-  }
 
   // Instagram carousel/single
   try {

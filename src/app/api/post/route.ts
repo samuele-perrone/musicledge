@@ -39,13 +39,19 @@ export async function POST(request: Request) {
 
     const targets: Platform[] = platforms ?? ["instagram", "facebook"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
-    const relatedLinks = buildRelatedLinks(post.content.artist, post.content.title);
+    const relatedLinks = buildRelatedLinks(post.content.artist, post.content.title, {
+      spotifyUrl: post.albumInfo?.spotifyUrl ?? post.artistInfo?.spotifyUrl,
+      appleMusicUrl: post.albumInfo?.appleMusicUrl ?? post.artistInfo?.appleMusicUrl,
+    });
     const linksBlock = buildRelatedLinksCaption(relatedLinks, post.affiliateUrl ?? "");
-    const fullCaption = `${post.content.caption}\n\n${hashtags}\n\n${linksBlock}`;
+    const creditLine = post.albumInfo
+      ? `\n📷 Album artwork © ${post.albumInfo.artistName} — via @applemusic`
+      : post.artistInfo
+      ? `\n📷 Photo © ${post.artistInfo.artistName} — via @spotify`
+      : "";
     // Instagram limit is 2,200 characters — truncate caption body if needed
-    const IG_LIMIT = 2200;
-    const suffix = `\n\n${hashtags}\n\n${linksBlock}`;
-    const maxBody = IG_LIMIT - suffix.length - 4; // 4 for "…\n\n"
+    const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
+    const maxBody = 2200 - suffix.length - 4;
     const captionBody = post.content.caption.length > maxBody
       ? post.content.caption.slice(0, maxBody).trimEnd() + "…"
       : post.content.caption;

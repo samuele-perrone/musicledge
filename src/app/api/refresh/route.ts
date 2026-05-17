@@ -1,15 +1,14 @@
 /**
  * Refreshes an unposted post: re-generates the AI image, re-composes
- * with the latest layout, re-uploads blobs, and updates the Substack draft.
+ * with the latest layout, and re-uploads blobs.
  */
 import { NextResponse } from "next/server";
 import { generateImage, ImageStyle } from "@/lib/imagegen";
 import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createAnimatedReelVideo } from "@/lib/video";
-import { createSubstackDraft } from "@/lib/substack";
 import { getPost, savePost } from "@/lib/store";
-import { buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml } from "@/lib/claude";
+import { buildAffiliateUrl } from "@/lib/claude";
 
 export const maxDuration = 300;
 
@@ -80,26 +79,7 @@ export async function POST(request: Request) {
     }
 
     post.status = "image_ready";
-
-    // Rebuild affiliate URL and related links, then update/create Substack draft
-    const affiliateUrl = post.affiliateUrl ?? buildAffiliateUrl(content.amazonSearchTerms);
-    post.affiliateUrl = affiliateUrl;
-
-    const relatedLinks = buildRelatedLinks(content.artist, content.title);
-    const newsletterHtmlWithLinks = content.newsletterHtml + "\n\n" + buildRelatedLinksHtml(relatedLinks, affiliateUrl);
-
-    try {
-      const { id, url } = await createSubstackDraft(
-        content.newsletterTitle,
-        content.title,
-        newsletterHtmlWithLinks,
-        affiliateUrl
-      );
-      post.substackDraftId = id;
-      post.substackDraftUrl = url;
-    } catch (e) {
-      console.warn("[refresh] Substack draft failed:", e);
-    }
+    post.affiliateUrl = post.affiliateUrl ?? buildAffiliateUrl(content.amazonSearchTerms);
 
     await savePost(post);
 

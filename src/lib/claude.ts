@@ -143,7 +143,7 @@ const ARTISTS_POOL = [
 ];
 
 function buildMusicStoryPrompt(artist: string): string {
-  return `You are creating content for a music history brand across Instagram, Facebook, and a Substack newsletter — similar to @explainingpaintings but for rock and pop music.
+  return `You are creating content for a music history brand across Instagram and Facebook — similar to @explainingpaintings but for rock and pop music.
 
 Generate a fascinating, lesser-known story about ${artist} — a specific song, album, recording session, or pivotal career moment.
 
@@ -158,9 +158,7 @@ Return ONLY valid JSON with this exact structure:
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic image evoking the era and mood of this music story — reference the recording studio atmosphere, instruments, stage lighting, or iconic visual symbols associated with this artist's era. Do NOT mention any real person's name. Do NOT depict any human face or figure. Focus on objects, environments, light, color, and mood. High contrast, cinematic, square format.",
   "carouselSlides": ["Punchy hook for slide 2 (max 100 chars, surprising fact or bold statement)", "Main story beat for slide 3 (max 120 chars, the most compelling detail)", "Closing thought for slide 4 (max 100 chars, end with an implicit question or reflection)"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
-  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
-  "newsletterTitle": "Email subject line: compelling, 6-10 words, no clickbait",
-  "newsletterHtml": "Full newsletter article in HTML (no <html>/<body> tags). 400-600 words. Include: an engaging opening hook, the full story with rich detail and context, why it matters to music history, a closing reflection. Use <p>, <h2>, <strong>, <em> tags. End with a <p> inviting readers to reply with their thoughts."
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl"
 }`;
 }
 
@@ -186,14 +184,12 @@ Return ONLY valid JSON with this exact structure:
   "imagePrompt": "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures that span both eras. No human faces or figures. Square format, cinematic, high contrast.",
   "carouselSlides": ["The original song context — who made it, when, and why it mattered (max 100 chars)", "How the sound was borrowed or adapted — the specific riff, chord, or motif (max 120 chars)", "The verdict — inspiration or imitation? Leave the listener with a question (max 100 chars)"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
-  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD",
-  "newsletterTitle": "Email subject line: compelling, 6-10 words about the musical connection",
-  "newsletterHtml": "Full newsletter article in HTML (no <html>/<body> tags). 400-600 words. Deep dive into the musical DNA: describe the specific notes, chords, or rhythm borrowed. Discuss whether it crosses into plagiarism. Include listener cues ('Listen at 0:32 for the moment...'). Explore how influence works in music history. Use <p>, <h2>, <strong>, <em> tags. End with a <p> inviting readers to share which version they prefer."
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD"
 }`;
 }
 
 function buildVinylArtPrompt(artist: string): string {
-  return `You are creating content for a music history brand across Instagram, Facebook, and a Substack newsletter — similar to @explainingpaintings but for rock and pop music.
+  return `You are creating content for a music history brand across Instagram and Facebook — similar to @explainingpaintings but for rock and pop music.
 
 Generate a fascinating, lesser-known story about the album cover artwork or sleeve design of a specific ${artist} record — focusing on the photographer, art director, visual concept, hidden meaning, or behind-the-scenes story of how the artwork was created.
 
@@ -208,9 +204,8 @@ Return ONLY valid JSON with this exact structure:
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic still life image that evokes the aesthetic, colour palette, textures, and mood of this specific album cover artwork — reference the visual elements, lighting style, and era without depicting any real person. Focus on objects, surfaces, typography feel, light and shadow. Square format, editorial quality.",
   "carouselSlides": ["Punchy hook for slide 2 (max 100 chars, surprising fact or bold statement about the artwork)", "Main story beat for slide 3 (max 120 chars, the most compelling detail about how the cover was made)", "Closing thought for slide 4 (max 100 chars, end with an implicit question or reflection about the artwork)"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
-  "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl",
-  "newsletterTitle": "Email subject line about the artwork story: compelling, 6-10 words",
-  "newsletterHtml": "Full newsletter article in HTML (no <html>/<body> tags). 400-600 words. Include: an engaging opening hook about the artwork, the full story of how it was conceived and created, why the visual design matters to music history, hidden details listeners might have missed. Use <p>, <h2>, <strong>, <em> tags. End with a <p> inviting readers to reply with their thoughts."
+  "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
+  "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl"
 }`;
 }
 
@@ -305,15 +300,19 @@ export interface RelatedLinks {
   appleMusic: string;
 }
 
-export function buildRelatedLinks(artist: string, title: string): RelatedLinks {
+export function buildRelatedLinks(
+  artist: string,
+  title: string,
+  overrides?: { spotifyUrl?: string; appleMusicUrl?: string }
+): RelatedLinks {
   const artistQ = artist.trim().replace(/\s+/g, "+");
   const fullQ = `${artist} ${title}`.trim().replace(/\s+/g, "+");
   const wikiSlug = artist.trim().replace(/ /g, "_");
   return {
-    spotify: `https://open.spotify.com/search/${fullQ}`,
+    spotify: overrides?.spotifyUrl ?? `https://open.spotify.com/search/${encodeURIComponent(`${artist} ${title}`)}`,
     youtube: `https://www.youtube.com/results?search_query=${fullQ}`,
     wikipedia: `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiSlug)}`,
-    appleMusic: `https://music.apple.com/search?term=${artistQ}`,
+    appleMusic: overrides?.appleMusicUrl ?? `https://music.apple.com/search?term=${artistQ}`,
   };
 }
 
@@ -327,13 +326,3 @@ export function buildRelatedLinksCaption(links: RelatedLinks, affiliateUrl: stri
   ].filter(Boolean).join("\n");
 }
 
-export function buildRelatedLinksHtml(links: RelatedLinks, affiliateUrl: string): string {
-  const items = [
-    `<a href="${links.spotify}">🎵 Listen on Spotify</a>`,
-    `<a href="${links.youtube}">▶️ Watch on YouTube</a>`,
-    `<a href="${links.wikipedia}">📖 Read more on Wikipedia</a>`,
-    `<a href="${links.appleMusic}">🍎 Find on Apple Music</a>`,
-    affiliateUrl ? `<a href="${affiliateUrl}">🛒 Find the vinyl on Amazon</a>` : "",
-  ].filter(Boolean).map((item) => `<li>${item}</li>`).join("\n");
-  return `<h2>Related Links</h2>\n<ul>\n${items}\n</ul>`;
-}

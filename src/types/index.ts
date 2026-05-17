@@ -10,8 +10,7 @@ export interface StoryContent {
   imagePrompt: string;
   hashtags: string[];
   amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
-  newsletterTitle: string;     // email subject line
-  newsletterHtml: string;      // full story in HTML for Substack
+  albumName?: string;          // exact album title (vinyl_art only) — used for iTunes/Spotify lookup
   carouselSlides?: string[];  // 3 slide texts for slides 2-4
   // Harmony-specific fields
   influenceSource?: string;    // e.g. "Led Zeppelin — Whole Lotta Love (1969)"
@@ -41,8 +40,19 @@ export interface GeneratedPost {
   todayEvent?: string;         // e.g. "50th anniversary of Dark Side of the Moon"
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
-  substackDraftId?: number;
-  substackDraftUrl?: string;
+  albumInfo?: {               // populated for vinyl_art posts when iTunes lookup succeeds
+    artworkUrl: string;
+    appleMusicUrl: string;
+    albumName: string;
+    artistName: string;
+    spotifyUrl?: string;
+  };
+  artistInfo?: {              // populated for music_story/harmony posts when Spotify lookup succeeds
+    imageUrl: string;
+    spotifyUrl?: string;
+    appleMusicUrl?: string;
+    artistName: string;
+  };
   platforms: Record<Platform, PlatformResult>;
   status: "pending" | "image_ready" | "posted" | "failed";
   error?: string;
