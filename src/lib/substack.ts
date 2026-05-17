@@ -60,6 +60,7 @@ export async function createSubstackDraft(
       draft_title: title,
       draft_subtitle: subtitle,
       draft_body: JSON.stringify({ type: "doc", content: [{ type: "html", attrs: { html: fullBody } }] }),
+      draft_bylines: [],
       audience: "everyone",
       section_chosen: true,
     }),
