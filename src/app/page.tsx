@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { GeneratedPost, Platform, PostCategory } from "@/types";
-import { ImageStyle, IMAGE_STYLE_LABELS } from "@/lib/imagegen";
 
 type Tab = "dashboard" | "generate";
 
@@ -32,7 +31,6 @@ export default function Home() {
     "facebook",
   ]);
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | "random">("random");
-  const [selectedStyle, setSelectedStyle] = useState<ImageStyle>("random");
   const [breakingNews, setBreakingNews] = useState("");
   const [generatingStep, setGeneratingStep] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
@@ -73,7 +71,6 @@ export default function Home() {
         method: "POST",
         body: JSON.stringify({
           category: selectedCategory === "random" ? undefined : selectedCategory,
-          imageStyle: selectedStyle,
           breakingNews: breakingNews.trim() || undefined,
         }),
         headers: { "Content-Type": "application/json" },
@@ -281,23 +278,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Image style selector — shown for music story or random */}
-            {selectedCategory !== "vinyl_art" && (
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Image style</p>
-                <div className="flex gap-2">
-                  {(Object.entries(IMAGE_STYLE_LABELS) as [ImageStyle, string][]).map(([val, label]) => (
-                    <button key={val} onClick={() => setSelectedStyle(val)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                        selectedStyle === val
-                          ? "bg-gray-700 border-gray-500 text-white"
-                          : "bg-gray-900 border-gray-700 text-gray-500"
-                      }`}
-                    >{val === "random" ? "🎲 Random" : val === "vintage" ? "📷 Vintage" : val === "concert" ? "🎤 Concert" : "🎬 Editorial"}</button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Breaking news override */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-6">
