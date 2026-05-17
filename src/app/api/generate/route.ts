@@ -51,8 +51,9 @@ export async function POST(request: Request) {
     };
     await savePost(post);
 
-    // Generate and compose image
-    const imageBase64 = await generateImage(content.imagePrompt, forceStyle);
+    // Generate and compose image — vinyl_art defaults to editorial style unless overridden
+    const effectiveStyle = forceStyle ?? (category === "vinyl_art" ? "editorial" : "random");
+    const imageBase64 = await generateImage(content.imagePrompt, effectiveStyle);
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
 

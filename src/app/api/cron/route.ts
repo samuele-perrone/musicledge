@@ -63,8 +63,9 @@ async function generateAndPost(
   };
   await savePost(post);
 
-  // Generate and compose image
-  const imageBase64 = await generateImage(content.imagePrompt);
+  // Generate and compose image — vinyl_art always uses editorial (studio still life) style
+  const imageStyle = category === "vinyl_art" ? "editorial" : "random";
+  const imageBase64 = await generateImage(content.imagePrompt, imageStyle);
   const composedBuffer = await composeImage(imageBase64, content);
   post.imageBase64 = composedBuffer.toString("base64");
 
