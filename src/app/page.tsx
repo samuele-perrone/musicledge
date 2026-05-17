@@ -475,6 +475,21 @@ export default function Home() {
                 className="w-full rounded-t-2xl"
               />
             )}
+            {/* Carousel slides preview */}
+            {selectedPost.carouselBlobUrls && selectedPost.carouselBlobUrls.length > 1 && (
+              <div className="border-b border-gray-800">
+                <div className="flex overflow-x-auto gap-1">
+                  {selectedPost.carouselBlobUrls.map((url, i) => (
+                    <img
+                      key={i}
+                      src={url}
+                      alt={`Slide ${i + 1}`}
+                      className="w-24 h-24 object-cover flex-shrink-0 first:rounded-none last:rounded-none"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="p-6">
 <div className="flex items-center gap-2 mb-1">
                 <p className={`text-sm font-bold ${selectedPost.content.category === "vinyl_art" ? "text-cyan-400" : selectedPost.content.category === "harmony" ? "text-purple-400" : "text-amber-400"}`}>{selectedPost.content.artist}</p>

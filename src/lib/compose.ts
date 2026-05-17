@@ -181,6 +181,258 @@ export async function composeImage(
 }
 
 /**
+ * Composes a 1080×1080 carousel slide (slides 2, 3, 4).
+ * Layout: AI image background with heavy dark overlay, MUSICLEDGE badge top-left,
+ * large centred slide text, accent strip + slide dots at the bottom.
+ */
+export async function composeCarouselSlide(
+  imageBase64: string,
+  content: StoryContent,
+  slideText: string,
+  slideIndex: number,   // 1-based: slide 2 = 2, slide 3 = 3, slide 4 = 4
+  totalSlides: number   // 4
+): Promise<Buffer> {
+  const imageBuffer = Buffer.from(imageBase64, "base64");
+
+  const bg = await sharp(imageBuffer)
+    .resize(WIDTH, HEIGHT, { fit: "cover" })
+    .toBuffer();
+
+  const regularFont = loadFontBuffer("Inter-Regular.ttf");
+  const boldFont = loadFontBuffer("Inter-Bold.ttf");
+
+  const accent =
+    content.category === "vinyl_art"
+      ? "#0891b2"
+      : content.category === "harmony"
+      ? "#a855f7"
+      : "#f59e0b";
+
+  const categoryLabel =
+    content.category === "vinyl_art"
+      ? "VINYL ART"
+      : content.category === "harmony"
+      ? "HARMONY"
+      : "MUSIC STORY";
+
+  // Build slide dots: solid accent circle for current slide, dim white for others
+  const dots = Array.from({ length: totalSlides }, (_, i) => {
+    const isCurrent = i + 1 === slideIndex;
+    return h("div", {
+      key: i,
+      style: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        background: isCurrent ? accent : "rgba(255,255,255,0.35)",
+      },
+    });
+  });
+
+  const svg = await satori(
+    h(
+      "div",
+      {
+        style: {
+          width: WIDTH,
+          height: HEIGHT,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          fontFamily: "Inter",
+        },
+      },
+      // Top-left: MUSICLEDGE badge + category label
+      h(
+        "div",
+        {
+          style: {
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            padding: "36px 40px 60px 40px",
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, transparent 100%)",
+          },
+        },
+        h(
+          "div",
+          {
+            style: {
+              background: accent,
+              borderRadius: 4,
+              padding: "7px 16px",
+              fontSize: 22,
+              fontWeight: 700,
+              color:
+                content.category === "vinyl_art" || content.category === "harmony"
+                  ? "white"
+                  : "black",
+              letterSpacing: 2,
+              display: "flex",
+            },
+          },
+          "MUSICLEDGE"
+        ),
+        h(
+          "div",
+          {
+            style: {
+              fontSize: 16,
+              fontWeight: 700,
+              color: accent,
+              letterSpacing: 4,
+              paddingLeft: 2,
+              textTransform: "uppercase",
+              display: "flex",
+            },
+          },
+          categoryLabel
+        )
+      ),
+      // Centre: large bold slide text
+      h(
+        "div",
+        {
+          style: {
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 56px",
+          },
+        },
+        h(
+          "div",
+          {
+            style: {
+              fontSize: 52,
+              fontWeight: 700,
+              color: "white",
+              textAlign: "center",
+              lineHeight: 1.2,
+            },
+          },
+          slideText
+        )
+      ),
+      // Bottom: accent strip + row with artist name left + slide dots right
+      h(
+        "div",
+        {
+          style: {
+            display: "flex",
+            flexDirection: "column",
+            background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, transparent 100%)",
+            padding: "60px 40px 0 40px",
+          },
+        },
+        h(
+          "div",
+          {
+            style: {
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingBottom: 20,
+            },
+          },
+          h(
+            "div",
+            {
+              style: {
+                fontSize: 20,
+                fontWeight: 700,
+                color: "rgba(255,255,255,0.85)",
+                letterSpacing: 3,
+                textTransform: "uppercase",
+              },
+            },
+            content.artist
+          ),
+          h(
+            "div",
+            {
+              style: {
+                display: "flex",
+                flexDirection: "row",
+                gap: 8,
+                alignItems: "center",
+              },
+            },
+            ...dots
+          )
+        ),
+        h("div", {
+          style: {
+            height: 8,
+            background: accent,
+            marginLeft: -40,
+            marginRight: -40,
+          },
+        })
+      )
+    ),
+    {
+      width: WIDTH,
+      height: HEIGHT,
+      fonts: [
+        { name: "Inter", data: regularFont, weight: 400, style: "normal" },
+        { name: "Inter", data: boldFont, weight: 700, style: "normal" },
+      ],
+    }
+  );
+
+  // Dark overlay composite
+  const overlayBuffer = Buffer.from(svg);
+
+  // Create a dark overlay layer
+  const darkOverlay = await sharp({
+    create: {
+      width: WIDTH,
+      height: HEIGHT,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0.78 },
+    },
+  })
+    .png()
+    .toBuffer();
+
+  return sharp(bg)
+    .composite([
+      { input: darkOverlay, top: 0, left: 0 },
+      { input: overlayBuffer, top: 0, left: 0 },
+    ])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
+
+/**
+ * Converts a 1080×1080 square slide buffer into a 1080×1920 vertical frame
+ * suitable for use in animated reels.
+ * Background: blurred/darkened stretch of the square; foreground: centred 960×960.
+ */
+export async function makeVerticalSlide(squareBuffer: Buffer): Promise<Buffer> {
+  const blurredBg = await sharp(squareBuffer)
+    .resize(1080, 1920, { fit: "cover" })
+    .blur(18)
+    .modulate({ brightness: 0.55 })
+    .jpeg({ quality: 70 })
+    .toBuffer();
+
+  const centered = await sharp(squareBuffer)
+    .resize(960, 960, { fit: "cover" })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  // Place the 960x960 centred: top offset = (1920 - 960) / 2 = 480, left offset = (1080 - 960) / 2 = 60
+  return sharp(blurredBg)
+    .composite([{ input: centered, top: 480, left: 60 }])
+    .jpeg({ quality: 90 })
+    .toBuffer();
+}
+
+/**
  * Composes a 1080×1920 Instagram Story image.
  * Layout: amber gradient bg → top branding → square post image → bottom text.
  */

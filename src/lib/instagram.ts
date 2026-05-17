@@ -82,6 +82,25 @@ export async function createReelContainer(
   return data.id as string;
 }
 
+export async function createCarouselChildContainer(imageUrl: string): Promise<string> {
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
+  const data = await igFetch(`/${accountId}/media`, "POST", {
+    image_url: imageUrl,
+    is_carousel_item: "true",
+  });
+  return data.id as string;
+}
+
+export async function createCarouselContainer(childIds: string[], caption: string): Promise<string> {
+  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
+  const data = await igFetch(`/${accountId}/media`, "POST", {
+    media_type: "CAROUSEL",
+    children: childIds.join(","),
+    caption,
+  });
+  return data.id as string;
+}
+
 /**
  * Publishes an image as an Instagram Story.
  * Uses media_type=STORIES — requires instagram_content_publish permission.

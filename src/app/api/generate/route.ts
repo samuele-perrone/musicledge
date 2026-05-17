@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksHtml, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
-import { composeImage, composeStory } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createShortsVideo, createReelVideo } from "@/lib/video";
+import { createShortsVideo, createReelVideo, createAnimatedReelVideo } from "@/lib/video";
 import { createSubstackDraft } from "@/lib/substack";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
@@ -65,9 +65,34 @@ export async function POST(request: Request) {
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
-    // Generate and upload Reel video using story layout (amber gradient background)
+    // Generate carousel slides (slides 2-4)
+    const carouselBlobUrls: string[] = [blobUrl]; // slide 1 = main image
+    if (content.carouselSlides?.length) {
+      for (let i = 0; i < content.carouselSlides.length; i++) {
+        try {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i], i + 2, 4);
+          const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-slide${i + 2}.jpg`);
+          carouselBlobUrls.push(slideUrl);
+        } catch (e) {
+          console.warn(`[generate] Slide ${i + 2} failed:`, e);
+        }
+      }
+    }
+    post.carouselBlobUrls = carouselBlobUrls;
+
+    // Generate and upload Reel video using animated carousel frames
     try {
-      const reelBuffer = await createReelVideo(storyBuffer);
+      // Build vertical frames from all carousel slides for animated reel
+      const slide1Vertical = storyBuffer; // already 1080x1920
+      const verticalFrames: Buffer[] = [slide1Vertical];
+      if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
+        for (let i = 1; i < carouselBlobUrls.length; i++) {
+          // Re-compose the square slide then make it vertical
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, 4);
+          verticalFrames.push(await makeVerticalSlide(slideBuffer));
+        }
+      }
+      const reelBuffer = await createAnimatedReelVideo(verticalFrames);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (reelErr) {

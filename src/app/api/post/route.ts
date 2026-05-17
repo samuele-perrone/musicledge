@@ -8,6 +8,8 @@ import {
   checkContainerStatus,
   createReelContainer,
   publishInstagramStory,
+  createCarouselChildContainer,
+  createCarouselContainer,
 } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
@@ -45,7 +47,15 @@ export async function POST(request: Request) {
     // ── Instagram ──────────────────────────────────────────────────────────
     if (targets.includes("instagram")) {
       try {
-        const containerId = await createMediaContainer(post.blobUrl, caption);
+        let containerId: string;
+        if (post.carouselBlobUrls && post.carouselBlobUrls.length > 1) {
+          const childIds = await Promise.all(
+            post.carouselBlobUrls.map((url) => createCarouselChildContainer(url))
+          );
+          containerId = await createCarouselContainer(childIds, caption);
+        } else {
+          containerId = await createMediaContainer(post.blobUrl, caption);
+        }
         let status = "IN_PROGRESS";
         let attempts = 0;
         while (status === "IN_PROGRESS" && attempts < 10) {

@@ -62,6 +62,77 @@ export async function createShortsVideo(
 }
 
 /**
+ * Creates an animated reel video from multiple vertical (1080x1920) image buffers.
+ * Each slide is shown for 4 seconds with a 0.5s xfade transition between them.
+ * Total duration ~14 seconds for 4 slides.
+ */
+export async function createAnimatedReelVideo(
+  slideBuffers: Buffer[]
+): Promise<Buffer> {
+  const tmpId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const slideDuration = 4;
+  const fadeDuration = 0.5;
+
+  // Resize all slides to 1080x1920 and write to /tmp
+  const slidePaths = await Promise.all(
+    slideBuffers.map(async (buf, i) => {
+      const resized = await sharp(buf)
+        .resize(1080, 1920, { fit: "cover" })
+        .jpeg({ quality: 88 })
+        .toBuffer();
+      const p = join("/tmp", `reel_slide_${tmpId}_${i}.jpg`);
+      await writeFile(p, resized);
+      return p;
+    })
+  );
+
+  const outputPath = join("/tmp", `reel_anim_${tmpId}.mp4`);
+  const n = slideBuffers.length;
+
+  // Build filter_complex: scale each input + xfade chain
+  const scaleFilters = slidePaths
+    .map((_, i) => `[${i}:v]scale=1080:1920,fps=24[v${i}]`)
+    .join(";");
+
+  let xfadeChain = "";
+  let lastLabel = "v0";
+  for (let i = 1; i < n; i++) {
+    const offset = i * (slideDuration - fadeDuration);
+    const outLabel = i === n - 1 ? "out" : `xf${i}`;
+    xfadeChain += `;[${lastLabel}][v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset}[${outLabel}]`;
+    lastLabel = outLabel;
+  }
+
+  const filterComplex = scaleFilters + xfadeChain;
+
+  await new Promise<void>((resolve, reject) => {
+    let cmd = ffmpeg();
+    slidePaths.forEach((p) => {
+      cmd = cmd.addInput(p).inputOptions(["-loop 1", `-t ${slideDuration + fadeDuration}`]);
+    });
+    cmd
+      .complexFilter(filterComplex)
+      .outputOptions([
+        "-map [out]",
+        "-c:v libx264",
+        "-preset ultrafast",
+        "-crf 26",
+        "-pix_fmt yuv420p",
+        "-movflags +faststart",
+        `-t ${n * slideDuration}`,
+      ])
+      .output(outputPath)
+      .on("end", () => resolve())
+      .on("error", (err) => reject(new Error(`ffmpeg animated reel: ${err.message}`)))
+      .run();
+  });
+
+  const videoBuffer = await readFile(outputPath);
+  await Promise.allSettled([outputPath, ...slidePaths].map((p) => unlink(p)));
+  return videoBuffer;
+}
+
+/**
  * Creates a 15-second vertical MP4 video (1080x1920) suitable for Instagram Reels.
  * Accepts an already-composed 1080x1920 story-style image (amber gradient layout).
  * Uses 24fps as required by Instagram's minimum frame rate for Reels.

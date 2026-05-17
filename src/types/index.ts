@@ -12,6 +12,7 @@ export interface StoryContent {
   amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
   newsletterTitle: string;     // email subject line
   newsletterHtml: string;      // full story in HTML for Substack
+  carouselSlides?: string[];  // 3 slide texts for slides 2-4
   // Harmony-specific fields
   influenceSource?: string;    // e.g. "Led Zeppelin — Whole Lotta Love (1969)"
   influencedWork?: string;     // e.g. "The White Stripes — Seven Nation Army (2003)"
@@ -36,6 +37,7 @@ export interface GeneratedPost {
   blobUrl?: string;
   storyBlobUrl?: string;       // 1080×1920 Instagram Story image
   reelBlobUrl?: string;        // 1080×1920 MP4 for Instagram Reels
+  carouselBlobUrls?: string[];   // 4 carousel slide images (1080x1080)
   todayEvent?: string;         // e.g. "50th anniversary of Dark Side of the Moon"
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link

@@ -5,12 +5,12 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption, buildRelatedLinksHtml } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64 } from "@/lib/imagegen";
-import { composeImage, composeStory } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries, getLastPostedCategory } from "@/lib/store";
-import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer } from "@/lib/instagram";
+import { createMediaContainer, publishMediaContainer, checkContainerStatus, createReelContainer, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
-import { createShortsVideo, createReelVideo } from "@/lib/video";
+import { createShortsVideo, createReelVideo, createAnimatedReelVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
 import { postFacebookPhoto } from "@/lib/facebook";
 import { createSubstackDraft } from "@/lib/substack";
@@ -90,9 +90,32 @@ export async function GET(request: Request) {
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
-    // Reel video using story layout (amber gradient background)
+    // Generate carousel slides (slides 2-4)
+    const carouselBlobUrls: string[] = [blobUrl]; // slide 1 = main image
+    if (content.carouselSlides?.length) {
+      for (let i = 0; i < content.carouselSlides.length; i++) {
+        try {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i], i + 2, 4);
+          const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-slide${i + 2}.jpg`);
+          carouselBlobUrls.push(slideUrl);
+        } catch (e) {
+          log.push(`Slide ${i + 2} failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+    }
+    post.carouselBlobUrls = carouselBlobUrls;
+
+    // Reel video using animated carousel frames
     try {
-      const reelBuffer = await createReelVideo(storyBuffer);
+      const slide1Vertical = storyBuffer; // already 1080x1920
+      const verticalFrames: Buffer[] = [slide1Vertical];
+      if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
+        for (let i = 1; i < carouselBlobUrls.length; i++) {
+          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, 4);
+          verticalFrames.push(await makeVerticalSlide(slideBuffer));
+        }
+      }
+      const reelBuffer = await createAnimatedReelVideo(verticalFrames);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
       log.push("Reel video generated");
@@ -128,7 +151,15 @@ export async function GET(request: Request) {
 
     // 5. Instagram
     try {
-      const containerId = await createMediaContainer(blobUrl, caption);
+      let containerId: string;
+      if (post.carouselBlobUrls && post.carouselBlobUrls.length > 1) {
+        const childIds = await Promise.all(
+          post.carouselBlobUrls.map((url) => createCarouselChildContainer(url))
+        );
+        containerId = await createCarouselContainer(childIds, caption);
+      } else {
+        containerId = await createMediaContainer(blobUrl, caption);
+      }
       let status = "IN_PROGRESS";
       let attempts = 0;
       while (status === "IN_PROGRESS" && attempts < 15) {
