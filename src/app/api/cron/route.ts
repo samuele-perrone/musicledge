@@ -10,7 +10,7 @@ import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, co
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
-import { createMediaContainer, publishMediaContainer, checkContainerStatus, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
+import { createMediaContainer, publishMediaContainer, checkContainerStatus, createCarouselChildContainer, createCarouselContainer, createReelContainer } from "@/lib/instagram";
 import { postFacebookPhoto } from "@/lib/facebook";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
@@ -173,41 +173,67 @@ async function generateAndPost(
     : content.caption;
   const caption = `${captionBody}${suffix}`;
 
-  // Instagram carousel/single
-  try {
-    let containerId: string;
-    if (post.carouselBlobUrls && post.carouselBlobUrls.length > 1) {
-      const childIds = await Promise.all(post.carouselBlobUrls.map((url) => createCarouselChildContainer(url)));
-      containerId = await createCarouselContainer(childIds, caption);
-    } else {
-      containerId = await createMediaContainer(blobUrl, caption);
+  if (category === "vinyl_art") {
+    // vinyl_art: post as Reel only (no carousel, no Facebook)
+    try {
+      if (!post.reelBlobUrl) throw new Error("No reel video URL");
+      const containerId = await createReelContainer(post.reelBlobUrl, caption);
+      let status = "IN_PROGRESS";
+      let attempts = 0;
+      while (status === "IN_PROGRESS" && attempts < 20) {
+        await new Promise((r) => setTimeout(r, 3000));
+        status = await checkContainerStatus(containerId);
+        attempts++;
+      }
+      if (status !== "FINISHED") throw new Error(`Reel container: ${status}`);
+      const mediaId = await publishMediaContainer(containerId);
+      post.platforms.reel = { status: "posted", postId: mediaId, postedAt: new Date().toISOString() };
+      post.platforms.instagram = { status: "skipped" };
+      post.platforms.facebook = { status: "skipped" };
+      log.push(`Reel: ${mediaId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.reel = { status: "failed", error: msg };
+      log.push(`Reel failed: ${msg}`);
     }
-    let status = "IN_PROGRESS";
-    let attempts = 0;
-    while (status === "IN_PROGRESS" && attempts < 15) {
-      await new Promise((r) => setTimeout(r, 3000));
-      status = await checkContainerStatus(containerId);
-      attempts++;
-    }
-    if (status !== "FINISHED") throw new Error(`Container: ${status}`);
-    const mediaId = await publishMediaContainer(containerId);
-    post.platforms.instagram = { status: "posted", postId: mediaId, postedAt: new Date().toISOString() };
-    log.push(`Instagram: ${mediaId}`);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    post.platforms.instagram = { status: "failed", error: msg };
-    log.push(`Instagram failed: ${msg}`);
-  }
+  } else {
+    // music_story / harmony: carousel on Instagram + photo on Facebook (no reel)
+    post.platforms.reel = { status: "skipped" };
 
-  // Facebook
-  try {
-    const photoId = await postFacebookPhoto(blobUrl, caption);
-    post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
-    log.push(`Facebook: ${photoId}`);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    post.platforms.facebook = { status: "failed", error: msg };
-    log.push(`Facebook failed: ${msg}`);
+    try {
+      let containerId: string;
+      if (post.carouselBlobUrls && post.carouselBlobUrls.length > 1) {
+        const childIds = await Promise.all(post.carouselBlobUrls.map((url) => createCarouselChildContainer(url)));
+        containerId = await createCarouselContainer(childIds, caption);
+      } else {
+        containerId = await createMediaContainer(blobUrl, caption);
+      }
+      let status = "IN_PROGRESS";
+      let attempts = 0;
+      while (status === "IN_PROGRESS" && attempts < 15) {
+        await new Promise((r) => setTimeout(r, 3000));
+        status = await checkContainerStatus(containerId);
+        attempts++;
+      }
+      if (status !== "FINISHED") throw new Error(`Container: ${status}`);
+      const mediaId = await publishMediaContainer(containerId);
+      post.platforms.instagram = { status: "posted", postId: mediaId, postedAt: new Date().toISOString() };
+      log.push(`Instagram: ${mediaId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.instagram = { status: "failed", error: msg };
+      log.push(`Instagram failed: ${msg}`);
+    }
+
+    try {
+      const photoId = await postFacebookPhoto(blobUrl, caption);
+      post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
+      log.push(`Facebook: ${photoId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.facebook = { status: "failed", error: msg };
+      log.push(`Facebook failed: ${msg}`);
+    }
   }
 
   const anyPosted = Object.values(post.platforms).some((p) => p.status === "posted");
