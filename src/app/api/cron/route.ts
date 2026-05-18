@@ -40,7 +40,7 @@ async function generateAndPost(
   todayEvent: { artist: string; event: string; suggestedCategory: PostCategory } | null,
   breakingNews: string | null,
   log: string[]
-): Promise<void> {
+): Promise<{ artist: string; title: string; category: string }> {
   log.push(`\n--- ${category.toUpperCase()} ---`);
 
   const content = await generateStoryContent(
@@ -242,6 +242,7 @@ async function generateAndPost(
 
   // Add generated artist to usedArtists so next category avoids them
   usedArtists.unshift(content.artist);
+  return { artist: content.artist, title: content.title, category };
 }
 
 // POST — triggered manually from the dashboard (no secret needed, session-protected)
@@ -276,12 +277,13 @@ async function runCron() {
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
 
-    // Run all 3 categories sequentially — each generation naturally spaces them out
+    // Run all 3 categories sequentially, accumulating summaries to avoid repeats within the same run
     const errors: string[] = [];
     const categories: PostCategory[] = ["music_story", "vinyl_art", "harmony"];
     for (const category of categories) {
       try {
-        await generateAndPost(category, usedArtists, recentSummaries, todayEvent, breakingNews, log);
+        const summary = await generateAndPost(category, usedArtists, recentSummaries, todayEvent, breakingNews, log);
+        recentSummaries.unshift(summary); // add to context so next category avoids same topic
       } catch (e) {
         const msg = `${category} FATAL: ${e instanceof Error ? e.message : String(e)}`;
         log.push(msg);
