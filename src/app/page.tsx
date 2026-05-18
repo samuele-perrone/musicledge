@@ -168,7 +168,7 @@ export default function Home() {
     setCronLog(null);
     setError(null);
     try {
-      const res = await fetch("/api/cron");
+      const res = await fetch("/api/cron", { method: "POST" });
       const data = await res.json();
       setCronLog(data.log ?? []);
       if (!data.success) setError(data.error ?? "Cron run failed");

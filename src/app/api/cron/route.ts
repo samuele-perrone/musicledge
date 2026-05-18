@@ -218,12 +218,22 @@ async function generateAndPost(
   usedArtists.unshift(content.artist);
 }
 
+// POST — triggered manually from the dashboard (no secret needed, session-protected)
+export async function POST() {
+  return runCron();
+}
+
+// GET — triggered by Vercel cron scheduler (secret required)
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  return runCron();
+}
+
+async function runCron() {
 
   const log: string[] = [];
 
