@@ -32,15 +32,18 @@ export async function searchAlbum(
     const results: Record<string, string>[] = data.results ?? [];
     if (results.length === 0) return null;
 
-    // Prefer a result that matches both artist and album name
+    // Require artist name match, then prefer closest album name match
     const artistLower = artist.toLowerCase();
-    const albumLower = albumName.toLowerCase().split(" ")[0]; // first word is usually distinctive
+    const albumLower = albumName.toLowerCase();
+    const artistMatches = results.filter((r) =>
+      r.artistName?.toLowerCase().includes(artistLower) ||
+      artistLower.includes(r.artistName?.toLowerCase() ?? "____")
+    );
+    const pool = artistMatches.length > 0 ? artistMatches : [];
+    if (pool.length === 0) return null; // don't fall back to wrong artist
     const best =
-      results.find(
-        (r) =>
-          r.artistName?.toLowerCase().includes(artistLower) &&
-          r.collectionName?.toLowerCase().includes(albumLower)
-      ) ?? results[0];
+      pool.find((r) => r.collectionName?.toLowerCase().includes(albumLower.split(" ")[0])) ??
+      pool[0];
 
     // iTunes artwork comes as 100×100; replace with 3000×3000
     const artworkUrl = best.artworkUrl100?.replace("100x100bb", "3000x3000bb");
@@ -121,17 +124,18 @@ async function searchArtistSpotify(
   try {
     const token = await getSpotifyToken();
     if (!token) return null;
-    const query = encodeURIComponent(`artist:${artist}`);
-    const res = await fetch(
-      `https://api.spotify.com/v1/search?q=${query}&type=artist&limit=3`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const items = data.artists?.items ?? [];
+    // Try field-filtered search first, fall back to plain query
+    const trySearch = async (q: string) => {
+      const res = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=artist&limit=5`,
+        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) }
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.artists?.items ?? [];
+    };
+    let items = await trySearch(`artist:${artist}`);
+    if (items.length === 0) items = await trySearch(artist);
     // Prefer exact name match
     const match =
       items.find(
