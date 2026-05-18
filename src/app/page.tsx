@@ -34,6 +34,8 @@ export default function Home() {
   const [breakingNews, setBreakingNews] = useState("");
   const [generatingStep, setGeneratingStep] = useState(0);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [runningCron, setRunningCron] = useState(false);
+  const [cronLog, setCronLog] = useState<string[] | null>(null);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -158,6 +160,23 @@ export default function Home() {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setPosting(null);
+    }
+  }
+
+  async function handleRunCron() {
+    setRunningCron(true);
+    setCronLog(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/cron");
+      const data = await res.json();
+      setCronLog(data.log ?? []);
+      if (!data.success) setError(data.error ?? "Cron run failed");
+      await fetchPosts();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRunningCron(false);
     }
   }
 
@@ -359,10 +378,29 @@ export default function Home() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Post History ({posts.length})</h2>
-              <button onClick={fetchPosts} className="text-sm text-gray-400 hover:text-gray-200">
-                Refresh
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleRunCron}
+                  disabled={runningCron}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-amber-500 text-black hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {runningCron ? "Running…" : "🚀 Run daily posts"}
+                </button>
+                <button onClick={fetchPosts} className="text-sm text-gray-400 hover:text-gray-200">
+                  Refresh
+                </button>
+              </div>
             </div>
+
+            {cronLog && (
+              <div className="mb-4 bg-gray-900 border border-gray-700 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs text-gray-400 uppercase tracking-wider">Cron log</p>
+                  <button onClick={() => setCronLog(null)} className="text-gray-600 hover:text-gray-400 text-xs">✕ dismiss</button>
+                </div>
+                <pre className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed">{cronLog.join("\n")}</pre>
+              </div>
+            )}
 
             {loading && <p className="text-gray-500 text-sm">Loading…</p>}
 
