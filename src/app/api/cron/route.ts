@@ -15,7 +15,7 @@ import { postFacebookPhoto } from "@/lib/facebook";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 async function sendErrorAlert(errors: string[]) {
   const apiKey = process.env.RESEND_API_KEY;
@@ -255,8 +255,8 @@ async function runCron() {
     const categories: PostCategory[] = ["music_story", "vinyl_art", "harmony"];
     for (let i = 0; i < categories.length; i++) {
       if (i > 0) {
-        log.push(`Waiting 3 minutes before next post…`);
-        await new Promise((r) => setTimeout(r, 3 * 60 * 1000));
+        log.push(`Waiting 1 minute before next post…`);
+        await new Promise((r) => setTimeout(r, 60 * 1000));
       }
       try {
         await generateAndPost(categories[i], usedArtists, recentSummaries, todayEvent, breakingNews, log);
