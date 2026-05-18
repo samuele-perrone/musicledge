@@ -661,6 +661,15 @@ export default function Home() {
                       {result?.postId && p === "reel" && (
                         <a href={`https://www.instagram.com/reel/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
                       )}
+                      {result?.status === "failed" && (
+                        <button
+                          onClick={() => handlePost(selectedPost.id, [p])}
+                          disabled={posting === selectedPost.id}
+                          className="mt-1 text-xs text-amber-400 hover:text-amber-300 disabled:opacity-50"
+                        >
+                          {posting === selectedPost.id ? "…" : "Retry"}
+                        </button>
+                      )}
                     </div>
                   );
                 })}
