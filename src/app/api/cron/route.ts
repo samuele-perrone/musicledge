@@ -15,7 +15,7 @@ import { postFacebookPhoto } from "@/lib/facebook";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
-export const maxDuration = 300;
+export const maxDuration = 800;
 
 async function sendErrorAlert(errors: string[]) {
   const apiKey = process.env.RESEND_API_KEY;
