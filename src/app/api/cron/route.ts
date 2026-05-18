@@ -6,8 +6,9 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, buildRelatedLinks, buildRelatedLinksCaption } from "@/lib/claude";
 import { generateImage } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStory, composeCarouselSlide, composeFollowSlide } from "@/lib/compose";
+import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
+import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { createMediaContainer, publishMediaContainer, checkContainerStatus, createCarouselChildContainer, createCarouselContainer } from "@/lib/instagram";
 import { postFacebookPhoto } from "@/lib/facebook";
@@ -130,6 +131,25 @@ async function generateAndPost(
     log.push(`Follow slide failed: ${e instanceof Error ? e.message : String(e)}`);
   }
   post.carouselBlobUrls = carouselBlobUrls;
+
+  // Generate animated reel video
+  try {
+    const verticalFrames: Buffer[] = [storyBuffer];
+    if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
+      for (let i = 1; i < carouselBlobUrls.length - 1; i++) {
+        const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, carouselBlobUrls.length);
+        verticalFrames.push(await makeVerticalSlide(slideBuffer));
+      }
+    }
+    const followBuffer = await composeFollowSlide(content);
+    verticalFrames.push(await makeVerticalSlide(followBuffer));
+    const reelBuffer = await createAnimatedReelVideo(verticalFrames);
+    const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
+    post.reelBlobUrl = reelBlobUrl;
+    log.push(`Reel: created`);
+  } catch (e) {
+    log.push(`Reel failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
   post.status = "image_ready";
   await savePost(post);
