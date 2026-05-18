@@ -253,15 +253,11 @@ async function runCron() {
     // Run all 3 categories sequentially — each generation naturally spaces them out
     const errors: string[] = [];
     const categories: PostCategory[] = ["music_story", "vinyl_art", "harmony"];
-    for (let i = 0; i < categories.length; i++) {
-      if (i > 0) {
-        log.push(`Waiting 1 minute before next post…`);
-        await new Promise((r) => setTimeout(r, 60 * 1000));
-      }
+    for (const category of categories) {
       try {
-        await generateAndPost(categories[i], usedArtists, recentSummaries, todayEvent, breakingNews, log);
+        await generateAndPost(category, usedArtists, recentSummaries, todayEvent, breakingNews, log);
       } catch (e) {
-        const msg = `${categories[i]} FATAL: ${e instanceof Error ? e.message : String(e)}`;
+        const msg = `${category} FATAL: ${e instanceof Error ? e.message : String(e)}`;
         log.push(msg);
         errors.push(msg);
       }
