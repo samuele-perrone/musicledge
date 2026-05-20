@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage } from "@/lib/imagegen";
-import { searchAlbum, fetchAlbumArtAsBase64 } from "@/lib/musicapi";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
 import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
@@ -39,11 +39,13 @@ async function generateAndPostVinylArt(
   breakingNews: string | null,
   log: string[]
 ): Promise<{ artist: string; title: string; category: string }> {
-  log.push(`\n--- VINYL_ART ---`);
+  // Use music_story for breaking news (more appropriate format), vinyl_art otherwise
+  const category = breakingNews ? "music_story" : "vinyl_art";
+  log.push(`\n--- ${category.toUpperCase()} ---`);
 
   const content = await generateStoryContent(
     usedArtists,
-    "vinyl_art",
+    category,
     breakingNews ? undefined : (todayEvent ?? undefined),
     recentSummaries,
     breakingNews ?? undefined
@@ -62,9 +64,9 @@ async function generateAndPostVinylArt(
   };
   await savePost(post);
 
-  // Fetch real album art from iTunes, fall back to AI
+  // Fetch real image: album art for vinyl_art, artist photo for music_story (breaking news)
   let imageBase64: string;
-  if (content.albumName) {
+  if (category === "vinyl_art" && content.albumName) {
     try {
       const albumInfo = await searchAlbum(content.artist, content.albumName);
       if (albumInfo) {
@@ -80,7 +82,20 @@ async function generateAndPostVinylArt(
       imageBase64 = await generateImage(content.imagePrompt, "editorial");
     }
   } else {
-    imageBase64 = await generateImage(content.imagePrompt, "editorial");
+    try {
+      const artistInfo = await searchArtistInfo(content.artist);
+      if (artistInfo) {
+        imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+        post.artistInfo = artistInfo;
+        log.push(`Artist photo: ${artistInfo.artistName}`);
+      } else {
+        log.push("Artist photo not found, falling back to AI");
+        imageBase64 = await generateImage(content.imagePrompt, "random");
+      }
+    } catch (e) {
+      log.push(`Artist photo fetch failed: ${e instanceof Error ? e.message : String(e)}, falling back to AI`);
+      imageBase64 = await generateImage(content.imagePrompt, "random");
+    }
   }
 
   // Compose cover image (used as background for slides)
