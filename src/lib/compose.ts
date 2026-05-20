@@ -408,6 +408,126 @@ export async function composeCarouselSlide(
 }
 
 /**
+ * Composes a full-bleed 1080×1920 vertical story slide with centred text.
+ * Used for the hook slide (slide 1) and story slides (2-3) in Story/Reel format.
+ */
+export async function composeStorySlide(
+  imageBase64: string,
+  content: StoryContent,
+  slideText: string,
+  slideIndex: number,  // 1-based
+  totalSlides: number  // excluding follow slide
+): Promise<Buffer> {
+  const imageBuffer = Buffer.from(imageBase64, "base64");
+  const bg = await sharp(imageBuffer)
+    .resize(STORY_W, STORY_H, { fit: "cover" })
+    .toBuffer();
+
+  const regularFont = loadFontBuffer("Inter-Regular.ttf");
+  const boldFont = loadFontBuffer("Inter-Bold.ttf");
+
+  const accent = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
+  const categoryLabel = content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY";
+
+  const dots = Array.from({ length: totalSlides }, (_, i) =>
+    h("div", {
+      key: i,
+      style: {
+        width: 10, height: 10, borderRadius: 5,
+        background: i + 1 === slideIndex ? accent : "rgba(255,255,255,0.35)",
+      },
+    })
+  );
+
+  const svg = await satori(
+    h("div", {
+      style: {
+        width: STORY_W, height: STORY_H,
+        display: "flex", flexDirection: "column",
+        justifyContent: "space-between",
+        fontFamily: "Inter",
+      },
+    },
+      // Top bar
+      h("div", {
+        style: {
+          display: "flex", flexDirection: "row",
+          justifyContent: "space-between", alignItems: "flex-start",
+          padding: "52px 52px 80px 52px",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)",
+        },
+      },
+        h("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+          h("div", {
+            style: {
+              background: accent, borderRadius: 4, padding: "10px 22px",
+              fontSize: 28, fontWeight: 700,
+              color: content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black",
+              letterSpacing: 2,
+            },
+          }, "MUSICLEDGE"),
+          h("div", {
+            style: { fontSize: 18, fontWeight: 700, color: accent, letterSpacing: 4, paddingLeft: 4, textTransform: "uppercase" },
+          }, categoryLabel)
+        ),
+        h("div", {
+          style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 3, opacity: 0.9 },
+        }, content.artist.toUpperCase())
+      ),
+      // Centre: large text
+      h("div", {
+        style: {
+          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "0 64px",
+        },
+      },
+        h("div", {
+          style: {
+            fontSize: slideIndex === 1 ? 68 : 52,
+            fontWeight: 700, color: "white",
+            textAlign: "center", lineHeight: 1.25,
+          },
+        }, slideText)
+      ),
+      // Bottom: dots + accent strip
+      h("div", {
+        style: {
+          display: "flex", flexDirection: "column",
+          background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
+          padding: "80px 52px 0 52px",
+        },
+      },
+        h("div", {
+          style: {
+            display: "flex", flexDirection: "row",
+            justifyContent: "flex-end", alignItems: "center",
+            paddingBottom: 24, gap: 10,
+          },
+        }, ...dots),
+        h("div", { style: { height: 8, background: accent, marginLeft: -52, marginRight: -52 } })
+      )
+    ),
+    {
+      width: STORY_W, height: STORY_H,
+      fonts: [
+        { name: "Inter", data: regularFont, weight: 400, style: "normal" },
+        { name: "Inter", data: boldFont, weight: 700, style: "normal" },
+      ],
+    }
+  );
+
+  const overlayBuffer = Buffer.from(svg);
+  const darkOverlay = await sharp({
+    create: { width: STORY_W, height: STORY_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.62 } },
+  }).png().toBuffer();
+
+  return sharp(bg)
+    .composite([{ input: darkOverlay }, { input: overlayBuffer }])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}
+
+/**
  * Converts a 1080×1080 square slide buffer into a 1080×1920 vertical frame
  * suitable for use in animated reels.
  * Background: blurred/darkened stretch of the square; foreground: centred 960×960.
@@ -491,6 +611,63 @@ export async function composeFollowSlide(content: StoryContent): Promise<Buffer>
     ),
     {
       width: WIDTH, height: HEIGHT,
+      fonts: [
+        { name: "Inter", data: regularFont, weight: 400, style: "normal" },
+        { name: "Inter", data: boldFont, weight: 700, style: "normal" },
+      ],
+    }
+  );
+
+  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
+}
+
+/**
+ * Composes a 1080×1920 vertical follow slide for Story/Reel sequences.
+ */
+export async function composeFollowSlideVertical(content: StoryContent): Promise<Buffer> {
+  const accent      = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
+  const accentDark  = content.category === "vinyl_art" ? "#0e7490" : content.category === "harmony" ? "#7c3aed" : "#d97706";
+  const regularFont = loadFontBuffer("Inter-Regular.ttf");
+  const boldFont    = loadFontBuffer("Inter-Bold.ttf");
+
+  const svg = await satori(
+    h("div", {
+      style: {
+        width: STORY_W, height: STORY_H,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: `linear-gradient(140deg, ${accent} 0%, ${accentDark} 100%)`,
+        fontFamily: "Inter", gap: 36,
+      },
+    },
+      h("div", {
+        style: {
+          width: 130, height: 130, borderRadius: 65,
+          border: "5px solid rgba(255,255,255,0.35)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        },
+      },
+        h("div", { style: { width: 38, height: 38, borderRadius: 19, border: "5px solid rgba(255,255,255,0.35)" } })
+      ),
+      h("div", { style: { fontSize: 52, fontWeight: 700, color: "white", letterSpacing: 5 } }, "MUSICLEDGE"),
+      h("div", { style: { width: 60, height: 3, background: "rgba(255,255,255,0.45)", borderRadius: 2 } }),
+      h("div", {
+        style: {
+          fontSize: 36, fontWeight: 700, color: "white",
+          textAlign: "center", lineHeight: 1.5, padding: "0 100px",
+        },
+      }, "Follow us for daily music stories, vinyl deep dives & more"),
+      h("div", { style: { fontSize: 26, fontWeight: 400, color: "rgba(255,255,255,0.75)", letterSpacing: 2 } }, "@musicledge"),
+      h("div", {
+        style: {
+          marginTop: 16, background: "rgba(255,255,255,0.2)",
+          borderRadius: 40, padding: "14px 36px",
+          fontSize: 22, fontWeight: 700, color: "white", letterSpacing: 1,
+        },
+      }, "New post every day")
+    ),
+    {
+      width: STORY_W, height: STORY_H,
       fonts: [
         { name: "Inter", data: regularFont, weight: 400, style: "normal" },
         { name: "Inter", data: boldFont, weight: 700, style: "normal" },

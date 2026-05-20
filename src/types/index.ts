@@ -21,7 +21,7 @@ export interface StoryContent {
   activityTags?: string[];     // e.g. ["workout", "driving"]
 }
 
-export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel";
+export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel" | "story";
 
 export interface PlatformResult {
   status: "pending" | "posted" | "skipped" | "failed";
@@ -66,5 +66,6 @@ export function defaultPlatforms(): Record<Platform, PlatformResult> {
     youtube: { status: "pending" },
     facebook: { status: "pending" },
     reel: { status: "pending" },
+    story: { status: "pending" },
   };
 }

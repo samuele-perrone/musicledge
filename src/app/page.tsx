@@ -7,8 +7,9 @@ import { GeneratedPost, Platform, PostCategory } from "@/types";
 type Tab = "dashboard" | "generate";
 
 const PLATFORM_META: Partial<Record<Platform, { label: string; icon: string; color: string }>> = {
-  instagram: { label: "Instagram", icon: "📸", color: "text-pink-400" },
+  story: { label: "Story", icon: "📖", color: "text-pink-400" },
   reel: { label: "Reel", icon: "🎬", color: "text-purple-400" },
+  instagram: { label: "Instagram", icon: "📸", color: "text-pink-300" },
   facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
@@ -26,9 +27,8 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
-    "instagram",
+    "story",
     "reel",
-    "facebook",
   ]);
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | "random">("random");
   const [breakingNews, setBreakingNews] = useState("");

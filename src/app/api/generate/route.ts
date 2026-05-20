@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStory, composeCarouselSlide, makeVerticalSlide, composeFollowSlide } from "@/lib/compose";
+import { composeImage, composeStorySlide, composeFollowSlideVertical, makeVerticalSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createShortsVideo, createReelVideo, createAnimatedReelVideo } from "@/lib/video";
+import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
@@ -37,7 +37,6 @@ export async function POST(request: Request) {
     );
     if (forceArtist) content.artist = forceArtist;
 
-    // Build Amazon affiliate URL
     const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
 
     const post: GeneratedPost = {
@@ -51,7 +50,7 @@ export async function POST(request: Request) {
     };
     await savePost(post);
 
-    // Try to use real images: album art for vinyl_art, artist photo for others
+    // Fetch real image: album art for vinyl_art, artist photo for others
     let imageBase64: string;
     if (!forceStyle && content.category === "vinyl_art" && content.albumName) {
       try {
@@ -80,55 +79,44 @@ export async function POST(request: Request) {
     } else {
       imageBase64 = await generateImage(content.imagePrompt, forceStyle);
     }
+
+    // Compose cover image (square, used as thumbnail in dashboard)
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
-
-    // Upload post image to Vercel Blob
     const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
     post.blobUrl = blobUrl;
 
-    // Compose and upload Story image
-    const storyBuffer = await composeStory(composedBuffer, content);
-    const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story.jpg`);
-    post.storyBlobUrl = storyBlobUrl;
-
-    // Generate carousel slides (slides 2-4)
-    const carouselBlobUrls: string[] = [blobUrl]; // slide 1 = main image
-    if (content.carouselSlides?.length) {
-      for (let i = 0; i < content.carouselSlides.length; i++) {
-        try {
-          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i], i + 2, 4);
-          const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-slide${i + 2}.jpg`);
-          carouselBlobUrls.push(slideUrl);
-        } catch (e) {
-          console.warn(`[generate] Slide ${i + 2} failed:`, e);
-        }
+    // Compose story slides (1080×1920): slide 1-3 content + follow slide
+    const slides = content.carouselSlides ?? [];
+    const storySlideUrls: string[] = [];
+    for (let i = 0; i < slides.length; i++) {
+      try {
+        const slideBuffer = await composeStorySlide(imageBase64, content, slides[i], i + 1, slides.length);
+        const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-story-slide${i + 1}.jpg`);
+        storySlideUrls.push(slideUrl);
+      } catch (e) {
+        console.warn(`[generate] Story slide ${i + 1} failed:`, e);
       }
     }
-    // Add follow slide as final carousel slide
     try {
-      const followBuffer = await composeFollowSlide(content);
+      const followBuffer = await composeFollowSlideVertical(content);
       const followUrl = await uploadImageToBlob(followBuffer, `posts/${post.id}-follow.jpg`);
-      carouselBlobUrls.push(followUrl);
+      storySlideUrls.push(followUrl);
     } catch (e) {
       console.warn("[generate] Follow slide failed:", e);
     }
-    post.carouselBlobUrls = carouselBlobUrls;
+    post.carouselBlobUrls = storySlideUrls;
 
-    // Generate and upload Reel video using animated carousel frames
+    // Generate animated reel video from story slides
     try {
-      const slide1Vertical = storyBuffer;
-      const verticalFrames: Buffer[] = [slide1Vertical];
-      if (content.carouselSlides?.length && carouselBlobUrls.length > 1) {
-        for (let i = 1; i < carouselBlobUrls.length - 1; i++) {
-          const slideBuffer = await composeCarouselSlide(imageBase64, content, content.carouselSlides[i - 1], i + 1, carouselBlobUrls.length);
-          verticalFrames.push(await makeVerticalSlide(slideBuffer));
-        }
+      const slideBuffers: Buffer[] = [];
+      for (let i = 0; i < slides.length; i++) {
+        const buf = await composeStorySlide(imageBase64, content, slides[i], i + 1, slides.length);
+        slideBuffers.push(buf);
       }
-      // Add vertical follow slide as last reel frame
-      const followBuffer = await composeFollowSlide(content);
-      verticalFrames.push(await makeVerticalSlide(followBuffer));
-      const reelBuffer = await createAnimatedReelVideo(verticalFrames);
+      const followBuffer = await composeFollowSlideVertical(content);
+      slideBuffers.push(followBuffer);
+      const reelBuffer = await createAnimatedReelVideo(slideBuffers);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (reelErr) {

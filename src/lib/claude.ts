@@ -158,7 +158,7 @@ Return ONLY valid JSON with this exact structure:
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
   "caption": "Instagram/Facebook caption: 2-3 paragraphs with the full story, context, and a question to spark discussion",
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic image evoking the era and mood of this music story — reference the recording studio atmosphere, instruments, stage lighting, or iconic visual symbols associated with this artist's era. Do NOT mention any real person's name. Do NOT depict any human face or figure. Focus on objects, environments, light, color, and mood. High contrast, cinematic, square format.",
-  "carouselSlides": ["Punchy hook for slide 2 (max 100 chars, surprising fact or bold statement)", "Main story beat for slide 3 (max 120 chars, the most compelling detail)", "Closing thought for slide 4 (max 100 chars, end with an implicit question or reflection)"],
+  "carouselSlides": ["Slide 1 hook — a single punchy question or shocking fact that makes someone stop scrolling, max 120 chars, phrased like 'Did you know that...' or 'The real story behind...' or a bold statement", "Slide 2 — explain the story in a catchy, conversational, slightly funny or surprising way, max 180 chars", "Slide 3 — close with a reflection or twist that leaves the viewer thinking, max 150 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl"
 }`;
@@ -186,7 +186,7 @@ Return ONLY valid JSON with this exact structure:
   "emotion": "one word: the primary emotion this sound evokes e.g. euphoric / melancholic / defiant / tender / tense / nostalgic / energetic",
   "activityTags": ["2-4 tags from this list only: workout, running, driving, cycling, background, chill out, party, focus, romance, morning, late night"],
   "imagePrompt": "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures that span both eras. No human faces or figures. Square format, cinematic, high contrast.",
-  "carouselSlides": ["The original song context — who made it, when, and why it mattered (max 100 chars)", "How the sound was borrowed or adapted — the specific riff, chord, or motif (max 120 chars)", "The verdict — inspiration or imitation? Leave the listener with a question (max 100 chars)"],
+  "carouselSlides": ["Slide 1 hook — a punchy question or bold statement about the musical connection, max 120 chars, phrased like 'Did you know...' or 'One riff. Two legends. One story.'", "Slide 2 — explain the borrowed riff or chord in catchy, conversational language a non-musician would enjoy, max 180 chars", "Slide 3 — give the verdict: inspiration or imitation? End with a question for the viewer, max 150 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD"
 }`;
@@ -208,7 +208,7 @@ Return ONLY valid JSON with this exact structure:
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, about the artwork",
   "caption": "Instagram/Facebook caption: 2-3 paragraphs telling the full story of the artwork — the design concept, the photographer or artist behind it, hidden details, controversies, or how it was made. End with a question to spark discussion.",
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic still life image that evokes the aesthetic, colour palette, textures, and mood of this specific album cover artwork — reference the visual elements, lighting style, and era without depicting any real person. Focus on objects, surfaces, typography feel, light and shadow. Square format, editorial quality.",
-  "carouselSlides": ["Punchy hook for slide 2 (max 100 chars, surprising fact or bold statement about the artwork)", "Main story beat for slide 3 (max 120 chars, the most compelling detail about how the cover was made)", "Closing thought for slide 4 (max 100 chars, end with an implicit question or reflection about the artwork)"],
+  "carouselSlides": ["Slide 1 hook — a single punchy question or bold fact about the album art that stops the scroll, max 120 chars, e.g. 'Did you know the photographer had no idea this photo would become iconic?'", "Slide 2 — tell the story behind the artwork in a catchy, conversational, slightly surprising way, max 180 chars", "Slide 3 — close with a reflection or reveal that reframes how they'll see the cover forever, max 150 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
   "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
   "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl"
