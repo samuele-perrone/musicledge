@@ -132,11 +132,17 @@ async function generateAndPostVinylArt(
   post.status = "image_ready";
   await savePost(post);
 
+  // Build user tags: artist handle + any media accounts Claude suggested
+  const userTags: string[] = [
+    ...(content.instagramHandle ? [content.instagramHandle] : []),
+    ...(content.tagAccounts ?? []),
+  ];
+
   // Post each slide as an individual Instagram Story
   const postedStoryIds: string[] = [];
   for (let i = 0; i < storySlideUrls.length; i++) {
     try {
-      const storyId = await publishInstagramStory(storySlideUrls[i]);
+      const storyId = await publishInstagramStory(storySlideUrls[i], userTags.length > 0 ? userTags : undefined);
       postedStoryIds.push(storyId);
       log.push(`Story slide ${i + 1}: ${storyId}`);
     } catch (e) {

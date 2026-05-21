@@ -439,6 +439,15 @@ export async function composeStorySlide(
     })
   );
 
+  // On the last content slide, overlay @handle + top hashtags
+  const isLastContentSlide = slideIndex === totalSlides;
+  const tagParts: string[] = [];
+  if (isLastContentSlide) {
+    if (content.instagramHandle) tagParts.push(`@${content.instagramHandle}`);
+    (content.hashtags ?? []).slice(0, 3).forEach(tag => tagParts.push(`#${tag}`));
+  }
+  const tagLine = tagParts.length > 0 ? tagParts.join("  ") : null;
+
   const svg = await satori(
     h("div", {
       style: {
@@ -489,7 +498,7 @@ export async function composeStorySlide(
           },
         }, slideText)
       ),
-      // Bottom: dots + accent strip
+      // Bottom: tag line (last slide only) + dots + accent strip
       h("div", {
         style: {
           display: "flex", flexDirection: "column",
@@ -497,6 +506,14 @@ export async function composeStorySlide(
           padding: "80px 52px 0 52px",
         },
       },
+        ...(tagLine ? [h("div", {
+          style: {
+            fontSize: 22, fontWeight: 400,
+            color: "rgba(255,255,255,0.65)",
+            textAlign: "center",
+            paddingBottom: 14,
+          },
+        }, tagLine)] : []),
         h("div", {
           style: {
             display: "flex", flexDirection: "row",

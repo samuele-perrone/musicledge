@@ -138,10 +138,14 @@ export async function POST(request: Request) {
         post.platforms.story = { status: "failed", error: "No story slides on post" };
         errors.push("Story: No story slides on post");
       } else {
+        const storyUserTags: string[] = [
+          ...(post.content.instagramHandle ? [post.content.instagramHandle] : []),
+          ...(post.content.tagAccounts ?? []),
+        ];
         const postedIds: string[] = [];
         for (const url of slideUrls) {
           try {
-            const storyId = await publishInstagramStory(url);
+            const storyId = await publishInstagramStory(url, storyUserTags.length > 0 ? storyUserTags : undefined);
             postedIds.push(storyId);
           } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);

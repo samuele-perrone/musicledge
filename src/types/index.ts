@@ -19,6 +19,8 @@ export interface StoryContent {
   genre?: string;              // e.g. "blues → hard rock"
   emotion?: string;            // e.g. "euphoric"
   activityTags?: string[];     // e.g. ["workout", "driving"]
+  instagramHandle?: string;    // artist's Instagram handle without @
+  tagAccounts?: string[];      // 1-2 relevant media account handles without @
 }
 
 export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel" | "story";

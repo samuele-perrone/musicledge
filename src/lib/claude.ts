@@ -160,7 +160,9 @@ Return ONLY valid JSON with this exact structure:
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic image evoking the era and mood of this music story — reference the recording studio atmosphere, instruments, stage lighting, or iconic visual symbols associated with this artist's era. Do NOT mention any real person's name. Do NOT depict any human face or figure. Focus on objects, environments, light, color, and mood. High contrast, cinematic, square format.",
   "carouselSlides": ["Slide 1 hook — a single punchy question or shocking fact that makes someone stop scrolling, max 120 chars, phrased like 'Did you know that...' or 'The real story behind...' or a bold statement", "Slide 2 — explain the story in a catchy, conversational, slightly funny or surprising way, max 180 chars", "Slide 3 — close with a reflection or twist that leaves the viewer thinking, max 150 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
-  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl"
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
+  "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
+  "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork — pick accounts that would genuinely be interested in this story"]
 }`;
 }
 
@@ -188,7 +190,9 @@ Return ONLY valid JSON with this exact structure:
   "imagePrompt": "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures that span both eras. No human faces or figures. Square format, cinematic, high contrast.",
   "carouselSlides": ["Slide 1 hook — a punchy question or bold statement about the musical connection, max 120 chars, phrased like 'Did you know...' or 'One riff. Two legends. One story.'", "Slide 2 — explain the borrowed riff or chord in catchy, conversational language a non-musician would enjoy, max 180 chars", "Slide 3 — give the verdict: inspiration or imitation? End with a question for the viewer, max 150 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
-  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD"
+  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD",
+  "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
+  "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
 }
 
@@ -211,7 +215,9 @@ Return ONLY valid JSON with this exact structure:
   "carouselSlides": ["Slide 1 hook — a single punchy question or bold fact about the album art that stops the scroll, max 120 chars, e.g. 'Did you know the photographer had no idea this photo would become iconic?'", "Slide 2 — tell the story behind the artwork in a catchy, conversational, slightly surprising way, max 180 chars", "Slide 3 — close with a reflection or reveal that reframes how they'll see the cover forever, max 150 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
   "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
-  "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl"
+  "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl",
+  "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
+  "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
 }
 
