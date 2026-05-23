@@ -1,6 +1,8 @@
 // Instagram Graph API integration
 // Requires: Instagram Business/Creator account linked to a Facebook Page
-// Env vars: INSTAGRAM_ACCOUNT_ID, INSTAGRAM_ACCESS_TOKEN
+// Env vars: INSTAGRAM_ACCOUNT_ID, FACEBOOK_USER_TOKEN (+ FACEBOOK_PAGE_ID)
+
+import { getPageAccessToken } from "./meta";
 
 const BASE = "https://graph.facebook.com/v21.0";
 
@@ -10,8 +12,7 @@ async function igFetch(
   params: Record<string, string>
 ) {
   const url = new URL(`${BASE}${path}`);
-  const accessToken =
-    params.access_token || process.env.INSTAGRAM_ACCESS_TOKEN!;
+  const accessToken = params.access_token || await getPageAccessToken();
 
   if (method === "GET") {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));

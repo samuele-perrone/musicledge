@@ -5,8 +5,10 @@
  *   1. Upload photo (unpublished) to get a media ID
  *   2. Create a feed post with the photo attached — this shows in the public Posts feed
  *
- * Env vars: FACEBOOK_PAGE_ID, FACEBOOK_PAGE_ACCESS_TOKEN
+ * Env vars: FACEBOOK_PAGE_ID, FACEBOOK_USER_TOKEN
  */
+
+import { getPageAccessToken } from "./meta";
 
 const BASE = "https://graph.facebook.com/v21.0";
 
@@ -15,8 +17,8 @@ export async function postFacebookPhoto(
   caption: string
 ): Promise<string> {
   const pageId = process.env.FACEBOOK_PAGE_ID;
-  const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-  if (!pageId || !token) throw new Error("FACEBOOK_PAGE_ID or FACEBOOK_PAGE_ACCESS_TOKEN not set");
+  if (!pageId) throw new Error("FACEBOOK_PAGE_ID not set");
+  const token = await getPageAccessToken();
 
   // Step 1: upload photo as unpublished to get a media fbid
   const uploadBody = new URLSearchParams({
