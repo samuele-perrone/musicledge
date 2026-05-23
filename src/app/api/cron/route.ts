@@ -1,5 +1,5 @@
 /**
- * Vercel Cron endpoint — runs daily at 06:30 UTC (7:30am BST).
+ * Vercel Cron endpoint — runs daily at 06:00 UTC (7:00am BST).
  * Generates one vinyl_art post and publishes each slide as an individual Instagram Story.
  */
 import { NextResponse } from "next/server";
