@@ -2,7 +2,7 @@
 // Requires: Instagram Business/Creator account linked to a Facebook Page
 // Env vars: INSTAGRAM_ACCOUNT_ID, FACEBOOK_USER_TOKEN (+ FACEBOOK_PAGE_ID)
 
-import { getPageAccessToken } from "./meta";
+import { getUserAccessToken } from "./meta";
 
 const BASE = "https://graph.facebook.com/v21.0";
 
@@ -12,7 +12,7 @@ async function igFetch(
   params: Record<string, string>
 ) {
   const url = new URL(`${BASE}${path}`);
-  const accessToken = params.access_token || await getPageAccessToken();
+  const accessToken = params.access_token || await getUserAccessToken();
 
   if (method === "GET") {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));

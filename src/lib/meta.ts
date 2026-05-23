@@ -13,16 +13,44 @@
 
 const BASE = "https://graph.facebook.com/v21.0";
 
-export async function getPageAccessToken(): Promise<string> {
-  // Use the user token directly — it has instagram_content_publish scoped to
-  // the Instagram account and works for both Instagram and Facebook API calls.
+/**
+ * Returns the user token directly — required for Instagram API calls
+ * (instagram_content_publish is a user-level permission).
+ */
+export async function getUserAccessToken(): Promise<string> {
   const userToken = process.env.FACEBOOK_USER_TOKEN;
   if (userToken) return userToken;
-
-  // Backwards-compatible fallback
-  const staticToken =
-    process.env.INSTAGRAM_ACCESS_TOKEN ??
-    process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const staticToken = process.env.INSTAGRAM_ACCESS_TOKEN;
   if (!staticToken) throw new Error("No Meta access token configured. Set FACEBOOK_USER_TOKEN in environment variables.");
+  return staticToken;
+}
+
+/**
+ * Exchanges the user token for a Page Access Token — required for Facebook
+ * photo uploads and feed posts, which must be made as the Page itself.
+ */
+export async function getPageAccessToken(): Promise<string> {
+  const userToken = process.env.FACEBOOK_USER_TOKEN;
+  const pageId = process.env.FACEBOOK_PAGE_ID;
+
+  if (userToken && pageId) {
+    try {
+      const res = await fetch(
+        `${BASE}/${pageId}?fields=access_token&access_token=${userToken}`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      const data = await res.json();
+      if (data.access_token && !data.error) {
+        return data.access_token as string;
+      }
+    } catch {
+      // Fall through to fallback
+    }
+  }
+
+  const staticToken =
+    process.env.FACEBOOK_PAGE_ACCESS_TOKEN ??
+    process.env.FACEBOOK_USER_TOKEN;
+  if (!staticToken) throw new Error("No Facebook page token configured. Set FACEBOOK_USER_TOKEN + FACEBOOK_PAGE_ID in environment variables.");
   return staticToken;
 }
