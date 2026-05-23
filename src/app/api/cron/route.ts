@@ -131,7 +131,6 @@ async function generateAndPostVinylArt(
   post.status = "image_ready";
   await savePost(post);
 
-  post.platforms.instagram = { status: "skipped" };
   post.platforms.reel = { status: "skipped" };
 
   // Facebook — post the cover image

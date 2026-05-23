@@ -3,12 +3,9 @@ import { getPost, savePost } from "@/lib/store";
 import { Platform } from "@/types";
 import { buildRelatedLinks, buildRelatedLinksCaption } from "@/lib/claude";
 import {
-  createMediaContainer,
   publishMediaContainer,
   checkContainerStatus,
   createReelContainer,
-  createCarouselChildContainer,
-  createCarouselContainer,
 } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
@@ -36,7 +33,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No blob URL on post" }, { status: 400 });
     }
 
-    const targets: Platform[] = platforms ?? ["instagram", "facebook"];
+    const targets: Platform[] = platforms ?? ["reel", "facebook"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
     const relatedLinks = buildRelatedLinks(post.content.artist, post.content.title, {
       spotifyUrl: post.albumInfo?.spotifyUrl ?? post.artistInfo?.spotifyUrl,
@@ -56,39 +53,6 @@ export async function POST(request: Request) {
       : post.content.caption;
     const caption = `${captionBody}${suffix}`;
     const errors: string[] = [];
-
-    // ── Instagram ──────────────────────────────────────────────────────────
-    if (targets.includes("instagram")) {
-      try {
-        let containerId: string;
-        if (post.carouselBlobUrls && post.carouselBlobUrls.length > 1) {
-          const childIds = await Promise.all(
-            post.carouselBlobUrls.map((url) => createCarouselChildContainer(url))
-          );
-          containerId = await createCarouselContainer(childIds, caption);
-        } else {
-          containerId = await createMediaContainer(post.blobUrl, caption);
-        }
-        let status = "IN_PROGRESS";
-        let attempts = 0;
-        while (status === "IN_PROGRESS" && attempts < 10) {
-          await new Promise((r) => setTimeout(r, 3000));
-          status = await checkContainerStatus(containerId);
-          attempts++;
-        }
-        if (status !== "FINISHED") throw new Error(`Container not ready: ${status}`);
-        const mediaId = await publishMediaContainer(containerId);
-        post.platforms.instagram = {
-          status: "posted",
-          postId: mediaId,
-          postedAt: new Date().toISOString(),
-        };
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        post.platforms.instagram = { status: "failed", error: msg };
-        errors.push(`Instagram: ${msg}`);
-      }
-    }
 
     // ── TikTok ─────────────────────────────────────────────────────────────
     if (targets.includes("tiktok")) {

@@ -8,7 +8,6 @@ type Tab = "dashboard" | "generate";
 
 const PLATFORM_META: Partial<Record<Platform, { label: string; icon: string; color: string }>> = {
   reel: { label: "Reel", icon: "🎬", color: "text-purple-400" },
-  instagram: { label: "Instagram", icon: "📸", color: "text-pink-300" },
   facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
