@@ -13,12 +13,7 @@
 
 const BASE = "https://graph.facebook.com/v21.0";
 
-// Module-level cache — survives across requests on a warm Lambda instance.
-let cachedPageToken: string | null = null;
-
 export async function getPageAccessToken(): Promise<string> {
-  if (cachedPageToken) return cachedPageToken;
-
   const userToken = process.env.FACEBOOK_USER_TOKEN;
   const pageId = process.env.FACEBOOK_PAGE_ID;
 
@@ -30,8 +25,7 @@ export async function getPageAccessToken(): Promise<string> {
       );
       const data = await res.json();
       if (data.access_token && !data.error) {
-        cachedPageToken = data.access_token as string;
-        return cachedPageToken;
+        return data.access_token as string;
       }
     } catch {
       // Fall through to static token
