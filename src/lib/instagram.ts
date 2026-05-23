@@ -104,20 +104,16 @@ export async function createCarouselContainer(childIds: string[], caption: strin
 /**
  * Publishes an image as an Instagram Story.
  * Uses media_type=STORIES — requires instagram_content_publish permission.
- * userTags: array of Instagram usernames (without @) to tag in the story — sends real mention notifications.
  */
 export async function publishInstagramStory(imageUrl: string, userTags?: string[]): Promise<string> {
   const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
+  // userTags intentionally unused — Instagram Stories user_tags requires numeric IDs
+  void userTags;
 
-  const params: Record<string, string> = {
+  const container = await igFetch(`/${accountId}/media`, "POST", {
     image_url: imageUrl,
     media_type: "STORIES",
-  };
-  if (userTags && userTags.length > 0) {
-    params.user_tags = JSON.stringify(userTags.map((u) => ({ username: u })));
-  }
-
-  const container = await igFetch(`/${accountId}/media`, "POST", params);
+  });
   const containerId = container.id as string;
 
   // Wait for container to be ready

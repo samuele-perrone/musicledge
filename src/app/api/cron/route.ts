@@ -10,7 +10,6 @@ import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/l
 import { uploadImageToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { publishInstagramStory } from "@/lib/instagram";
-import { postFacebookPhoto } from "@/lib/facebook";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
@@ -157,19 +156,9 @@ async function generateAndPostVinylArt(
     : { status: "failed", error: "No story slides posted" };
   post.platforms.instagram = { status: "skipped" };
   post.platforms.reel = { status: "skipped" };
+  post.platforms.facebook = { status: "skipped" };
 
-  // Facebook — post the cover image
-  try {
-    const photoId = await postFacebookPhoto(blobUrl, `${content.caption}\n\n${content.hashtags.map(h => `#${h}`).join(" ")}`);
-    post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
-    log.push(`Facebook: ${photoId}`);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    post.platforms.facebook = { status: "failed", error: msg };
-    log.push(`Facebook failed: ${msg}`);
-  }
-
-  post.status = anyPosted || post.platforms.facebook.status === "posted" ? "posted" : "failed";
+  post.status = anyPosted ? "posted" : "failed";
   await savePost(post);
 
   usedArtists.unshift(content.artist);
