@@ -9,7 +9,6 @@ import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase6
 import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob } from "@/lib/blob";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
-import { publishInstagramStory } from "@/lib/instagram";
 import { postFacebookPhoto } from "@/lib/facebook";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
@@ -132,29 +131,6 @@ async function generateAndPostVinylArt(
   post.status = "image_ready";
   await savePost(post);
 
-  // Build user tags: artist handle + any media accounts Claude suggested
-  const userTags: string[] = [
-    ...(content.instagramHandle ? [content.instagramHandle] : []),
-    ...(content.tagAccounts ?? []),
-  ];
-
-  // Post each slide as an individual Instagram Story
-  const postedStoryIds: string[] = [];
-  for (let i = 0; i < storySlideUrls.length; i++) {
-    try {
-      const storyId = await publishInstagramStory(storySlideUrls[i], userTags.length > 0 ? userTags : undefined);
-      postedStoryIds.push(storyId);
-      log.push(`Story slide ${i + 1}: ${storyId}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      log.push(`Story slide ${i + 1} failed: ${msg}`);
-    }
-  }
-
-  const anyPosted = postedStoryIds.length > 0;
-  post.platforms.story = anyPosted
-    ? { status: "posted", postId: postedStoryIds[0], postedAt: new Date().toISOString() }
-    : { status: "failed", error: "No story slides posted" };
   post.platforms.instagram = { status: "skipped" };
   post.platforms.reel = { status: "skipped" };
 
@@ -169,7 +145,7 @@ async function generateAndPostVinylArt(
     log.push(`Facebook failed: ${msg}`);
   }
 
-  post.status = anyPosted || post.platforms.facebook.status === "posted" ? "posted" : "failed";
+  post.status = post.platforms.facebook.status === "posted" ? "posted" : "failed";
   await savePost(post);
 
   usedArtists.unshift(content.artist);

@@ -7,7 +7,6 @@ import {
   publishMediaContainer,
   checkContainerStatus,
   createReelContainer,
-  publishInstagramStory,
   createCarouselChildContainer,
   createCarouselContainer,
 } from "@/lib/instagram";
@@ -128,33 +127,6 @@ export async function POST(request: Request) {
         const msg = e instanceof Error ? e.message : String(e);
         post.platforms.youtube = { status: "failed", error: msg };
         errors.push(`YouTube: ${msg}`);
-      }
-    }
-
-    // ── Instagram Story (each slide posted individually) ───────────────────
-    if (targets.includes("story")) {
-      const slideUrls = post.carouselBlobUrls ?? [];
-      if (slideUrls.length === 0) {
-        post.platforms.story = { status: "failed", error: "No story slides on post" };
-        errors.push("Story: No story slides on post");
-      } else {
-        const storyUserTags: string[] = [
-          ...(post.content.instagramHandle ? [post.content.instagramHandle] : []),
-          ...(post.content.tagAccounts ?? []),
-        ];
-        const postedIds: string[] = [];
-        for (const url of slideUrls) {
-          try {
-            const storyId = await publishInstagramStory(url, storyUserTags.length > 0 ? storyUserTags : undefined);
-            postedIds.push(storyId);
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            errors.push(`Story slide: ${msg}`);
-          }
-        }
-        post.platforms.story = postedIds.length > 0
-          ? { status: "posted", postId: postedIds[0], postedAt: new Date().toISOString() }
-          : { status: "failed", error: "All story slides failed" };
       }
     }
 

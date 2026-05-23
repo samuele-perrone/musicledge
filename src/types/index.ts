@@ -23,7 +23,7 @@ export interface StoryContent {
   tagAccounts?: string[];      // 1-2 relevant media account handles without @
 }
 
-export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel" | "story";
+export type Platform = "instagram" | "tiktok" | "youtube" | "facebook" | "reel";
 
 export interface PlatformResult {
   status: "pending" | "posted" | "skipped" | "failed";
@@ -68,6 +68,5 @@ export function defaultPlatforms(): Record<Platform, PlatformResult> {
     youtube: { status: "pending" },
     facebook: { status: "pending" },
     reel: { status: "pending" },
-    story: { status: "pending" },
   };
 }
