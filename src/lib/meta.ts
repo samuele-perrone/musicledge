@@ -14,23 +14,10 @@
 const BASE = "https://graph.facebook.com/v21.0";
 
 export async function getPageAccessToken(): Promise<string> {
+  // Use the user token directly — it has instagram_content_publish scoped to
+  // the Instagram account and works for both Instagram and Facebook API calls.
   const userToken = process.env.FACEBOOK_USER_TOKEN;
-  const pageId = process.env.FACEBOOK_PAGE_ID;
-
-  if (userToken && pageId) {
-    try {
-      const res = await fetch(
-        `${BASE}/${pageId}?fields=access_token&access_token=${userToken}`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      const data = await res.json();
-      if (data.access_token && !data.error) {
-        return data.access_token as string;
-      }
-    } catch {
-      // Fall through to static token
-    }
-  }
+  if (userToken) return userToken;
 
   // Backwards-compatible fallback
   const staticToken =
