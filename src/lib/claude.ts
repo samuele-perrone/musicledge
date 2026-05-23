@@ -90,7 +90,7 @@ export async function getBreakingMusicNews(): Promise<string | null> {
     max_tokens: 256,
     messages: [{
       role: "user",
-      content: `Here are recent music news headlines from the last 48 hours. Is any of these significant breaking news that a ROCK music history brand should feature immediately? The brand covers classic rock, alternative, indie, punk, metal, grunge, and closely related genres only.\n\nOnly consider artists like: The Beatles, Rolling Stones, Led Zeppelin, Pink Floyd, David Bowie, Nirvana, Radiohead, Foo Fighters, Pearl Jam, Queen, The Clash, etc. and artists of that style.\n\nDo NOT select headlines about: K-pop, hip-hop, R&B, pop, country, EDM, or any non-rock genres.\n\nLook for: band reunions, surprise album drops, major artist deaths, landmark tours, major awards.\n\nHeadlines:\n${headlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join("\n")}\n\nIf yes, return ONLY the single most significant headline as plain text. If nothing is relevant to rock music, return null.`,
+      content: `Here are recent music news headlines from the last 48 hours. Is any of these significant breaking news that a rock and pop music history brand should feature immediately?\n\nThe brand covers: classic rock, alternative, indie, punk, metal, grunge, and iconic internationally known pop/soul artists (e.g. Michael Jackson, Prince, David Bowie, Elton John, Madonna, Whitney Houston, Stevie Wonder, Marvin Gaye, Amy Winehouse).\n\nDo NOT select headlines about: K-pop, modern pop acts, hip-hop, R&B, country, EDM, or niche/regional artists with limited international recognition.\n\nLook for: band reunions, surprise album drops, major artist deaths, landmark tours, major awards.\n\nHeadlines:\n${headlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join("\n")}\n\nIf yes, return ONLY the single most significant headline as plain text. If nothing qualifies, return null.`,
     }],
   });
 
@@ -250,7 +250,7 @@ export async function generateStoryContent(
 
   // Append breaking news context — takes highest priority if present
   const newsSuffix = breakingNews
-    ? `\n\nBREAKING NEWS CONTEXT: The following music news just broke: "${breakingNews}". Make this the focus of your story — write about this event, the artist(s) involved, and why it matters. Make the post feel timely, relevant, and exciting. Adjust the artist and title fields to match the news subject. IMPORTANT: Only proceed if this news is about a rock, alternative, indie, punk, metal, or classic rock artist. If the news is about a pop, K-pop, hip-hop, R&B, or non-rock artist, ignore it and generate a regular vinyl_art post instead.`
+    ? `\n\nBREAKING NEWS CONTEXT: The following music news just broke: "${breakingNews}". Make this the focus of your story — write about this event, the artist(s) involved, and why it matters. Make the post feel timely, relevant, and exciting. Adjust the artist and title fields to match the news subject. IMPORTANT: Only proceed if this news is about a rock, alternative, indie, punk, metal, classic rock artist, or a globally iconic pop/soul legend (e.g. Michael Jackson, Prince, Elton John, Madonna, Whitney Houston, Stevie Wonder). If the news is about a K-pop act, modern pop, hip-hop, R&B, or any artist without major international rock/pop legacy, ignore it and generate a regular vinyl_art post instead.`
     : "";
 
   // Append event context so Claude tailors the story to the specific anniversary/birthday
