@@ -556,11 +556,12 @@ export default function Home() {
               if (!slides.length) return null;
               const total = slides.length;
               return (
-                <div className="relative rounded-t-2xl overflow-hidden">
+                <div className="relative overflow-hidden flex justify-center bg-black" style={{ maxHeight: "50vh" }}>
                   <img
                     src={slides[activeSlide]}
                     alt={`Slide ${activeSlide + 1}`}
-                    className="w-full"
+                    className="w-auto h-full object-contain"
+                    style={{ maxHeight: "50vh" }}
                   />
                   {/* Prev / Next */}
                   {activeSlide > 0 && (
