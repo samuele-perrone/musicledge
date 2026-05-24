@@ -71,7 +71,7 @@ export async function createAnimatedReelVideo(
   slideBuffers: Buffer[]
 ): Promise<Buffer> {
   const tmpId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const slideDuration = 5;
+  const slideDuration = 6;
 
   // Resize all slides and write to /tmp
   const slidePaths = await Promise.all(
