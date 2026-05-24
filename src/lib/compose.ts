@@ -408,8 +408,9 @@ export async function composeCarouselSlide(
 }
 
 /**
- * Composes a full-bleed 1080×1920 vertical story slide with centred text.
- * Used for the hook slide (slide 1) and story slides (2-3) in Story/Reel format.
+ * Composes a full-bleed 1080×1920 vertical reel slide.
+ * Layout: full bleed image, heavy bottom gradient, subtitle-style text in lower area,
+ * fixed branding bar at the very bottom (always visible in previews).
  */
 export async function composeStorySlide(
   imageBase64: string,
@@ -428,100 +429,83 @@ export async function composeStorySlide(
 
   const accent = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
   const categoryLabel = content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY";
+  const badgeTextColor = content.category === "music_story" ? "black" : "white";
 
   const dots = Array.from({ length: totalSlides }, (_, i) =>
     h("div", {
       key: i,
       style: {
-        width: 10, height: 10, borderRadius: 5,
-        background: i + 1 === slideIndex ? accent : "rgba(255,255,255,0.35)",
+        width: 8, height: 8, borderRadius: 4,
+        background: i + 1 === slideIndex ? "white" : "rgba(255,255,255,0.3)",
       },
     })
   );
-
-  // On the last content slide, overlay @handle + top hashtags
-  const isLastContentSlide = slideIndex === totalSlides;
-  const tagParts: string[] = [];
-  if (isLastContentSlide) {
-    if (content.instagramHandle) tagParts.push(`@${content.instagramHandle}`);
-    (content.hashtags ?? []).slice(0, 3).forEach(tag => tagParts.push(`#${tag}`));
-  }
-  const tagLine = tagParts.length > 0 ? tagParts.join("  ") : null;
 
   const svg = await satori(
     h("div", {
       style: {
         width: STORY_W, height: STORY_H,
         display: "flex", flexDirection: "column",
-        justifyContent: "space-between",
+        justifyContent: "flex-end",
         fontFamily: "Inter",
       },
     },
-      // Top bar
-      h("div", {
-        style: {
-          display: "flex", flexDirection: "row",
-          justifyContent: "space-between", alignItems: "flex-start",
-          padding: "52px 52px 80px 52px",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, transparent 100%)",
-        },
-      },
-        h("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
-          h("div", {
-            style: {
-              background: accent, borderRadius: 4, padding: "10px 22px",
-              fontSize: 28, fontWeight: 700,
-              color: content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black",
-              letterSpacing: 2,
-            },
-          }, "MUSICLEDGE"),
-          h("div", {
-            style: { fontSize: 18, fontWeight: 700, color: accent, letterSpacing: 4, paddingLeft: 4, textTransform: "uppercase" },
-          }, categoryLabel)
-        ),
-        h("div", {
-          style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 3, opacity: 0.9 },
-        }, content.artist.toUpperCase())
-      ),
-      // Centre: large text
-      h("div", {
-        style: {
-          flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "0 64px",
-        },
-      },
-        h("div", {
-          style: {
-            fontSize: slideIndex === 1 ? 68 : 52,
-            fontWeight: 700, color: "white",
-            textAlign: "center", lineHeight: 1.25,
-          },
-        }, slideText)
-      ),
-      // Bottom: tag line (last slide only) + dots + accent strip
+      // Bottom gradient + content
       h("div", {
         style: {
           display: "flex", flexDirection: "column",
-          background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)",
-          padding: "80px 52px 0 52px",
+          justifyContent: "flex-end",
+          background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 40%, transparent 70%)",
+          padding: "0 52px 0 52px",
+          height: "65%",
         },
       },
-        ...(tagLine ? [h("div", {
-          style: {
-            fontSize: 22, fontWeight: 400,
-            color: "rgba(255,255,255,0.65)",
-            textAlign: "center",
-            paddingBottom: 14,
-          },
-        }, tagLine)] : []),
+        // Slide dots
         h("div", {
           style: {
             display: "flex", flexDirection: "row",
-            justifyContent: "flex-end", alignItems: "center",
-            paddingBottom: 24, gap: 10,
+            justifyContent: "center", gap: 8,
+            paddingBottom: 24,
           },
         }, ...dots),
-        h("div", { style: { height: 8, background: accent, marginLeft: -52, marginRight: -52 } })
+        // Subtitle-style slide text
+        h("div", {
+          style: {
+            fontSize: 58,
+            fontWeight: 700,
+            color: "white",
+            textAlign: "center",
+            lineHeight: 1.2,
+            paddingBottom: 40,
+            textShadow: "0 2px 12px rgba(0,0,0,0.8)",
+          },
+        }, slideText),
+        // Branding bar — always at bottom
+        h("div", {
+          style: {
+            display: "flex", flexDirection: "row",
+            justifyContent: "space-between", alignItems: "center",
+            borderTop: "1px solid rgba(255,255,255,0.15)",
+            paddingTop: 20, paddingBottom: 44,
+          },
+        },
+          // Left: badge + category
+          h("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", gap: 12 } },
+            h("div", {
+              style: {
+                background: accent, borderRadius: 4, padding: "7px 16px",
+                fontSize: 22, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
+              },
+            }, "MUSICLEDGE"),
+            h("div", {
+              style: { fontSize: 16, fontWeight: 700, color: accent, letterSpacing: 3, textTransform: "uppercase" },
+            }, categoryLabel)
+          ),
+          // Right: artist name
+          h("div", {
+            style: { fontSize: 22, fontWeight: 700, color: "white", letterSpacing: 2, opacity: 0.9 },
+          }, content.artist.toUpperCase())
+        )
       )
     ),
     {
@@ -534,12 +518,8 @@ export async function composeStorySlide(
   );
 
   const overlayBuffer = Buffer.from(svg);
-  const darkOverlay = await sharp({
-    create: { width: STORY_W, height: STORY_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.62 } },
-  }).png().toBuffer();
-
   return sharp(bg)
-    .composite([{ input: darkOverlay }, { input: overlayBuffer }])
+    .composite([{ input: overlayBuffer }])
     .jpeg({ quality: 92 })
     .toBuffer();
 }
