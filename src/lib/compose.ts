@@ -49,15 +49,15 @@ export async function composeImage(
           fontFamily: "Inter",
         },
       },
-      // Top bar: gradient + MUSICLEDGE badge + artist name
+      // Top bar: gradient + centered MUSICLEDGE badge + category + artist
       h(
         "div",
         {
           style: {
             display: "flex",
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
             padding: "44px 48px 80px 48px",
             background: "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, transparent 100%)",
           },
@@ -66,50 +66,42 @@ export async function composeImage(
           "div",
           {
             style: {
+              background: accent,
+              borderRadius: 4,
+              padding: "10px 22px",
+              fontSize: 30,
+              fontWeight: 700,
+              color: content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black",
+              letterSpacing: 2,
               display: "flex",
-              flexDirection: "column",
-              gap: 8,
             },
           },
-          h(
-            "div",
-            {
-              style: {
-                background: accent,
-                borderRadius: 4,
-                padding: "10px 22px",
-                fontSize: 30,
-                fontWeight: 700,
-                color: content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black",
-                letterSpacing: 2,
-              },
-            },
-            "MUSICLEDGE"
-          ),
-          h(
-            "div",
-            {
-              style: {
-                fontSize: 20,
-                fontWeight: 700,
-                color: accent,
-                letterSpacing: 4,
-                paddingLeft: 4,
-                textTransform: "uppercase",
-              },
-            },
-            content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY"
-          )
+          "MUSICLEDGE"
         ),
         h(
           "div",
           {
             style: {
-              fontSize: 36,
+              fontSize: 20,
+              fontWeight: 700,
+              color: accent,
+              letterSpacing: 4,
+              textTransform: "uppercase",
+              display: "flex",
+            },
+          },
+          content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY"
+        ),
+        h(
+          "div",
+          {
+            style: {
+              fontSize: 32,
               fontWeight: 700,
               color: "white",
               letterSpacing: 3,
               opacity: 0.9,
+              display: "flex",
             },
           },
           artist
@@ -281,7 +273,6 @@ export async function composeCarouselSlide(
               fontWeight: 700,
               color: accent,
               letterSpacing: 4,
-              paddingLeft: 2,
               textTransform: "uppercase",
               display: "flex",
             },
