@@ -801,52 +801,72 @@ export async function composeStory(
 }
 
 /**
- * Vinyl Art intro slide (1080×1920): full-bleed album art, no badge or overlay,
- * just the title in large Bebas Neue at the very bottom with 20px bottom padding.
+ * Vinyl Art intro slide (1080×1920): same gradient-bg template as composeStory
+ * but with the raw clean album art (no badge/title overlay) and title only at
+ * the bottom (2× size, more bottom padding).
  */
 export async function composeVinylIntroSlide(
   imageBase64: string,
   content: StoryContent
 ): Promise<Buffer> {
-  const bg = await sharp(Buffer.from(imageBase64, "base64"))
-    .resize(STORY_W, STORY_H, { fit: "cover" })
-    .jpeg({ quality: 92 })
-    .toBuffer();
+  const regularFont = loadFontBuffer("Inter-Regular.ttf");
+  const boldFont    = loadFontBuffer("Inter-Bold.ttf");
+  const fonts = [
+    { name: "Inter", data: regularFont, weight: 400 as const, style: "normal" as const },
+    { name: "Inter", data: boldFont,    weight: 700 as const, style: "normal" as const },
+  ];
 
-  const bebasFont = loadFontBuffer("BebasNeue-Regular.ttf");
+  // Raw album art — no badge/title overlay
+  const postImageSize = 1000;
+  const postImageResized = await sharp(Buffer.from(imageBase64, "base64"))
+    .resize(postImageSize, postImageSize, { fit: "cover" })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+  const postImageB64 = `data:image/jpeg;base64,${postImageResized.toString("base64")}`;
 
   const svg = await satori(
     h("div", {
       style: {
         width: STORY_W, height: STORY_H,
         display: "flex", flexDirection: "column",
-        justifyContent: "flex-end",
-        fontFamily: "BebasNeue",
+        alignItems: "center", justifyContent: "space-between",
+        fontFamily: "Inter",
+        background: "linear-gradient(160deg, #0891b2 0%, #0e7490 100%)",
+        padding: "60px 0 120px 0",
       },
     },
+      // Top branding (same as composeStory)
       h("div", {
-        style: {
-          background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)",
-          padding: "120px 52px 20px 52px",
-          display: "flex", flexDirection: "column", justifyContent: "flex-end",
-        },
+        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 16 },
       },
         h("div", {
-          style: {
-            fontSize: 116, fontWeight: 400, color: "white",
-            lineHeight: 1.05, letterSpacing: 2,
-          },
-        }, content.title)
-      )
+          style: { width: 100, height: 100, borderRadius: 50, border: "5px solid white", display: "flex", alignItems: "center", justifyContent: "center" },
+        },
+          h("div", { style: { width: 28, height: 28, borderRadius: 14, border: "5px solid white" } })
+        ),
+        h("div", { style: { fontSize: 38, fontWeight: 700, color: "white", letterSpacing: 5 } }, "MUSICLEDGE"),
+        h("div", { style: { fontSize: 20, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: 4 } }, "VINYL ART"),
+        h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
+      ),
+
+      // Clean album art card — no overlay
+      h("img", {
+        src: postImageB64,
+        style: { width: postImageSize, height: postImageSize, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.35)" },
+      }),
+
+      // Title only — 2× size, more bottom spacing
+      h("div", {
+        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 8 },
+      },
+        h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
+        h("div", {
+          style: { fontSize: 68, fontWeight: 700, color: "white", textAlign: "center", lineHeight: 1.2, paddingLeft: 60, paddingRight: 60 },
+        }, content.title),
+      ),
     ),
-    {
-      width: STORY_W, height: STORY_H,
-      fonts: [{ name: "BebasNeue", data: bebasFont, weight: 400, style: "normal" }],
-    }
+    { width: STORY_W, height: STORY_H, fonts }
   );
 
-  return sharp(bg)
-    .composite([{ input: Buffer.from(svg) }])
-    .jpeg({ quality: 92 })
-    .toBuffer();
+  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
 }
