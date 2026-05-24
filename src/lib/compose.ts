@@ -799,3 +799,54 @@ export async function composeStory(
     .jpeg({ quality: 92 })
     .toBuffer();
 }
+
+/**
+ * Vinyl Art intro slide (1080×1920): full-bleed album art, no badge or overlay,
+ * just the title in large Bebas Neue at the very bottom with 20px bottom padding.
+ */
+export async function composeVinylIntroSlide(
+  imageBase64: string,
+  content: StoryContent
+): Promise<Buffer> {
+  const bg = await sharp(Buffer.from(imageBase64, "base64"))
+    .resize(STORY_W, STORY_H, { fit: "cover" })
+    .jpeg({ quality: 92 })
+    .toBuffer();
+
+  const bebasFont = loadFontBuffer("BebasNeue-Regular.ttf");
+
+  const svg = await satori(
+    h("div", {
+      style: {
+        width: STORY_W, height: STORY_H,
+        display: "flex", flexDirection: "column",
+        justifyContent: "flex-end",
+        fontFamily: "BebasNeue",
+      },
+    },
+      h("div", {
+        style: {
+          background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%)",
+          padding: "120px 52px 20px 52px",
+          display: "flex", flexDirection: "column", justifyContent: "flex-end",
+        },
+      },
+        h("div", {
+          style: {
+            fontSize: 116, fontWeight: 400, color: "white",
+            lineHeight: 1.05, letterSpacing: 2,
+          },
+        }, content.title)
+      )
+    ),
+    {
+      width: STORY_W, height: STORY_H,
+      fonts: [{ name: "BebasNeue", data: bebasFont, weight: 400, style: "normal" }],
+    }
+  );
+
+  return sharp(bg)
+    .composite([{ input: Buffer.from(svg) }])
+    .jpeg({ quality: 92 })
+    .toBuffer();
+}

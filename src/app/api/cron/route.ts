@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
+import { composeImage, composeStory, composeVinylIntroSlide, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
@@ -136,7 +136,9 @@ async function runCron() {
 
     let introBuffer: Buffer | null = null;
     try {
-      introBuffer = await composeStory(composedBuffer, content);
+      introBuffer = category === "vinyl_art"
+        ? await composeVinylIntroSlide(imageBase64, content)
+        : await composeStory(composedBuffer, content);
     } catch (e) {
       log.push(`Intro slide failed: ${e instanceof Error ? e.message : e}`);
     }
