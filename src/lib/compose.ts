@@ -409,8 +409,8 @@ export async function composeCarouselSlide(
 
 /**
  * Composes a full-bleed 1080×1920 vertical reel slide.
- * Layout: full bleed image, heavy bottom gradient, subtitle-style text in lower area,
- * fixed branding bar at the very bottom (always visible in previews).
+ * Layout: full-bleed image with dark overlay, text centered vertically,
+ * large branding bar at the very bottom (badge + category column left, artist right).
  */
 export async function composeStorySlide(
   imageBase64: string,
@@ -435,7 +435,7 @@ export async function composeStorySlide(
     h("div", {
       key: i,
       style: {
-        width: 8, height: 8, borderRadius: 4,
+        width: 12, height: 12, borderRadius: 6,
         background: i + 1 === slideIndex ? "white" : "rgba(255,255,255,0.3)",
       },
     })
@@ -446,64 +446,80 @@ export async function composeStorySlide(
       style: {
         width: STORY_W, height: STORY_H,
         display: "flex", flexDirection: "column",
-        justifyContent: "flex-end",
+        justifyContent: "space-between",
         fontFamily: "Inter",
       },
     },
-      // Bottom gradient + content
+      // Top fade (decorative)
       h("div", {
         style: {
+          height: 240,
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)",
+          display: "flex",
+        },
+      }),
+
+      // Center: slide dots + text
+      h("div", {
+        style: {
+          flex: 1,
           display: "flex", flexDirection: "column",
-          justifyContent: "flex-end",
-          background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.6) 40%, transparent 70%)",
-          padding: "0 52px 0 52px",
-          height: "65%",
+          alignItems: "center", justifyContent: "center",
+          padding: "0 72px",
+          gap: 32,
         },
       },
-        // Slide dots
         h("div", {
-          style: {
-            display: "flex", flexDirection: "row",
-            justifyContent: "center", gap: 8,
-            paddingBottom: 24,
-          },
+          style: { display: "flex", flexDirection: "row", gap: 12, alignItems: "center" },
         }, ...dots),
-        // Subtitle-style slide text
         h("div", {
           style: {
-            fontSize: 58,
-            fontWeight: 700,
-            color: "white",
-            textAlign: "center",
-            lineHeight: 1.2,
-            paddingBottom: 40,
-            textShadow: "0 2px 12px rgba(0,0,0,0.8)",
+            fontSize: 68, fontWeight: 700,
+            color: "white", textAlign: "center", lineHeight: 1.2,
           },
-        }, slideText),
-        // Branding bar — always at bottom
+        }, slideText)
+      ),
+
+      // Bottom: gradient + branding bar
+      h("div", {
+        style: {
+          display: "flex", flexDirection: "column", justifyContent: "flex-end",
+          background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)",
+          padding: "100px 52px 60px 52px",
+        },
+      },
         h("div", {
           style: {
             display: "flex", flexDirection: "row",
             justifyContent: "space-between", alignItems: "center",
-            borderTop: "1px solid rgba(255,255,255,0.15)",
-            paddingTop: 20, paddingBottom: 44,
+            borderTop: "1px solid rgba(255,255,255,0.2)",
+            paddingTop: 28,
           },
         },
-          // Left: badge + category
-          h("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", gap: 16 } },
+          // Left: badge on top, category below
+          h("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
             h("div", {
               style: {
-                background: accent, borderRadius: 6, padding: "10px 24px",
-                fontSize: 30, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
+                background: accent, borderRadius: 8, padding: "14px 36px",
+                fontSize: 56, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
+                display: "flex",
               },
             }, "MUSICLEDGE"),
             h("div", {
-              style: { fontSize: 22, fontWeight: 700, color: accent, letterSpacing: 3, textTransform: "uppercase" },
+              style: {
+                fontSize: 34, fontWeight: 700, color: accent,
+                letterSpacing: 3, textTransform: "uppercase",
+                display: "flex", paddingLeft: 4,
+              },
             }, categoryLabel)
           ),
           // Right: artist name
           h("div", {
-            style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 2, opacity: 0.9 },
+            style: {
+              fontSize: 52, fontWeight: 700, color: "white",
+              letterSpacing: 2, opacity: 0.9,
+              textAlign: "right", maxWidth: 380,
+            },
           }, content.artist.toUpperCase())
         )
       )
@@ -517,9 +533,14 @@ export async function composeStorySlide(
     }
   );
 
+  // Dark overlay so centered text is readable against any photo
+  const darkOverlay = await sharp({
+    create: { width: STORY_W, height: STORY_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.52 } },
+  }).png().toBuffer();
+
   const overlayBuffer = Buffer.from(svg);
   return sharp(bg)
-    .composite([{ input: overlayBuffer }])
+    .composite([{ input: darkOverlay }, { input: overlayBuffer }])
     .jpeg({ quality: 92 })
     .toBuffer();
 }

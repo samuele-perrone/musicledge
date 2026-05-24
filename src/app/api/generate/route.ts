@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStorySlide, composeFollowSlideVertical, makeVerticalSlide } from "@/lib/compose";
+import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical, makeVerticalSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
@@ -114,7 +114,18 @@ export async function POST(request: Request) {
     // Generate animated reel video from already-composed slide buffers
     let reelError: string | undefined;
     try {
-      const reelSlides = followBuffer ? [...slideBuffers, followBuffer] : slideBuffers;
+      // Intro slide: story-style layout (gradient bg + artist photo card) — becomes the thumbnail
+      let introBuffer: Buffer | null = null;
+      try {
+        introBuffer = await composeStory(composedBuffer, content);
+      } catch (e) {
+        console.warn("[generate] Intro slide failed:", e);
+      }
+      const reelSlides = [
+        ...(introBuffer ? [introBuffer] : []),
+        ...slideBuffers,
+        ...(followBuffer ? [followBuffer] : []),
+      ];
       if (reelSlides.length === 0) throw new Error("No slides available for reel");
       const reelBuffer = await createAnimatedReelVideo(reelSlides);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
