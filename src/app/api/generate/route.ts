@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStory, composeVinylIntroSlide, composeStorySlide, composeFollowSlideVertical, makeVerticalSlide } from "@/lib/compose";
+import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical, makeVerticalSlide } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
@@ -114,12 +114,10 @@ export async function POST(request: Request) {
     // Generate animated reel video from already-composed slide buffers
     let reelError: string | undefined;
     try {
-      // Intro slide: full-bleed album art for vinyl_art, story card layout otherwise
+      // Intro slide: gradient template with clean photo card + title only
       let introBuffer: Buffer | null = null;
       try {
-        introBuffer = content.category === "vinyl_art"
-          ? await composeVinylIntroSlide(imageBase64, content)
-          : await composeStory(composedBuffer, content);
+        introBuffer = await composeStory(imageBase64, content);
       } catch (e) {
         console.warn("[generate] Intro slide failed:", e);
       }

@@ -683,7 +683,7 @@ export async function composeFollowSlideVertical(content: StoryContent): Promise
  * Layout: amber gradient bg → top branding → square post image → bottom text.
  */
 export async function composeStory(
-  composedImageBuffer: Buffer,
+  imageBase64: string,
   content: StoryContent
 ): Promise<Buffer> {
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
@@ -693,24 +693,21 @@ export async function composeStory(
     { name: "Inter", data: boldFont,    weight: 700 as const, style: "normal" as const },
   ];
 
-  const artist  = content.artist.toUpperCase();
-  const title   = content.title;
-  const caption = content.imageCaption || "";
+  const categoryLabel = content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY";
   const storyAccent = content.category === "vinyl_art"
     ? "linear-gradient(160deg, #0891b2 0%, #0e7490 100%)"
     : content.category === "harmony"
     ? "linear-gradient(160deg, #a855f7 0%, #7c3aed 100%)"
     : "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)";
 
-  // Resize the square post image to fill story width with side padding
+  // Raw clean image — no badge/title overlay
   const postImageSize = 1000;
-  const postImageResized = await sharp(composedImageBuffer)
+  const postImageResized = await sharp(Buffer.from(imageBase64, "base64"))
     .resize(postImageSize, postImageSize, { fit: "cover" })
     .jpeg({ quality: 90 })
     .toBuffer();
   const postImageB64 = `data:image/jpeg;base64,${postImageResized.toString("base64")}`;
 
-  // Build full story layout in Satori (supports img data URIs)
   const svg = await satori(
     h("div", {
       style: {
@@ -719,85 +716,43 @@ export async function composeStory(
         alignItems: "center", justifyContent: "space-between",
         fontFamily: "Inter",
         background: storyAccent,
-        padding: "60px 0 70px 0",
+        padding: "60px 0 120px 0",
       },
     },
-      // ── Top branding ──────────────────────────────────────────────
+      // Top branding
       h("div", {
-        style: {
-          display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 16,
-        },
+        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 16 },
       },
-        // Vinyl icon
         h("div", {
-          style: {
-            width: 100, height: 100, borderRadius: 50,
-            border: "5px solid white",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          },
+          style: { width: 100, height: 100, borderRadius: 50, border: "5px solid white", display: "flex", alignItems: "center", justifyContent: "center" },
         },
           h("div", { style: { width: 28, height: 28, borderRadius: 14, border: "5px solid white" } })
         ),
-        h("div", {
-          style: { fontSize: 38, fontWeight: 700, color: "white", letterSpacing: 5 },
-        }, "MUSICLEDGE"),
-        h("div", {
-          style: {
-            fontSize: 20, fontWeight: 700,
-            color: "rgba(255,255,255,0.85)", letterSpacing: 4,
-          },
-        }, content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY"),
+        h("div", { style: { fontSize: 38, fontWeight: 700, color: "white", letterSpacing: 5 } }, "MUSICLEDGE"),
+        h("div", { style: { fontSize: 20, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: 4 } }, categoryLabel),
         h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
       ),
 
-      // ── Post image ────────────────────────────────────────────────
+      // Clean photo card — no overlay
       h("img", {
         src: postImageB64,
-        style: {
-          width: postImageSize, height: postImageSize,
-          borderRadius: 16,
-          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
-        },
+        style: { width: postImageSize, height: postImageSize, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.35)" },
       }),
 
-      // ── Bottom text ───────────────────────────────────────────────
+      // Title only — 2× size
       h("div", {
-        style: {
-          display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 12, paddingTop: 8,
-        },
+        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 8 },
       },
         h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
         h("div", {
-          style: {
-            fontSize: 22, fontWeight: 700, color: "white",
-            letterSpacing: 4, textTransform: "uppercase",
-          },
-        }, artist),
-        h("div", {
-          style: {
-            fontSize: 34, fontWeight: 700, color: "white",
-            textAlign: "center", lineHeight: 1.2,
-            paddingLeft: 60, paddingRight: 60,
-          },
-        }, title),
-        h("div", {
-          style: {
-            fontSize: 22, fontWeight: 400,
-            color: "rgba(255,255,255,0.85)",
-            textAlign: "center",
-            paddingLeft: 60, paddingRight: 60,
-          },
-        }, caption),
+          style: { fontSize: 68, fontWeight: 700, color: "white", textAlign: "center", lineHeight: 1.2, paddingLeft: 60, paddingRight: 60 },
+        }, content.title),
       ),
     ),
     { width: STORY_W, height: STORY_H, fonts }
   );
 
-  return sharp(Buffer.from(svg))
-    .jpeg({ quality: 92 })
-    .toBuffer();
+  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
 }
 
 /**

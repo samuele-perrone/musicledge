@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}-v${v}.jpg`);
     post.blobUrl = blobUrl;
 
-    const storyBuffer = await composeStory(composedBuffer, content);
+    const storyBuffer = await composeStory(imageBase64, content);
     const storyBlobUrl = await uploadImageToBlob(storyBuffer, `posts/${post.id}-story-v${v}.jpg`);
     post.storyBlobUrl = storyBlobUrl;
 
