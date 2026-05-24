@@ -490,7 +490,7 @@ export async function composeStorySlide(
       h("div", {
         style: {
           display: "flex", flexDirection: "row",
-          justifyContent: "space-between", alignItems: "flex-end",
+          justifyContent: "center", alignItems: "flex-end",
           padding: "80px 52px 80px 52px",
           background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
           borderTop: "1px solid rgba(255,255,255,0.1)",
