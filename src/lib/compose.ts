@@ -451,7 +451,7 @@ export async function composeStorySlide(
       },
         h("div", {
           style: {
-            background: accent, borderRadius: 8, padding: "14px 36px",
+            background: accent, borderRadius: 8, padding: "20px 36px",
             fontSize: 56, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
             display: "flex",
           },
@@ -491,7 +491,7 @@ export async function composeStorySlide(
         style: {
           display: "flex", flexDirection: "row",
           justifyContent: "space-between", alignItems: "flex-end",
-          padding: "80px 52px 60px 52px",
+          padding: "80px 52px 80px 52px",
           background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
           borderTop: "1px solid rgba(255,255,255,0.1)",
         },
