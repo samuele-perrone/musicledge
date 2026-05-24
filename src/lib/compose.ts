@@ -490,20 +490,20 @@ export async function composeStorySlide(
           },
         },
           // Left: badge + category
-          h("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", gap: 12 } },
+          h("div", { style: { display: "flex", flexDirection: "row", alignItems: "center", gap: 16 } },
             h("div", {
               style: {
-                background: accent, borderRadius: 4, padding: "7px 16px",
-                fontSize: 22, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
+                background: accent, borderRadius: 6, padding: "10px 24px",
+                fontSize: 30, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
               },
             }, "MUSICLEDGE"),
             h("div", {
-              style: { fontSize: 16, fontWeight: 700, color: accent, letterSpacing: 3, textTransform: "uppercase" },
+              style: { fontSize: 22, fontWeight: 700, color: accent, letterSpacing: 3, textTransform: "uppercase" },
             }, categoryLabel)
           ),
           // Right: artist name
           h("div", {
-            style: { fontSize: 22, fontWeight: 700, color: "white", letterSpacing: 2, opacity: 0.9 },
+            style: { fontSize: 30, fontWeight: 700, color: "white", letterSpacing: 2, opacity: 0.9 },
           }, content.artist.toUpperCase())
         )
       )
