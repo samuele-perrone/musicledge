@@ -1,10 +1,5 @@
 /**
- * Facebook Graph API — Page post with photo
- *
- * Two-step approach:
- *   1. Upload photo (unpublished) to get a media ID
- *   2. Create a feed post with the photo attached — this shows in the public Posts feed
- *
+ * Facebook Graph API — Page photo and video posts
  * Env vars: FACEBOOK_PAGE_ID, FACEBOOK_USER_TOKEN
  */
 
@@ -50,4 +45,33 @@ export async function postFacebookPhoto(
   if (feedData.error) throw new Error(`Facebook feed: ${feedData.error.message}`);
 
   return feedData.id as string; // post ID
+}
+
+/**
+ * Posts a video to the Facebook Page feed via public URL.
+ * Used for Reels / video posts from a Blob-hosted MP4.
+ */
+export async function postFacebookVideo(
+  videoUrl: string,
+  caption: string,
+  title?: string
+): Promise<string> {
+  const pageId = process.env.FACEBOOK_PAGE_ID;
+  if (!pageId) throw new Error("FACEBOOK_PAGE_ID not set");
+  const token = await getPageAccessToken();
+
+  const body = new URLSearchParams({
+    file_url: videoUrl,
+    description: caption,
+    access_token: token,
+  });
+  if (title) body.set("title", title);
+
+  const res = await fetch(`${BASE}/${pageId}/videos`, {
+    method: "POST",
+    body,
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Facebook video: ${data.error.message}`);
+  return data.id as string;
 }

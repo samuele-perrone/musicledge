@@ -1,15 +1,18 @@
 /**
  * Vercel Cron endpoint — runs daily at 06:30 UTC (7:30am BST).
- * Generates one vinyl_art post and publishes each slide as an individual Instagram Story.
+ * Generates one post, composes an animated reel video, and publishes to
+ * Instagram Reels and Facebook video. No cover image or slide posts.
  */
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
-import { uploadImageToBlob } from "@/lib/blob";
+import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
+import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
+import { createAnimatedReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
-import { postFacebookPhoto } from "@/lib/facebook";
+import { postFacebookVideo } from "@/lib/facebook";
+import { createReelContainer, checkContainerStatus, publishMediaContainer } from "@/lib/instagram";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
@@ -31,127 +34,7 @@ async function sendErrorAlert(errors: string[]) {
   });
 }
 
-async function generateAndPostVinylArt(
-  usedArtists: string[],
-  recentSummaries: { artist: string; title: string; category: string }[],
-  todayEvent: { artist: string; event: string; suggestedCategory: import("@/types").PostCategory } | null,
-  breakingNews: string | null,
-  log: string[]
-): Promise<{ artist: string; title: string; category: string }> {
-  // Use music_story for breaking news (more appropriate format), vinyl_art otherwise
-  const category = breakingNews ? "music_story" : "vinyl_art";
-  log.push(`\n--- ${category.toUpperCase()} ---`);
-
-  const content = await generateStoryContent(
-    usedArtists,
-    category,
-    breakingNews ? undefined : (todayEvent ?? undefined),
-    recentSummaries,
-    breakingNews ?? undefined
-  );
-  log.push(`Story: "${content.title}" — ${content.artist}`);
-
-  const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
-  const post: GeneratedPost = {
-    id: crypto.randomUUID(),
-    content,
-    affiliateUrl,
-    todayEvent: todayEvent?.event,
-    platforms: defaultPlatforms(),
-    status: "pending",
-    createdAt: new Date().toISOString(),
-  };
-  await savePost(post);
-
-  // Fetch real image: album art for vinyl_art, artist photo for music_story (breaking news)
-  let imageBase64: string;
-  if (category === "vinyl_art" && content.albumName) {
-    try {
-      const albumInfo = await searchAlbum(content.artist, content.albumName);
-      if (albumInfo) {
-        imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
-        post.albumInfo = albumInfo;
-        log.push(`Album art: ${albumInfo.albumName} — ${albumInfo.artistName}`);
-      } else {
-        log.push("Album art not found on iTunes, falling back to AI");
-        imageBase64 = await generateImage(content.imagePrompt, "editorial");
-      }
-    } catch (e) {
-      log.push(`Album art fetch failed: ${e instanceof Error ? e.message : String(e)}, falling back to AI`);
-      imageBase64 = await generateImage(content.imagePrompt, "editorial");
-    }
-  } else {
-    try {
-      const artistInfo = await searchArtistInfo(content.artist);
-      if (artistInfo) {
-        imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
-        post.artistInfo = artistInfo;
-        log.push(`Artist photo: ${artistInfo.artistName}`);
-      } else {
-        log.push("Artist photo not found, falling back to AI");
-        imageBase64 = await generateImage(content.imagePrompt, "random");
-      }
-    } catch (e) {
-      log.push(`Artist photo fetch failed: ${e instanceof Error ? e.message : String(e)}, falling back to AI`);
-      imageBase64 = await generateImage(content.imagePrompt, "random");
-    }
-  }
-
-  // Compose cover image (used as background for slides)
-  const composedBuffer = await composeImage(imageBase64, content);
-  post.imageBase64 = composedBuffer.toString("base64");
-  const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
-  post.blobUrl = blobUrl;
-
-  // Compose 3 story slides + follow slide (all 1080×1920)
-  const slides = content.carouselSlides ?? [];
-  const totalContentSlides = slides.length; // should be 3
-  const storySlideUrls: string[] = [];
-
-  for (let i = 0; i < slides.length; i++) {
-    try {
-      const slideBuffer = await composeStorySlide(imageBase64, content, slides[i], i + 1, totalContentSlides);
-      const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-story-slide${i + 1}.jpg`);
-      storySlideUrls.push(slideUrl);
-    } catch (e) {
-      log.push(`Story slide ${i + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  }
-
-  // Follow slide
-  try {
-    const followBuffer = await composeFollowSlideVertical(content);
-    const followUrl = await uploadImageToBlob(followBuffer, `posts/${post.id}-follow.jpg`);
-    storySlideUrls.push(followUrl);
-  } catch (e) {
-    log.push(`Follow slide failed: ${e instanceof Error ? e.message : String(e)}`);
-  }
-
-  post.carouselBlobUrls = storySlideUrls;
-  post.status = "image_ready";
-  await savePost(post);
-
-  post.platforms.reel = { status: "skipped" };
-
-  // Facebook — post the cover image
-  try {
-    const photoId = await postFacebookPhoto(blobUrl, `${content.caption}\n\n${content.hashtags.map(h => `#${h}`).join(" ")}`);
-    post.platforms.facebook = { status: "posted", postId: photoId, postedAt: new Date().toISOString() };
-    log.push(`Facebook: ${photoId}`);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    post.platforms.facebook = { status: "failed", error: msg };
-    log.push(`Facebook failed: ${msg}`);
-  }
-
-  post.status = post.platforms.facebook.status === "posted" ? "posted" : "failed";
-  await savePost(post);
-
-  usedArtists.unshift(content.artist);
-  return { artist: content.artist, title: content.title, category: "vinyl_art" };
-}
-
-// POST — triggered manually from the dashboard (no secret needed, session-protected)
+// POST — triggered manually from the dashboard
 export async function POST() {
   return runCron();
 }
@@ -182,25 +65,182 @@ async function runCron() {
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
 
-    const errors: string[] = [];
+    // Category: music_story for breaking news, vinyl_art otherwise
+    const category = breakingNews ? "music_story" : "vinyl_art";
+    log.push(`Category: ${category}`);
+
+    const content = await generateStoryContent(
+      usedArtists,
+      category,
+      breakingNews ? undefined : (todayEvent ?? undefined),
+      recentSummaries,
+      breakingNews ?? undefined
+    );
+    log.push(`Post: "${content.title}" — ${content.artist}`);
+
+    const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
+    const post: GeneratedPost = {
+      id: crypto.randomUUID(),
+      content,
+      affiliateUrl,
+      todayEvent: todayEvent?.event,
+      platforms: defaultPlatforms(),
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+    await savePost(post);
+
+    // Fetch image
+    let imageBase64: string;
+    if (category === "vinyl_art" && content.albumName) {
+      try {
+        const albumInfo = await searchAlbum(content.artist, content.albumName);
+        if (albumInfo) {
+          imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
+          post.albumInfo = albumInfo;
+          log.push(`Album art: ${albumInfo.albumName}`);
+        } else {
+          imageBase64 = await generateImage(content.imagePrompt, "editorial");
+          log.push("Album art not found, using AI");
+        }
+      } catch (e) {
+        imageBase64 = await generateImage(content.imagePrompt, "editorial");
+        log.push(`Album art failed: ${e instanceof Error ? e.message : e}, using AI`);
+      }
+    } else {
+      try {
+        const artistInfo = await searchArtistInfo(content.artist);
+        if (artistInfo) {
+          imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+          post.artistInfo = artistInfo;
+          log.push(`Artist photo: ${artistInfo.artistName}`);
+        } else {
+          imageBase64 = await generateImage(content.imagePrompt, "random");
+          log.push("Artist photo not found, using AI");
+        }
+      } catch (e) {
+        imageBase64 = await generateImage(content.imagePrompt, "random");
+        log.push(`Artist photo failed: ${e instanceof Error ? e.message : e}, using AI`);
+      }
+    }
+
+    // Compose cover image (for dashboard preview + intro reel frame)
+    const composedBuffer = await composeImage(imageBase64, content);
+    post.imageBase64 = composedBuffer.toString("base64");
+    const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
+    post.blobUrl = blobUrl;
+
+    // Compose reel: intro slide + content slides + follow slide
+    const slides = content.carouselSlides ?? [];
+    const slideBuffers: Buffer[] = [];
+
+    let introBuffer: Buffer | null = null;
     try {
-      await generateAndPostVinylArt(usedArtists, recentSummaries, todayEvent, breakingNews, log);
+      introBuffer = await composeStory(composedBuffer, content);
     } catch (e) {
-      const msg = `vinyl_art FATAL: ${e instanceof Error ? e.message : String(e)}`;
-      log.push(msg);
-      errors.push(msg);
+      log.push(`Intro slide failed: ${e instanceof Error ? e.message : e}`);
     }
 
-    const platformErrors = log.filter(l => l.includes("failed:") || l.includes("FATAL"));
-    const allErrors = [...new Set([...errors, ...platformErrors])];
-    if (allErrors.length > 0) {
-      await sendErrorAlert(allErrors).catch(() => {});
+    for (let i = 0; i < slides.length; i++) {
+      try {
+        const buf = await composeStorySlide(imageBase64, content, slides[i], i + 1, slides.length);
+        slideBuffers.push(buf);
+      } catch (e) {
+        log.push(`Content slide ${i + 1} failed: ${e instanceof Error ? e.message : e}`);
+      }
     }
 
-    return NextResponse.json({ success: true, log });
+    let followBuffer: Buffer | null = null;
+    try {
+      followBuffer = await composeFollowSlideVertical(content);
+    } catch (e) {
+      log.push(`Follow slide failed: ${e instanceof Error ? e.message : e}`);
+    }
+
+    const reelSlides = [
+      ...(introBuffer ? [introBuffer] : []),
+      ...slideBuffers,
+      ...(followBuffer ? [followBuffer] : []),
+    ];
+
+    if (reelSlides.length === 0) throw new Error("No slides composed — cannot create reel");
+
+    const reelBuffer = await createAnimatedReelVideo(reelSlides);
+    const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
+    post.reelBlobUrl = reelBlobUrl;
+    log.push(`Reel video: ${reelBlobUrl}`);
+
+    // Build caption
+    const hashtags = content.hashtags.map((h) => `#${h}`).join(" ");
+    const relatedLinks = buildRelatedLinks(content.artist, content.title, {
+      spotifyUrl: post.albumInfo?.spotifyUrl ?? post.artistInfo?.spotifyUrl,
+      appleMusicUrl: post.albumInfo?.appleMusicUrl ?? post.artistInfo?.appleMusicUrl,
+    });
+    const linksBlock = buildRelatedLinksCaption(relatedLinks, affiliateUrl);
+    const creditLine = post.albumInfo
+      ? `\n📷 Album artwork © ${post.albumInfo.artistName}, via @applemusic`
+      : post.artistInfo
+      ? `\n📷 Photo © ${post.artistInfo.artistName}, via @spotify`
+      : "";
+    const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
+    const maxBody = 2200 - suffix.length - 4;
+    const captionBody = content.caption.length > maxBody
+      ? content.caption.slice(0, maxBody).trimEnd() + "…"
+      : content.caption;
+    const caption = `${captionBody}${suffix}`;
+
+    post.status = "image_ready";
+    await savePost(post);
+
+    const errors: string[] = [];
+
+    // ── Instagram Reels ───────────────────────────────────────────────────────
+    try {
+      const containerId = await createReelContainer(reelBlobUrl, caption);
+      let status = "IN_PROGRESS";
+      let attempts = 0;
+      while (status === "IN_PROGRESS" && attempts < 24) {
+        await new Promise((r) => setTimeout(r, 5000));
+        status = await checkContainerStatus(containerId);
+        attempts++;
+      }
+      if (status !== "FINISHED") throw new Error(`Reel container not ready: ${status}`);
+      const mediaId = await publishMediaContainer(containerId);
+      post.platforms.reel = { status: "posted", postId: mediaId, postedAt: new Date().toISOString() };
+      log.push(`Instagram Reel: ${mediaId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.reel = { status: "failed", error: msg };
+      errors.push(`Instagram Reel: ${msg}`);
+      log.push(`Instagram Reel failed: ${msg}`);
+    }
+
+    // ── Facebook Video ────────────────────────────────────────────────────────
+    try {
+      const videoId = await postFacebookVideo(reelBlobUrl, caption, content.title);
+      post.platforms.facebook = { status: "posted", postId: videoId, postedAt: new Date().toISOString() };
+      log.push(`Facebook video: ${videoId}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      post.platforms.facebook = { status: "failed", error: msg };
+      errors.push(`Facebook video: ${msg}`);
+      log.push(`Facebook video failed: ${msg}`);
+    }
+
+    const allPosted = post.platforms.reel?.status === "posted" && post.platforms.facebook?.status === "posted";
+    const anyPosted = post.platforms.reel?.status === "posted" || post.platforms.facebook?.status === "posted";
+    post.status = allPosted ? "posted" : anyPosted ? "posted" : "failed";
+    await savePost(post);
+
+    if (errors.length > 0) {
+      await sendErrorAlert(errors).catch(() => {});
+    }
+
+    return NextResponse.json({ success: errors.length === 0, log, errors });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     log.push(`FATAL: ${message}`);
+    await sendErrorAlert([`FATAL: ${message}`]).catch(() => {});
     return NextResponse.json({ success: false, log, error: message }, { status: 500 });
   }
 }
