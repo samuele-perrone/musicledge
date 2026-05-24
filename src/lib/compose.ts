@@ -450,10 +450,10 @@ export async function composeStorySlide(
         fontFamily: "Inter",
       },
     },
-      // Top: MUSICLEDGE badge + category
+      // Top: MUSICLEDGE badge + category (centered)
       h("div", {
         style: {
-          display: "flex", flexDirection: "column", gap: 10,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
           padding: "56px 52px 80px 52px",
           background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)",
         },
@@ -462,14 +462,14 @@ export async function composeStorySlide(
           style: {
             background: accent, borderRadius: 8, padding: "14px 36px",
             fontSize: 56, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
-            display: "flex", alignSelf: "flex-start",
+            display: "flex",
           },
         }, "MUSICLEDGE"),
         h("div", {
           style: {
             fontSize: 34, fontWeight: 700, color: accent,
             letterSpacing: 3, textTransform: "uppercase",
-            display: "flex", paddingLeft: 4,
+            display: "flex",
           },
         }, categoryLabel)
       ),
