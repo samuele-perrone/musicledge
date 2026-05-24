@@ -409,8 +409,7 @@ export async function composeCarouselSlide(
 
 /**
  * Composes a full-bleed 1080×1920 vertical reel slide.
- * Layout: full-bleed image with dark overlay, text centered vertically,
- * large branding bar at the very bottom (badge + category column left, artist right).
+ * Layout: MUSICLEDGE badge top, text centered, artist name (Bebas Neue) at bottom.
  */
 export async function composeStorySlide(
   imageBase64: string,
@@ -426,6 +425,7 @@ export async function composeStorySlide(
 
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
   const boldFont = loadFontBuffer("Inter-Bold.ttf");
+  const bebasFont = loadFontBuffer("BebasNeue-Regular.ttf");
 
   const accent = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
   const categoryLabel = content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY";
@@ -450,16 +450,31 @@ export async function composeStorySlide(
         fontFamily: "Inter",
       },
     },
-      // Top fade (decorative)
+      // Top: MUSICLEDGE badge + category
       h("div", {
         style: {
-          height: 240,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)",
-          display: "flex",
+          display: "flex", flexDirection: "column", gap: 10,
+          padding: "56px 52px 80px 52px",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, transparent 100%)",
         },
-      }),
+      },
+        h("div", {
+          style: {
+            background: accent, borderRadius: 8, padding: "14px 36px",
+            fontSize: 56, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
+            display: "flex", alignSelf: "flex-start",
+          },
+        }, "MUSICLEDGE"),
+        h("div", {
+          style: {
+            fontSize: 34, fontWeight: 700, color: accent,
+            letterSpacing: 3, textTransform: "uppercase",
+            display: "flex", paddingLeft: 4,
+          },
+        }, categoryLabel)
+      ),
 
-      // Center: slide dots + text
+      // Center: slide dots + text (Inter Bold)
       h("div", {
         style: {
           flex: 1,
@@ -480,48 +495,23 @@ export async function composeStorySlide(
         }, slideText)
       ),
 
-      // Bottom: gradient + branding bar
+      // Bottom: artist name in Bebas Neue
       h("div", {
         style: {
-          display: "flex", flexDirection: "column", justifyContent: "flex-end",
-          background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)",
-          padding: "100px 52px 60px 52px",
+          display: "flex", flexDirection: "row",
+          justifyContent: "space-between", alignItems: "flex-end",
+          padding: "80px 52px 60px 52px",
+          background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)",
+          borderTop: "1px solid rgba(255,255,255,0.1)",
         },
       },
         h("div", {
           style: {
-            display: "flex", flexDirection: "row",
-            justifyContent: "space-between", alignItems: "center",
-            borderTop: "1px solid rgba(255,255,255,0.2)",
-            paddingTop: 28,
+            fontFamily: "BebasNeue",
+            fontSize: 80, fontWeight: 400, color: "white",
+            letterSpacing: 4, lineHeight: 1,
           },
-        },
-          // Left: badge on top, category below
-          h("div", { style: { display: "flex", flexDirection: "column", gap: 10 } },
-            h("div", {
-              style: {
-                background: accent, borderRadius: 8, padding: "14px 36px",
-                fontSize: 56, fontWeight: 700, color: badgeTextColor, letterSpacing: 2,
-                display: "flex",
-              },
-            }, "MUSICLEDGE"),
-            h("div", {
-              style: {
-                fontSize: 34, fontWeight: 700, color: accent,
-                letterSpacing: 3, textTransform: "uppercase",
-                display: "flex", paddingLeft: 4,
-              },
-            }, categoryLabel)
-          ),
-          // Right: artist name
-          h("div", {
-            style: {
-              fontSize: 52, fontWeight: 700, color: "white",
-              letterSpacing: 2, opacity: 0.9,
-              textAlign: "right", maxWidth: 380,
-            },
-          }, content.artist.toUpperCase())
-        )
+        }, content.artist.toUpperCase())
       )
     ),
     {
@@ -529,13 +519,14 @@ export async function composeStorySlide(
       fonts: [
         { name: "Inter", data: regularFont, weight: 400, style: "normal" },
         { name: "Inter", data: boldFont, weight: 700, style: "normal" },
+        { name: "BebasNeue", data: bebasFont, weight: 400, style: "normal" },
       ],
     }
   );
 
   // Dark overlay so centered text is readable against any photo
   const darkOverlay = await sharp({
-    create: { width: STORY_W, height: STORY_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.52 } },
+    create: { width: STORY_W, height: STORY_H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.50 } },
   }).png().toBuffer();
 
   const overlayBuffer = Buffer.from(svg);
