@@ -701,7 +701,7 @@ export async function composeStory(
     : "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)";
 
   // Raw clean image — no badge/title overlay
-  const postImageSize = 820;
+  const postImageSize = 860;
   const postImageResized = await sharp(Buffer.from(imageBase64, "base64"))
     .resize(postImageSize, postImageSize, { fit: "cover" })
     .jpeg({ quality: 90 })
@@ -713,20 +713,20 @@ export async function composeStory(
       style: {
         width: STORY_W, height: STORY_H,
         display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "space-between",
+        alignItems: "center", justifyContent: "center",
         fontFamily: "Inter",
         background: storyAccent,
-        padding: "120px 0 160px 0",
+        gap: 32,
       },
     },
-      // Top branding
+      // MUSICLEDGE logo — sits right above the image
       h("div", {
-        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 16 },
+        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12 },
       },
         h("div", {
-          style: { width: 100, height: 100, borderRadius: 50, border: "5px solid white", display: "flex", alignItems: "center", justifyContent: "center" },
+          style: { width: 90, height: 90, borderRadius: 45, border: "5px solid white", display: "flex", alignItems: "center", justifyContent: "center" },
         },
-          h("div", { style: { width: 28, height: 28, borderRadius: 14, border: "5px solid white" } })
+          h("div", { style: { width: 24, height: 24, borderRadius: 12, border: "5px solid white" } })
         ),
         h("div", { style: { fontSize: 38, fontWeight: 700, color: "white", letterSpacing: 5 } }, "MUSICLEDGE"),
         h("div", { style: { fontSize: 20, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: 4 } }, categoryLabel),
@@ -739,13 +739,13 @@ export async function composeStory(
         style: { width: postImageSize, height: postImageSize, borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.35)" },
       }),
 
-      // Title only — 2× size
+      // Title — sits right below the image
       h("div", {
-        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14, paddingTop: 8 },
+        style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12 },
       },
         h("div", { style: { width: 40, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
         h("div", {
-          style: { fontSize: 68, fontWeight: 700, color: "white", textAlign: "center", lineHeight: 1.2, paddingLeft: 60, paddingRight: 60 },
+          style: { fontSize: 56, fontWeight: 700, color: "white", textAlign: "center", lineHeight: 1.2, paddingLeft: 60, paddingRight: 60 },
         }, content.title),
       ),
     ),
