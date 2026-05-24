@@ -63,15 +63,15 @@ export async function createShortsVideo(
 
 /**
  * Creates an animated reel video from multiple vertical (1080x1920) image buffers.
- * Each slide is shown for 3.5 seconds with a 0.5s crossfade transition between them.
+ * Each slide is shown for 4 seconds, concatenated with hard cuts.
+ * Uses concat filter (FFmpeg 4.1+ compatible — no xfade which requires 4.3+).
  * Total duration ~16 seconds for 4 slides.
  */
 export async function createAnimatedReelVideo(
   slideBuffers: Buffer[]
 ): Promise<Buffer> {
   const tmpId = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const slideDuration = 3.5;
-  const fadeDuration = 0.5;
+  const slideDuration = 4;
 
   // Resize all slides and write to /tmp
   const slidePaths = await Promise.all(
@@ -89,30 +89,24 @@ export async function createAnimatedReelVideo(
   const outputPath = join("/tmp", `reel_anim_${tmpId}.mp4`);
   const n = slideBuffers.length;
 
-  // Build xfade filter chain for smooth crossfade transitions
-  // Each clip: scale + fps + loop for slideDuration seconds
-  // Then chain xfade between consecutive clips
-  const scaleFilters = slidePaths.map((_, i) =>
-    `[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${i}]`
-  ).join(";");
+  // Scale each looped image to exactly 1080x1920 @ 24fps, then concat
+  const scaleFilters = slidePaths
+    .map((_, i) =>
+      `[${i}:v]scale=1080:1920:force_original_aspect_ratio=decrease,` +
+      `pad=1080:1920:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=24[v${i}]`
+    )
+    .join(";");
 
-  let xfadeChain = "";
-  let lastLabel = "[v0]";
-  for (let i = 1; i < n; i++) {
-    const offset = (slideDuration * i) - (fadeDuration * (i - 1)) - fadeDuration;
-    const outLabel = i === n - 1 ? "[out]" : `[xf${i}]`;
-    xfadeChain += `;${lastLabel}[v${i}]xfade=transition=fade:duration=${fadeDuration}:offset=${offset.toFixed(2)}${outLabel}`;
-    lastLabel = `[xf${i}]`;
-  }
-
-  const filterComplex = n === 1
-    ? `[0:v]scale=1080:1920,setsar=1,fps=30[out]`
-    : `${scaleFilters}${xfadeChain}`;
+  const concatInputs = slidePaths.map((_, i) => `[v${i}]`).join("");
+  const filterComplex =
+    n === 1
+      ? `[0:v]scale=1080:1920,setsar=1,fps=24[out]`
+      : `${scaleFilters};${concatInputs}concat=n=${n}:v=1[out]`;
 
   await new Promise<void>((resolve, reject) => {
     let cmd = ffmpeg();
     slidePaths.forEach((p) => {
-      cmd = cmd.addInput(p).inputOptions(["-loop 1", `-t ${slideDuration + fadeDuration}`]);
+      cmd = cmd.addInput(p).inputOptions(["-loop 1", `-t ${slideDuration}`]);
     });
     cmd
       .complexFilter(filterComplex)

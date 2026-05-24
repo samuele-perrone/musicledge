@@ -87,19 +87,23 @@ export async function POST(request: Request) {
     post.blobUrl = blobUrl;
 
     // Compose story slides (1080×1920): slide 1-3 content + follow slide
+    // Keep buffers in memory to reuse for video (avoid double-composing)
     const slides = content.carouselSlides ?? [];
     const storySlideUrls: string[] = [];
+    const slideBuffers: Buffer[] = [];
     for (let i = 0; i < slides.length; i++) {
       try {
         const slideBuffer = await composeStorySlide(imageBase64, content, slides[i], i + 1, slides.length);
+        slideBuffers.push(slideBuffer);
         const slideUrl = await uploadImageToBlob(slideBuffer, `posts/${post.id}-story-slide${i + 1}.jpg`);
         storySlideUrls.push(slideUrl);
       } catch (e) {
         console.warn(`[generate] Story slide ${i + 1} failed:`, e);
       }
     }
+    let followBuffer: Buffer | null = null;
     try {
-      const followBuffer = await composeFollowSlideVertical(content);
+      followBuffer = await composeFollowSlideVertical(content);
       const followUrl = await uploadImageToBlob(followBuffer, `posts/${post.id}-follow.jpg`);
       storySlideUrls.push(followUrl);
     } catch (e) {
@@ -107,26 +111,23 @@ export async function POST(request: Request) {
     }
     post.carouselBlobUrls = storySlideUrls;
 
-    // Generate animated reel video from story slides
+    // Generate animated reel video from already-composed slide buffers
+    let reelError: string | undefined;
     try {
-      const slideBuffers: Buffer[] = [];
-      for (let i = 0; i < slides.length; i++) {
-        const buf = await composeStorySlide(imageBase64, content, slides[i], i + 1, slides.length);
-        slideBuffers.push(buf);
-      }
-      const followBuffer = await composeFollowSlideVertical(content);
-      slideBuffers.push(followBuffer);
-      const reelBuffer = await createAnimatedReelVideo(slideBuffers);
+      const reelSlides = followBuffer ? [...slideBuffers, followBuffer] : slideBuffers;
+      if (reelSlides.length === 0) throw new Error("No slides available for reel");
+      const reelBuffer = await createAnimatedReelVideo(reelSlides);
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (reelErr) {
-      console.warn("[generate] Reel video creation failed:", reelErr);
+      reelError = reelErr instanceof Error ? reelErr.message : String(reelErr);
+      console.error("[generate] Reel video creation failed:", reelError);
     }
 
     post.status = "image_ready";
     await savePost(post);
 
-    return NextResponse.json({ success: true, post });
+    return NextResponse.json({ success: true, post, reelError });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ success: false, error: message }, { status: 500 });
