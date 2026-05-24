@@ -508,7 +508,7 @@ export default function Home() {
           onClick={() => setSelectedPost(null)}
         >
           <div
-            className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-gray-900 border border-gray-700 rounded-2xl max-w-2xl w-full max-h-[95vh] overflow-y-auto scrollbar-thin"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-800 flex justify-between items-center">
@@ -529,8 +529,23 @@ export default function Home() {
                 {deleting === selectedPost.id ? "Removing…" : "🗑 Remove this post"}
               </button>
             </div>
-            {/* Carousel viewer — uses carouselBlobUrls when available, else main image */}
-            {(() => {
+            {/* Reel video preview — shown when reelBlobUrl exists */}
+            {selectedPost.reelBlobUrl && (
+              <div className="relative overflow-hidden bg-black flex justify-center">
+                <video
+                  src={selectedPost.reelBlobUrl}
+                  controls
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="w-auto"
+                  style={{ maxHeight: "50vh", objectFit: "contain" }}
+                />
+              </div>
+            )}
+            {/* Slide viewer — shown when no reel video */}
+            {!selectedPost.reelBlobUrl && (() => {
               const slides = selectedPost.carouselBlobUrls?.length
                 ? selectedPost.carouselBlobUrls
                 : selectedPost.imageBase64
