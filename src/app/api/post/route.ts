@@ -10,7 +10,7 @@ import {
 import { postTikTokPhoto } from "@/lib/tiktok";
 import { createShortsVideo } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
-import { postFacebookPhoto } from "@/lib/facebook";
+import { postFacebookVideo } from "@/lib/facebook";
 
 export const maxDuration = 120;
 
@@ -120,13 +120,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Facebook ───────────────────────────────────────────────────────────
+    // ── Facebook Video ─────────────────────────────────────────────────────
     if (targets.includes("facebook")) {
       try {
-        const photoId = await postFacebookPhoto(post.blobUrl, caption);
+        if (!post.reelBlobUrl) throw new Error("No reel video URL on post — regenerate to create it");
+        const videoId = await postFacebookVideo(post.reelBlobUrl, caption, post.content.title);
         post.platforms.facebook = {
           status: "posted",
-          postId: photoId,
+          postId: videoId,
           postedAt: new Date().toISOString(),
         };
       } catch (e) {
