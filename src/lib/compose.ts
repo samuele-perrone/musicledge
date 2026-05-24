@@ -701,7 +701,7 @@ export async function composeStory(
     : "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)";
 
   // Raw clean image — no badge/title overlay
-  const postImageSize = 1000;
+  const postImageSize = 820;
   const postImageResized = await sharp(Buffer.from(imageBase64, "base64"))
     .resize(postImageSize, postImageSize, { fit: "cover" })
     .jpeg({ quality: 90 })
@@ -716,7 +716,7 @@ export async function composeStory(
         alignItems: "center", justifyContent: "space-between",
         fontFamily: "Inter",
         background: storyAccent,
-        padding: "60px 0 120px 0",
+        padding: "120px 0 160px 0",
       },
     },
       // Top branding
