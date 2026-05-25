@@ -63,6 +63,7 @@ export async function postFacebookVideo(
   const body = new URLSearchParams({
     file_url: videoUrl,
     description: caption,
+    published: "true",
     access_token: token,
   });
   if (title) body.set("title", title);
