@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
-import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical, makeVerticalSlide } from "@/lib/compose";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
+import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createAnimatedReelVideo } from "@/lib/video";
+import { createKaraokeReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
@@ -104,23 +104,52 @@ export async function POST(request: Request) {
     }
     post.carouselBlobUrls = storySlideUrls;
 
-    // Generate animated reel video from already-composed slide buffers
+    // Generate karaoke reel video
+    // Same logic for ALL categories:
+    //   [0] intro  — primary image
+    //   [1] slide1 — same as intro
+    //   [2] slide2 — Spotify artist/band photo
+    //   [3] slide3 — Spotify artist/band photo
     let reelError: string | undefined;
     try {
-      // Intro slide: gradient template with clean photo card + title only
-      let introBuffer: Buffer | null = null;
-      try {
-        introBuffer = await composeStory(imageBase64, content);
-      } catch (e) {
-        console.warn("[generate] Intro slide failed:", e);
+      const primaryBuffer = Buffer.from(imageBase64, "base64");
+
+      // If primary was already fetched from Spotify (has spotifyUrl), reuse it.
+      // Otherwise fetch the Spotify artist photo explicitly for slides 2-3.
+      const isRealArtistPhoto = !!post.artistInfo?.isArtistPhoto;
+      let artistPhotoBuffer: Buffer | null = isRealArtistPhoto ? primaryBuffer : null;
+
+      if (!isRealArtistPhoto) {
+        try {
+          const info = await searchArtistInfo(content.artist);
+          if (info?.isArtistPhoto && info.imageUrl) {
+            artistPhotoBuffer = Buffer.from(
+              await fetchImageAsBase64FromUrl(info.imageUrl), "base64"
+            );
+          }
+        } catch {}
       }
-      const reelSlides = [
-        ...(introBuffer ? [introBuffer] : []),
-        ...slideBuffers,
-        ...(followBuffer ? [followBuffer] : []),
+
+      // For vinyl_art without artist photo: repeat the album cover (consistent look).
+      // For other categories: fetch additional album arts for visual variety.
+      const albumArts = (!artistPhotoBuffer && content.category !== "vinyl_art")
+        ? await searchAdditionalImages(content.artist, 2).catch(() => [] as Buffer[])
+        : ([] as Buffer[]);
+
+      console.log(`[generate] imageBuffers: primary=${isRealArtistPhoto ? "artistPhoto" : "albumArt"}, artistPhotoBuffer=${!!artistPhotoBuffer}, albumArtFallbacks=${albumArts.length}`);
+
+      const imageBuffers = [
+        primaryBuffer,                                      // intro
+        primaryBuffer,                                      // slide 1: same as intro
+        artistPhotoBuffer ?? albumArts[0] ?? primaryBuffer, // slide 2: artist photo
+        artistPhotoBuffer ?? albumArts[1] ?? primaryBuffer, // slide 3: artist photo
       ];
-      if (reelSlides.length === 0) throw new Error("No slides available for reel");
-      const reelBuffer = await createAnimatedReelVideo(reelSlides);
+
+      const reelBuffer = await createKaraokeReelVideo(
+        imageBuffers,
+        content.carouselSlides ?? [],
+        { artist: content.artist, title: content.title, category: content.category ?? "music_story" }
+      );
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (reelErr) {

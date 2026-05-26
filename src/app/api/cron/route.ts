@@ -1,14 +1,14 @@
 /**
  * Vercel Cron endpoint — runs daily at 06:30 UTC (7:30am BST).
- * Generates one post, composes an animated reel video, and publishes to
- * Instagram Reels and Facebook video. No cover image or slide posts.
+ * Generates one post, creates a karaoke reel video, and publishes to
+ * Instagram Reels and Facebook video.
  */
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
-import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
-import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
+import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createAnimatedReelVideo } from "@/lib/video";
+import { createKaraokeReelVideo } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { postFacebookVideo } from "@/lib/facebook";
 import { createReelContainer, checkContainerStatus, publishMediaContainer } from "@/lib/instagram";
@@ -72,9 +72,14 @@ async function runCron() {
     const activeBreakingNews = newsAboutRecentArtist ? null : breakingNews;
     if (newsAboutRecentArtist) log.push(`Breaking news suppressed — artist recently posted`);
 
-    // Category: music_story for breaking news, vinyl_art otherwise
-    const category = activeBreakingNews ? "music_story" : "vinyl_art";
-    log.push(`Category: ${category}`);
+    // Cycle categories in order: vinyl_art → music_story → harmony
+    // Breaking news forces music_story but the cycle position is still tracked by the last non-breaking post.
+    const CATEGORY_CYCLE = ["vinyl_art", "music_story", "harmony"] as const;
+    const lastCategory = recentSummaries[0]?.category ?? "harmony"; // default so first post is vinyl_art
+    const lastIdx = CATEGORY_CYCLE.indexOf(lastCategory as typeof CATEGORY_CYCLE[number]);
+    const nextCategory = CATEGORY_CYCLE[(lastIdx + 1) % CATEGORY_CYCLE.length];
+    const category = activeBreakingNews ? "music_story" : nextCategory;
+    log.push(`Category: ${category} (cycle next: ${nextCategory}${activeBreakingNews ? ", overridden by breaking news" : ""})`);
 
     const content = await generateStoryContent(
       usedArtists,
@@ -127,42 +132,44 @@ async function runCron() {
     const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
     post.blobUrl = blobUrl;
 
-    // Compose reel: intro slide + content slides + follow slide
+    // Create karaoke reel
     const slides = content.carouselSlides ?? [];
-    const slideBuffers: Buffer[] = [];
+    const primaryBuffer = Buffer.from(imageBase64, "base64");
 
-    let introBuffer: Buffer | null = null;
-    try {
-      introBuffer = await composeStory(imageBase64, content);
-    } catch (e) {
-      log.push(`Intro slide failed: ${e instanceof Error ? e.message : e}`);
-    }
+    // Same logic for all categories: slides 2-3 use real artist photo (Deezer/Spotify)
+    const isRealArtistPhoto = !!post.artistInfo?.isArtistPhoto;
+    let artistPhotoBuffer: Buffer | null = isRealArtistPhoto ? primaryBuffer : null;
 
-    for (let i = 0; i < slides.length; i++) {
+    if (!isRealArtistPhoto) {
       try {
-        const buf = await composeStorySlide(imageBase64, content, slides[i], i + 1, slides.length);
-        slideBuffers.push(buf);
-      } catch (e) {
-        log.push(`Content slide ${i + 1} failed: ${e instanceof Error ? e.message : e}`);
-      }
+        const info = await searchArtistInfo(content.artist);
+        if (info?.isArtistPhoto && info.imageUrl) {
+          artistPhotoBuffer = Buffer.from(
+            await fetchImageAsBase64FromUrl(info.imageUrl), "base64"
+          );
+          log.push(`Artist photo for slides: ${info.artistName}`);
+        }
+      } catch {}
     }
 
-    let followBuffer: Buffer | null = null;
-    try {
-      followBuffer = await composeFollowSlideVertical(content);
-    } catch (e) {
-      log.push(`Follow slide failed: ${e instanceof Error ? e.message : e}`);
-    }
+    // For vinyl_art without artist photo: repeat the album cover (consistent look).
+    // For other categories: fetch additional album arts for visual variety.
+    const albumArts = (!artistPhotoBuffer && category !== "vinyl_art")
+      ? await searchAdditionalImages(content.artist, 2).catch(() => [] as Buffer[])
+      : ([] as Buffer[]);
 
-    const reelSlides = [
-      ...(introBuffer ? [introBuffer] : []),
-      ...slideBuffers,
-      ...(followBuffer ? [followBuffer] : []),
+    const imageBuffers = [
+      primaryBuffer,
+      primaryBuffer,
+      artistPhotoBuffer ?? albumArts[0] ?? primaryBuffer,
+      artistPhotoBuffer ?? albumArts[1] ?? primaryBuffer,
     ];
 
-    if (reelSlides.length === 0) throw new Error("No slides composed — cannot create reel");
-
-    const reelBuffer = await createAnimatedReelVideo(reelSlides);
+    const reelBuffer = await createKaraokeReelVideo(
+      imageBuffers,
+      slides,
+      { artist: content.artist, title: content.title, category: content.category ?? "music_story" }
+    );
     const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
     post.reelBlobUrl = reelBlobUrl;
     log.push(`Reel video: ${reelBlobUrl}`);

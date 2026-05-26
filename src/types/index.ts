@@ -49,8 +49,9 @@ export interface GeneratedPost {
     artistName: string;
     spotifyUrl?: string;
   };
-  artistInfo?: {              // populated for music_story/harmony posts when Spotify lookup succeeds
+  artistInfo?: {              // populated for music_story/harmony posts
     imageUrl: string;
+    isArtistPhoto: boolean;   // true = real press photo (Deezer/Spotify); false = iTunes album art fallback
     spotifyUrl?: string;
     appleMusicUrl?: string;
     artistName: string;

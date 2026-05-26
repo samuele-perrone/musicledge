@@ -68,33 +68,37 @@ export async function searchAlbum(
 
 export interface ArtistInfo {
   imageUrl: string;          // high-res artist press photo
+  isArtistPhoto: boolean;    // true = real press photo (Deezer/Spotify); false = iTunes album art fallback
   spotifyUrl?: string;       // direct Spotify artist page
   appleMusicUrl?: string;    // direct Apple Music artist page
   artistName: string;
 }
 
 export async function searchArtistInfo(artist: string): Promise<ArtistInfo | null> {
-  // Run iTunes and Spotify lookups in parallel
-  const [itunesResult, spotifyResult] = await Promise.allSettled([
+  // Run iTunes, Spotify (for URL), and Deezer (for photo) lookups in parallel
+  const [itunesResult, spotifyResult, deezerResult] = await Promise.allSettled([
     searchArtistItunes(artist),
     searchArtistSpotify(artist),
+    searchArtistDeezer(artist),
   ]);
 
   const itunes = itunesResult.status === "fulfilled" ? itunesResult.value : null;
   const spotify = spotifyResult.status === "fulfilled" ? spotifyResult.value : null;
+  const deezer  = deezerResult.status  === "fulfilled" ? deezerResult.value  : null;
 
-  // Prefer Spotify artist photo; fall back to iTunes album art for this artist
-  const imageUrl = spotify?.imageUrl ?? null;
-  if (imageUrl) {
+  // Prefer Deezer artist photo, then Spotify artist photo
+  const photoUrl = deezer?.imageUrl ?? spotify?.imageUrl ?? null;
+  if (photoUrl) {
     return {
-      imageUrl,
+      imageUrl: photoUrl,
+      isArtistPhoto: true,
       spotifyUrl: spotify?.spotifyUrl,
       appleMusicUrl: itunes?.appleMusicUrl,
-      artistName: spotify?.artistName ?? itunes?.artistName ?? artist,
+      artistName: deezer?.artistName ?? spotify?.artistName ?? itunes?.artistName ?? artist,
     };
   }
 
-  // Spotify image not available — try fetching album art from iTunes as fallback
+  // No real artist photo — fall back to iTunes album art
   try {
     const query = encodeURIComponent(artist);
     const res = await fetch(
@@ -112,6 +116,7 @@ export async function searchArtistInfo(artist: string): Promise<ArtistInfo | nul
         const artworkUrl = match.artworkUrl100.replace("100x100bb", "3000x3000bb");
         return {
           imageUrl: artworkUrl,
+          isArtistPhoto: false,
           spotifyUrl: spotify?.spotifyUrl,
           appleMusicUrl: itunes?.appleMusicUrl ?? match.collectionViewUrl,
           artistName: match.artistName ?? artist,
@@ -148,11 +153,35 @@ async function searchArtistItunes(
   }
 }
 
+async function searchArtistDeezer(
+  artist: string
+): Promise<{ imageUrl: string; artistName: string } | null> {
+  try {
+    const res = await fetch(
+      `https://api.deezer.com/search/artist?q=${encodeURIComponent(artist)}&limit=5`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items: Record<string, unknown>[] = data.data ?? [];
+    const match =
+      items.find((a) => (a.name as string)?.toLowerCase() === artist.toLowerCase()) ??
+      items[0];
+    if (!match) return null;
+    const imageUrl = (match.picture_xl ?? match.picture_big ?? match.picture_medium) as string | undefined;
+    if (!imageUrl) return null;
+    return { imageUrl, artistName: match.name as string };
+  } catch {
+    return null;
+  }
+}
+
 async function searchArtistSpotify(
   artist: string
 ): Promise<{ imageUrl: string; spotifyUrl: string; artistName: string } | null> {
   try {
     const token = await getSpotifyToken();
+    console.log(`[spotify] token=${token ? "ok" : "FAILED"}`);
     if (!token) return null;
     // Try field-filtered search first, fall back to plain query
     const trySearch = async (q: string) => {
@@ -160,18 +189,19 @@ async function searchArtistSpotify(
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=artist&limit=5`,
         { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) }
       );
+      console.log(`[spotify] search "${q}" → ${res.status}`);
       if (!res.ok) return [];
       const data = await res.json();
       return data.artists?.items ?? [];
     };
     let items = await trySearch(`artist:${artist}`);
     if (items.length === 0) items = await trySearch(artist);
-    // Prefer exact name match
     const match =
       items.find(
         (a: Record<string, unknown>) =>
           (a.name as string)?.toLowerCase() === artist.toLowerCase()
       ) ?? items[0];
+    console.log(`[spotify] match=${match?.name ?? "none"}, images=${match?.images?.length ?? 0}`);
     if (!match) return null;
     // Pick the largest image
     const images: { url: string; width: number }[] = match.images ?? [];
@@ -183,8 +213,57 @@ async function searchArtistSpotify(
       spotifyUrl: match.external_urls?.spotify,
       artistName: match.name,
     };
-  } catch {
+  } catch (e) {
+    console.log(`[spotify] exception: ${e}`);
     return null;
+  }
+}
+
+/**
+ * Fetches up to `count` additional album artwork images for an artist from iTunes.
+ * Returns them as raw Buffers for use as karaoke reel slide backgrounds.
+ */
+export async function searchAdditionalImages(
+  artist: string,
+  count: number
+): Promise<Buffer[]> {
+  try {
+    const query = encodeURIComponent(artist);
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${query}&entity=album&limit=25`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const results: Record<string, string>[] = data.results ?? [];
+    const artistLower = artist.toLowerCase();
+    const seen = new Set<string>();
+    const urls: string[] = [];
+
+    for (const r of results) {
+      const rArtist = (r.artistName ?? "").toLowerCase();
+      if (!rArtist.includes(artistLower) && !artistLower.includes(rArtist)) continue;
+      const url = r.artworkUrl100?.replace("100x100bb", "600x600bb");
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      urls.push(url);
+      if (urls.length >= count) break;
+    }
+
+    const fetched = await Promise.allSettled(
+      urls.map(async (url) => {
+        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) throw new Error(`${r.status}`);
+        return Buffer.from(await r.arrayBuffer());
+      })
+    );
+
+    return fetched
+      .filter((r) => r.status === "fulfilled")
+      .map((r) => (r as PromiseFulfilledResult<Buffer>).value);
+  } catch {
+    return [];
   }
 }
 
