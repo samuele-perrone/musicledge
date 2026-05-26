@@ -50,32 +50,25 @@ export async function POST(request: Request) {
     };
     await savePost(post);
 
-    // Fetch real image: album art for vinyl_art, artist photo for others
+    // Fetch real image: always use real photos/artwork, never AI-generated fallback
     let imageBase64: string;
     if (!forceStyle && content.category === "vinyl_art" && content.albumName) {
-      try {
-        const albumInfo = await searchAlbum(content.artist, content.albumName);
-        if (albumInfo) {
-          imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
-          post.albumInfo = albumInfo;
-        } else {
-          imageBase64 = await generateImage(content.imagePrompt, "editorial");
-        }
-      } catch {
-        imageBase64 = await generateImage(content.imagePrompt, "editorial");
+      // Try exact album, then artist's most popular album, then artist photo
+      const albumInfo = await searchAlbum(content.artist, content.albumName).catch(() => null);
+      if (albumInfo) {
+        imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
+        post.albumInfo = albumInfo;
+      } else {
+        const artistInfo = await searchArtistInfo(content.artist).catch(() => null);
+        if (!artistInfo) throw new Error(`No real image found for ${content.artist} — skipping AI fallback`);
+        imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+        post.artistInfo = artistInfo;
       }
     } else if (!forceStyle) {
-      try {
-        const artistInfo = await searchArtistInfo(content.artist);
-        if (artistInfo) {
-          imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
-          post.artistInfo = artistInfo;
-        } else {
-          imageBase64 = await generateImage(content.imagePrompt, "random");
-        }
-      } catch {
-        imageBase64 = await generateImage(content.imagePrompt, "random");
-      }
+      const artistInfo = await searchArtistInfo(content.artist).catch(() => null);
+      if (!artistInfo) throw new Error(`No real image found for ${content.artist} — skipping AI fallback`);
+      imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+      post.artistInfo = artistInfo;
     } else {
       imageBase64 = await generateImage(content.imagePrompt, forceStyle);
     }

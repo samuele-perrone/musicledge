@@ -5,7 +5,6 @@
  */
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
-import { generateImage } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl } from "@/lib/musicapi";
 import { composeImage, composeStory, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -98,38 +97,28 @@ async function runCron() {
     };
     await savePost(post);
 
-    // Fetch image
+    // Fetch real image — never fall back to AI
     let imageBase64: string;
     if (category === "vinyl_art" && content.albumName) {
-      try {
-        const albumInfo = await searchAlbum(content.artist, content.albumName);
-        if (albumInfo) {
-          imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
-          post.albumInfo = albumInfo;
-          log.push(`Album art: ${albumInfo.albumName}`);
-        } else {
-          imageBase64 = await generateImage(content.imagePrompt, "editorial");
-          log.push("Album art not found, using AI");
-        }
-      } catch (e) {
-        imageBase64 = await generateImage(content.imagePrompt, "editorial");
-        log.push(`Album art failed: ${e instanceof Error ? e.message : e}, using AI`);
+      const albumInfo = await searchAlbum(content.artist, content.albumName).catch(() => null);
+      if (albumInfo) {
+        imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
+        post.albumInfo = albumInfo;
+        log.push(`Album art: ${albumInfo.albumName}`);
+      } else {
+        // Fall back to artist photo if album not found
+        const artistInfo = await searchArtistInfo(content.artist).catch(() => null);
+        if (!artistInfo) throw new Error(`No real image found for ${content.artist}`);
+        imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+        post.artistInfo = artistInfo;
+        log.push(`Album art not found, using artist photo: ${artistInfo.artistName}`);
       }
     } else {
-      try {
-        const artistInfo = await searchArtistInfo(content.artist);
-        if (artistInfo) {
-          imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
-          post.artistInfo = artistInfo;
-          log.push(`Artist photo: ${artistInfo.artistName}`);
-        } else {
-          imageBase64 = await generateImage(content.imagePrompt, "random");
-          log.push("Artist photo not found, using AI");
-        }
-      } catch (e) {
-        imageBase64 = await generateImage(content.imagePrompt, "random");
-        log.push(`Artist photo failed: ${e instanceof Error ? e.message : e}, using AI`);
-      }
+      const artistInfo = await searchArtistInfo(content.artist).catch(() => null);
+      if (!artistInfo) throw new Error(`No real image found for ${content.artist}`);
+      imageBase64 = await fetchImageAsBase64FromUrl(artistInfo.imageUrl);
+      post.artistInfo = artistInfo;
+      log.push(`Artist photo: ${artistInfo.artistName}`);
     }
 
     // Compose cover image (for dashboard preview + intro reel frame)
