@@ -284,12 +284,20 @@ export async function generateStoryContent(
   try {
     content = JSON.parse(jsonMatch[0]) as StoryContent;
   } catch {
-    // Attempt to salvage by stripping control characters and smart quotes
+    // Salvage: replace smart quotes, dashes, and other non-ASCII punctuation
     const sanitized = jsonMatch[0]
-      .replace(/[\u0000-\u001F\u007F]/g, " ")
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\u201C\u201D]/g, '"');
-    content = JSON.parse(sanitized) as StoryContent;
+      .replace(/[\u0000-\u001F\u007F]/g, " ")   // control chars
+      .replace(/[\u2018\u2019\u02BC\u0060]/g, "'") // smart single quotes
+      .replace(/[\u201C\u201D]/g, '"')             // smart double quotes
+      .replace(/[\u2013\u2014]/g, "-")             // en/em dashes
+      .replace(/[\u2026]/g, "...")                  // ellipsis
+      .replace(/[\u00A0]/g, " ");                   // non-breaking space
+    try {
+      content = JSON.parse(sanitized) as StoryContent;
+    } catch (e2) {
+      // Last resort: extract JSON field by field with a regex-based fallback
+      throw new Error(`Claude JSON unparseable after sanitization: ${e2 instanceof Error ? e2.message : e2}\n\nRaw: ${jsonMatch[0].slice(0, 200)}`);
+    }
   }
   // Always enforce category; only enforce artist when no breaking news
   // (breaking news lets Claude set the artist from the news subject)
