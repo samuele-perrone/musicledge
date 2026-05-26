@@ -83,16 +83,46 @@ export async function searchArtistInfo(artist: string): Promise<ArtistInfo | nul
   const itunes = itunesResult.status === "fulfilled" ? itunesResult.value : null;
   const spotify = spotifyResult.status === "fulfilled" ? spotifyResult.value : null;
 
-  // Need at least an image to be useful
+  // Prefer Spotify artist photo; fall back to iTunes album art for this artist
   const imageUrl = spotify?.imageUrl ?? null;
-  if (!imageUrl) return null;
+  if (imageUrl) {
+    return {
+      imageUrl,
+      spotifyUrl: spotify?.spotifyUrl,
+      appleMusicUrl: itunes?.appleMusicUrl,
+      artistName: spotify?.artistName ?? itunes?.artistName ?? artist,
+    };
+  }
 
-  return {
-    imageUrl,
-    spotifyUrl: spotify?.spotifyUrl,
-    appleMusicUrl: itunes?.appleMusicUrl,
-    artistName: spotify?.artistName ?? itunes?.artistName ?? artist,
-  };
+  // Spotify image not available — try fetching album art from iTunes as fallback
+  try {
+    const query = encodeURIComponent(artist);
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${query}&entity=album&limit=10`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const results: Record<string, string>[] = data.results ?? [];
+      const match = results.find((r) =>
+        r.artistName?.toLowerCase().includes(artist.toLowerCase()) ||
+        artist.toLowerCase().includes(r.artistName?.toLowerCase() ?? "____")
+      );
+      if (match?.artworkUrl100) {
+        const artworkUrl = match.artworkUrl100.replace("100x100bb", "3000x3000bb");
+        return {
+          imageUrl: artworkUrl,
+          spotifyUrl: spotify?.spotifyUrl,
+          appleMusicUrl: itunes?.appleMusicUrl ?? match.collectionViewUrl,
+          artistName: match.artistName ?? artist,
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 async function searchArtistItunes(
