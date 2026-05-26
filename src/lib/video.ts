@@ -69,10 +69,10 @@ async function renderIntroFrame(
       style: {
         width: 1080, height: 1920,
         display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "space-between",
+        alignItems: "center", justifyContent: "flex-start",
         background: gradient,
         fontFamily: "Inter",
-        padding: "72px 0 80px 0",
+        paddingTop: 72,
       },
     },
       // Top — branding
@@ -87,18 +87,19 @@ async function renderIntroFrame(
         h("div", { style: { width: 44, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2, marginTop: 4 } })
       ),
 
-      // Center — photo card
+      // Photo card — immediately below branding
       h("img", {
         src: photoDataUrl,
         style: {
           width: photoSize, height: photoSize,
           borderRadius: 20,
           boxShadow: "0 28px 72px rgba(0,0,0,0.45)",
+          marginTop: 40,
         },
       }),
 
-      // Bottom — artist + title
-      h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12 } },
+      // Artist + title — right below the photo
+      h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 32 } },
         h("div", { style: { width: 44, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
         h("div", {
           style: {
