@@ -80,3 +80,17 @@ export async function getRecentPostSummaries(limit = 40): Promise<{ artist: stri
     category: p.content.category,
   }));
 }
+
+const META_TOKEN_KEY = "musicledge:meta_token";
+
+export async function getStoredMetaToken(): Promise<{ token: string; expiresAt: number } | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  return (await redis.get(META_TOKEN_KEY)) as { token: string; expiresAt: number } | null;
+}
+
+export async function setStoredMetaToken(token: string, expiresAt: number): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  await redis.set(META_TOKEN_KEY, { token, expiresAt });
+}
