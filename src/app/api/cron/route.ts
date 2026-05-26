@@ -65,16 +65,24 @@ async function runCron() {
     const usedArtists = await getRecentArtists(40);
     const recentSummaries = await getRecentPostSummaries(40);
 
+    // Suppress breaking news if the artist was already covered in the last 3 posts
+    const last3Artists = recentSummaries.slice(0, 3).map((s) => s.artist.toLowerCase());
+    const newsAboutRecentArtist = breakingNews && last3Artists.some((a) =>
+      a.split(/[\s/,]+/).some((word) => word.length > 3 && breakingNews.toLowerCase().includes(word))
+    );
+    const activeBreakingNews = newsAboutRecentArtist ? null : breakingNews;
+    if (newsAboutRecentArtist) log.push(`Breaking news suppressed — artist recently posted`);
+
     // Category: music_story for breaking news, vinyl_art otherwise
-    const category = breakingNews ? "music_story" : "vinyl_art";
+    const category = activeBreakingNews ? "music_story" : "vinyl_art";
     log.push(`Category: ${category}`);
 
     const content = await generateStoryContent(
       usedArtists,
       category,
-      breakingNews ? undefined : (todayEvent ?? undefined),
+      activeBreakingNews ? undefined : (todayEvent ?? undefined),
       recentSummaries,
-      breakingNews ?? undefined
+      activeBreakingNews ?? undefined
     );
     log.push(`Post: "${content.title}" — ${content.artist}`);
 
