@@ -179,6 +179,7 @@ async function runCron() {
     const relatedLinks = buildRelatedLinks(content.artist, content.title, {
       spotifyUrl: post.albumInfo?.spotifyUrl ?? post.artistInfo?.spotifyUrl,
       appleMusicUrl: post.albumInfo?.appleMusicUrl ?? post.artistInfo?.appleMusicUrl,
+      albumName: post.albumInfo?.albumName ?? content.albumName,
     });
     const linksBlock = buildRelatedLinksCaption(relatedLinks, affiliateUrl);
     const creditLine = post.albumInfo
