@@ -228,12 +228,21 @@ export async function generateStoryContent(
   recentSummaries: { artist: string; title: string; category: string }[] = [],
   breakingNews?: string
 ): Promise<StoryContent> {
-  const available = ARTISTS_POOL.filter((a) => !usedArtists.includes(a));
-  const pool = available.length > 0 ? available : ARTISTS_POOL;
-  const randomArtist = pool[Math.floor(Math.random() * pool.length)];
+  // Artists posted in the last 3 posts — block them from being selected again
+  const last3Artists = new Set(recentSummaries.slice(0, 3).map((s) => s.artist.toLowerCase()));
 
-  // Event takes priority: use the event's artist and suggested category
-  const artist = todayEvent?.artist ?? randomArtist;
+  const available = ARTISTS_POOL.filter(
+    (a) => !usedArtists.includes(a) && !last3Artists.has(a.toLowerCase())
+  );
+  const pool = available.length > 0 ? available : ARTISTS_POOL.filter((a) => !last3Artists.has(a.toLowerCase()));
+  const finalPool = pool.length > 0 ? pool : ARTISTS_POOL;
+  const randomArtist = finalPool[Math.floor(Math.random() * finalPool.length)];
+
+  // Event takes priority, but skip if that artist was in the last 3 posts
+  const eventArtist = todayEvent && !last3Artists.has(todayEvent.artist.toLowerCase())
+    ? todayEvent.artist
+    : undefined;
+  const artist = eventArtist ?? randomArtist;
   const randomCategory = (): PostCategory => {
     const r = Math.random();
     if (r < 0.4) return "music_story";
@@ -253,8 +262,8 @@ export async function generateStoryContent(
     ? `\n\nBREAKING NEWS CONTEXT: The following music news just broke: "${breakingNews}". Make this the focus of your story — write about this event, the artist(s) involved, and why it matters. Make the post feel timely, relevant, and exciting. Adjust the artist and title fields to match the news subject. IMPORTANT: Only proceed if this news is about a rock, alternative, indie, punk, metal, classic rock artist, or a globally iconic pop/soul legend (e.g. Michael Jackson, Prince, Elton John, Madonna, Whitney Houston, Stevie Wonder). If the news is about a K-pop act, modern pop, hip-hop, R&B, or any artist without major international rock/pop legacy, ignore it and generate a regular vinyl_art post instead.`
     : "";
 
-  // Append event context so Claude tailors the story to the specific anniversary/birthday
-  const eventSuffix = !breakingNews && todayEvent
+  // Append event context only when the event artist is actually being used
+  const eventSuffix = !breakingNews && todayEvent && eventArtist
     ? `\n\nIMPORTANT: Today is specifically the ${todayEvent.event}. Make the story directly about this occasion — mention the anniversary/milestone in the caption opening and make it feel timely and celebratory.`
     : "";
 
