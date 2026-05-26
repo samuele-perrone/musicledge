@@ -19,6 +19,24 @@ import pathModule from "path";
 
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
+// ─── Audio helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Picks a random .mp3 from public/audio/ (if any exist).
+ * Returns the absolute path, or null if the directory is empty or missing.
+ */
+export function findAudioTrack(): string | null {
+  const audioDir = pathModule.join(process.cwd(), "public", "audio");
+  try {
+    const files = fs.readdirSync(audioDir).filter((f) => f.endsWith(".mp3") || f.endsWith(".m4a") || f.endsWith(".aac"));
+    if (files.length === 0) return null;
+    const pick = files[Math.floor(Math.random() * files.length)];
+    return pathModule.join(audioDir, pick);
+  } catch {
+    return null;
+  }
+}
+
 // ─── Font helpers ─────────────────────────────────────────────────────────────
 
 type FontEntry = { name: string; data: Buffer; weight: number; style: string };
@@ -410,7 +428,8 @@ const KB_TARGETS = [
 export async function createKaraokeReelVideo(
   imageBuffers: Buffer[],
   slides: string[],
-  content: { artist: string; title: string; category: string }
+  content: { artist: string; title: string; category: string },
+  audioPath?: string | null
 ): Promise<Buffer> {
   if (imageBuffers.length === 0) throw new Error("createKaraokeReelVideo: no images provided");
 
@@ -473,10 +492,28 @@ export async function createKaraokeReelVideo(
   await writeFile(concatListPath, concatLines.join("\n"));
 
   await new Promise<void>((resolve, reject) => {
-    ffmpeg()
+    let cmd = ffmpeg()
       .addInput(concatListPath)
-      .inputOptions(["-f concat", "-safe 0"])
-      .outputOptions(["-c copy", "-movflags +faststart"])
+      .inputOptions(["-f concat", "-safe 0"]);
+
+    if (audioPath) {
+      cmd = cmd
+        .addInput(audioPath)
+        .inputOptions(["-stream_loop -1"])
+        .outputOptions([
+          "-map 0:v",
+          "-map 1:a",
+          "-c:v copy",
+          "-c:a aac",
+          "-b:a 192k",
+          "-shortest",
+          "-movflags +faststart",
+        ]);
+    } else {
+      cmd = cmd.outputOptions(["-c copy", "-movflags +faststart"]);
+    }
+
+    cmd
       .output(outputPath)
       .on("end", () => resolve())
       .on("error", (err) => reject(new Error(`ffmpeg concat: ${err.message}`)))

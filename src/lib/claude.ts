@@ -156,9 +156,9 @@ Return ONLY valid JSON with this exact structure:
   "title": "Short punchy title (max 8 words)",
   "story": "2-3 sentences summarising the story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
-  "caption": "Instagram/Facebook caption: 2-3 paragraphs with the full story, context, and a question to spark discussion",
+  "caption": "Instagram/Facebook caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
   "imagePrompt": "Detailed AI image prompt specific to THIS artist and story — vary the setting creatively: it could be a concert venue, a specific era's street scene, iconic instruments, album sleeve objects, a tour bus, a festival crowd, backstage equipment, or a symbolic still life tied to the story's theme. Capture the exact decade's visual style and colour palette. Do NOT show any human face or figure. Do NOT use generic dark studio gear. Be specific and visually distinct. High contrast, cinematic, square format.",
-  "carouselSlides": ["Slide 1 — one punchy hook sentence, max 80 chars, bold and direct like a headline", "Slide 2 — one or two short sentences telling the core of the story, max 100 chars, conversational", "Slide 3 — one closing line with a question or reflection, max 80 chars"],
+  "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 facts about [Song] most fans don't know' — max 80 chars, bold and specific", "Slide 2 — two of those facts as very short punchy sentences back-to-back, max 110 chars total", "Slide 3 — save-bait CTA e.g. 'Save this. Which fact surprised you most?' — max 80 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
   "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
@@ -180,7 +180,7 @@ Return ONLY valid JSON with this exact structure:
   "title": "Short punchy title about the musical connection (max 8 words)",
   "story": "2-3 sentences summarising the musical DNA connection, used internally",
   "imageCaption": "One punchy line for the image overlay — max 55 characters, about the sonic connection",
-  "caption": "Instagram/Facebook caption: name both songs and artists. Describe the specific riff, chord progression, or motif that was borrowed. Explain the genre lineage. Rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
+  "caption": "Instagram/Facebook caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression, or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
   "influenceSource": "Original artist — Song title (year)",
   "influencedWork": "Later artist — Song title (year)",
   "similarityLevel": "subtle_nod OR clear_influence OR nearly_identical",
@@ -188,7 +188,7 @@ Return ONLY valid JSON with this exact structure:
   "emotion": "one word: the primary emotion this sound evokes e.g. euphoric / melancholic / defiant / tender / tense / nostalgic / energetic",
   "activityTags": ["2-4 tags from this list only: workout, running, driving, cycling, background, chill out, party, focus, romance, morning, late night"],
   "imagePrompt": "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures that span both eras. No human faces or figures. Square format, cinematic, high contrast.",
-  "carouselSlides": ["Slide 1 — one punchy hook about the musical connection, max 80 chars, bold and direct", "Slide 2 — one or two short sentences on the borrowed riff/chord, max 100 chars, plain language", "Slide 3 — one verdict line with a question, max 80 chars"],
+  "carouselSlides": ["Slide 1 — a bold hook naming both songs, e.g. 'Most fans don't know [Song B] copied this riff from [Song A]' — max 80 chars", "Slide 2 — the specific riff/chord detail in plain language, max 100 chars", "Slide 3 — save-bait verdict e.g. 'Save this. Inspiration or imitation?' — max 80 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD",
   "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
@@ -210,15 +210,33 @@ Return ONLY valid JSON with this exact structure:
   "title": "Short punchy title about the artwork (max 8 words)",
   "story": "2-3 sentences summarising the artwork story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, about the artwork",
-  "caption": "Instagram/Facebook caption: 2-3 paragraphs telling the full story of the artwork — the design concept, the photographer or artist behind it, hidden details, controversies, or how it was made. End with a question to spark discussion.",
+  "caption": "Instagram/Facebook caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each hidden detail as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic still life image that evokes the aesthetic, colour palette, textures, and mood of this specific album cover artwork — reference the visual elements, lighting style, and era without depicting any real person. Focus on objects, surfaces, typography feel, light and shadow. Square format, editorial quality.",
-  "carouselSlides": ["Slide 1 — one punchy hook about the album art, max 80 chars, bold and direct like a headline", "Slide 2 — one or two short sentences on the story behind the artwork, max 100 chars, conversational", "Slide 3 — one closing line that reframes the cover, max 80 chars"],
+  "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 hidden details in [Album] cover art most fans miss' — max 80 chars, bold and specific", "Slide 2 — two of those hidden details as very short punchy sentences back-to-back, max 110 chars total", "Slide 3 — save-bait CTA e.g. 'Save this. Which detail surprised you most?' — max 80 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
   "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
   "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl",
   "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
   "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
+}
+
+/** Extracts the first complete JSON object from text, correctly tracking brace depth. */
+function extractFirstJson(text: string): string | null {
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  let start = -1;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') { if (depth === 0) start = i; depth++; }
+    else if (ch === '}') { depth--; if (depth === 0 && start !== -1) return text.slice(start, i + 1); }
+  }
+  return null;
 }
 
 export async function generateStoryContent(
@@ -286,15 +304,15 @@ export async function generateStoryContent(
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error("Failed to parse Claude response as JSON");
+  const rawJson = extractFirstJson(text);
+  if (!rawJson) throw new Error("Failed to parse Claude response as JSON");
 
   let content: StoryContent;
   try {
-    content = JSON.parse(jsonMatch[0]) as StoryContent;
+    content = JSON.parse(rawJson) as StoryContent;
   } catch {
     // Salvage: replace smart quotes, dashes, and other non-ASCII punctuation
-    const sanitized = jsonMatch[0]
+    const sanitized = rawJson
       .replace(/[\u0000-\u001F\u007F]/g, " ")   // control chars
       .replace(/[\u2018\u2019\u02BC\u0060]/g, "'") // smart single quotes
       .replace(/[\u201C\u201D]/g, '"')             // smart double quotes
@@ -304,8 +322,7 @@ export async function generateStoryContent(
     try {
       content = JSON.parse(sanitized) as StoryContent;
     } catch (e2) {
-      // Last resort: extract JSON field by field with a regex-based fallback
-      throw new Error(`Claude JSON unparseable after sanitization: ${e2 instanceof Error ? e2.message : e2}\n\nRaw: ${jsonMatch[0].slice(0, 200)}`);
+      throw new Error(`Claude JSON unparseable after sanitization: ${e2 instanceof Error ? e2.message : e2}\n\nRaw: ${rawJson.slice(0, 200)}`);
     }
   }
   // Always enforce category; only enforce artist when no breaking news

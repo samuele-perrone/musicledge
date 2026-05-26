@@ -4,7 +4,7 @@ import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createKaraokeReelVideo } from "@/lib/video";
+import { createKaraokeReelVideo, findAudioTrack } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
@@ -148,7 +148,8 @@ export async function POST(request: Request) {
       const reelBuffer = await createKaraokeReelVideo(
         imageBuffers,
         content.carouselSlides ?? [],
-        { artist: content.artist, title: content.title, category: content.category ?? "music_story" }
+        { artist: content.artist, title: content.title, category: content.category ?? "music_story" },
+        findAudioTrack()
       );
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;

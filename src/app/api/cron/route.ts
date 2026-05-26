@@ -8,7 +8,7 @@ import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelate
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createKaraokeReelVideo } from "@/lib/video";
+import { createKaraokeReelVideo, findAudioTrack } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { postFacebookVideo } from "@/lib/facebook";
 import { createReelContainer, checkContainerStatus, publishMediaContainer } from "@/lib/instagram";
@@ -168,7 +168,8 @@ async function runCron() {
     const reelBuffer = await createKaraokeReelVideo(
       imageBuffers,
       slides,
-      { artist: content.artist, title: content.title, category: content.category ?? "music_story" }
+      { artist: content.artist, title: content.title, category: content.category ?? "music_story" },
+      findAudioTrack()
     );
     const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
     post.reelBlobUrl = reelBlobUrl;
