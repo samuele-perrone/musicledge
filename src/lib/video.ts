@@ -89,6 +89,11 @@ function accentInfo(category: string): { accent: string; badgeText: string; labe
   return   { accent: "#f59e0b", badgeText: "black", label: "MUSIC STORY", gradient: "linear-gradient(160deg,#f59e0b 0%,#d97706 100%)" };
 }
 
+/** Strips emoji and other characters outside the fonts' coverage before rendering. */
+function stripUnsupported(text: string): string {
+  return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/\s{2,}/g, " ").trim();
+}
+
 // ─── Frame / overlay renderers ────────────────────────────────────────────────
 
 /**
@@ -226,7 +231,7 @@ async function renderWordOverlay(
           color: "white", lineHeight: 1.35, textAlign: "center" as const,
           padding: "0 64px",
         },
-      }, words.join(" ").toUpperCase())]
+      }, stripUnsupported(words.join(" ")).toUpperCase())]
     : words.map((word, i) => {
         const isActive = i === activeIndex;
         return h("div", {
@@ -360,7 +365,7 @@ async function renderCombinedFollowOverlay(
             lineHeight: 1.15, textAlign: "center",
             display: "flex", flexWrap: "wrap", justifyContent: "center",
           },
-        }, slideText.toUpperCase()),
+        }, stripUnsupported(slideText).toUpperCase()),
         h("div", { style: { height: 56, display: "flex" } }),
 
         // Accent divider
