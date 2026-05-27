@@ -78,7 +78,6 @@ function loadFonts(): FontEntry[] {
     { name: "Inter",      data: loadVFont("Inter-Regular.ttf"),    weight: 400, style: "normal" },
     { name: "Inter",      data: loadVFont("Inter-Bold.ttf"),        weight: 700, style: "normal" },
     { name: "BebasNeue",  data: loadVFont("BebasNeue-Regular.ttf"), weight: 400, style: "normal" },
-    { name: "NotoEmoji",  data: loadVFont("NotoEmoji-Regular.ttf"), weight: 400, style: "normal" },
   ];
 }
 
@@ -90,9 +89,9 @@ function accentInfo(category: string): { accent: string; badgeText: string; labe
   return   { accent: "#f59e0b", badgeText: "black", label: "MUSIC STORY", gradient: "linear-gradient(160deg,#f59e0b 0%,#d97706 100%)" };
 }
 
-/** Collapses extra whitespace — emoji are preserved and rendered via NotoEmoji font. */
+/** Strips emoji (no font coverage) and collapses extra whitespace. */
 function cleanText(text: string): string {
-  return text.replace(/\s{2,}/g, " ").trim();
+  return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/\s{2,}/g, " ").trim();
 }
 
 // ─── Frame / overlay renderers ────────────────────────────────────────────────
