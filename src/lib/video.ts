@@ -75,9 +75,10 @@ function loadVFont(filename: string): Buffer {
 
 function loadFonts(): FontEntry[] {
   return [
-    { name: "Inter",     data: loadVFont("Inter-Regular.ttf"),    weight: 400, style: "normal" },
-    { name: "Inter",     data: loadVFont("Inter-Bold.ttf"),        weight: 700, style: "normal" },
-    { name: "BebasNeue", data: loadVFont("BebasNeue-Regular.ttf"), weight: 400, style: "normal" },
+    { name: "Inter",      data: loadVFont("Inter-Regular.ttf"),    weight: 400, style: "normal" },
+    { name: "Inter",      data: loadVFont("Inter-Bold.ttf"),        weight: 700, style: "normal" },
+    { name: "BebasNeue",  data: loadVFont("BebasNeue-Regular.ttf"), weight: 400, style: "normal" },
+    { name: "NotoEmoji",  data: loadVFont("NotoEmoji-Regular.ttf"), weight: 400, style: "normal" },
   ];
 }
 
@@ -89,9 +90,9 @@ function accentInfo(category: string): { accent: string; badgeText: string; labe
   return   { accent: "#f59e0b", badgeText: "black", label: "MUSIC STORY", gradient: "linear-gradient(160deg,#f59e0b 0%,#d97706 100%)" };
 }
 
-/** Strips emoji and other characters outside the fonts' coverage before rendering. */
-function stripUnsupported(text: string): string {
-  return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/\s{2,}/g, " ").trim();
+/** Collapses extra whitespace — emoji are preserved and rendered via NotoEmoji font. */
+function cleanText(text: string): string {
+  return text.replace(/\s{2,}/g, " ").trim();
 }
 
 // ─── Frame / overlay renderers ────────────────────────────────────────────────
@@ -224,7 +225,7 @@ async function renderWordOverlay(
   const { accent, badgeText, label } = accentInfo(content.category);
 
   // activeIndex === -1 → non-karaoke mode: one line per sentence for readability
-  const fullText = stripUnsupported(words.join(" "));
+  const fullText = cleanText(words.join(" "));
   const sentences = fullText.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
   const wordEls = activeIndex === -1
     ? [h("div", {
@@ -377,7 +378,7 @@ async function renderCombinedFollowOverlay(
             lineHeight: 1.15, textAlign: "center",
             display: "flex", flexWrap: "wrap", justifyContent: "center",
           },
-        }, stripUnsupported(slideText).toUpperCase()),
+        }, cleanText(slideText).toUpperCase()),
         h("div", { style: { height: 56, display: "flex" } }),
 
         // Accent divider
