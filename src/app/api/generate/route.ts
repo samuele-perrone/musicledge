@@ -148,7 +148,7 @@ export async function POST(request: Request) {
       const reelBuffer = await createKaraokeReelVideo(
         imageBuffers,
         content.carouselSlides ?? [],
-        { artist: content.artist, title: content.title, category: content.category ?? "music_story" },
+        { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption },
         findAudioTrack()
       );
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);

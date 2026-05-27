@@ -168,7 +168,7 @@ async function runCron() {
     const reelBuffer = await createKaraokeReelVideo(
       imageBuffers,
       slides,
-      { artist: content.artist, title: content.title, category: content.category ?? "music_story" },
+      { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption },
       findAudioTrack()
     );
     const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);

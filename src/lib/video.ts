@@ -65,19 +65,18 @@ function accentInfo(category: string): { accent: string; badgeText: string; labe
 
 /**
  * Renders the intro frame as a full opaque JPEG (1080×1920):
- * gradient bg + MUSICLEDGE branding + centered photo card + artist/title.
+ * full-bleed photo + dark bottom gradient + top-left branding + bottom title/caption.
+ * Matches the card style used in the dashboard post listing.
  */
 async function renderIntroFrame(
   imageBuffer: Buffer,
-  content: { artist: string; title: string; category: string },
+  content: { artist: string; title: string; category: string; imageCaption?: string },
   fonts: FontEntry[]
 ): Promise<Buffer> {
-  const { accent, badgeText, label, gradient } = accentInfo(content.category);
+  const { accent, badgeText, label } = accentInfo(content.category);
 
-  // Embed photo as data URL so Satori can render it inline
-  const photoSize = 940;
   const photoResized = await sharp(imageBuffer)
-    .resize(photoSize, photoSize, { fit: "cover", position: "centre" })
+    .resize(1080, 1920, { fit: "cover", position: "centre" })
     .jpeg({ quality: 90 })
     .toBuffer();
   const photoDataUrl = `data:image/jpeg;base64,${photoResized.toString("base64")}`;
@@ -86,51 +85,93 @@ async function renderIntroFrame(
     h("div", {
       style: {
         width: 1080, height: 1920,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "flex-start",
-        background: gradient,
-        fontFamily: "Inter",
-        paddingTop: 72,
+        display: "flex", position: "relative",
+        overflow: "hidden", fontFamily: "Inter",
       },
     },
-      // Top — branding
-      h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 14 } },
-        h("div", {
-          style: {
-            background: accent, borderRadius: 8, padding: "20px 40px",
-            fontSize: 52, fontWeight: 700, color: badgeText, letterSpacing: 2, display: "flex",
-          },
-        }, "MUSICLEDGE"),
-        h("div", { style: { fontSize: 26, fontWeight: 700, color: "rgba(255,255,255,0.9)", letterSpacing: 4, display: "flex" } }, label),
-        h("div", { style: { width: 44, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2, marginTop: 4 } })
-      ),
-
-      // Photo card — immediately below branding
+      // Full-bleed photo
       h("img", {
         src: photoDataUrl,
+        style: { position: "absolute", top: 0, left: 0, width: 1080, height: 1920 },
+      }),
+
+      // Bottom dark gradient
+      h("div", {
         style: {
-          width: photoSize, height: photoSize,
-          borderRadius: 20,
-          boxShadow: "0 28px 72px rgba(0,0,0,0.45)",
-          marginTop: 40,
+          position: "absolute", bottom: 0, left: 0,
+          width: 1080, height: 1100,
+          background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)",
         },
       }),
 
-      // Artist + title — right below the photo
-      h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12, marginTop: 32 } },
-        h("div", { style: { width: 44, height: 3, background: "rgba(255,255,255,0.5)", borderRadius: 2 } }),
+      // Top-left: MUSICLEDGE badge + category label + artist name
+      h("div", {
+        style: {
+          position: "absolute", top: 64, left: 60,
+          display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12,
+        },
+      },
         h("div", {
           style: {
-            fontFamily: "BebasNeue", fontSize: 92, fontWeight: 400,
-            color: "white", letterSpacing: 5, textAlign: "center",
+            background: accent, borderRadius: 6,
+            paddingTop: 10, paddingBottom: 10, paddingLeft: 22, paddingRight: 22,
+            display: "flex",
+          },
+        },
+          h("div", {
+            style: {
+              fontSize: 30, fontWeight: 700, letterSpacing: 2,
+              color: badgeText === "black" ? "black" : "white",
+            },
+          }, "MUSICLEDGE")
+        ),
+        h("div", {
+          style: { fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: 5, display: "flex" },
+        }, label),
+        h("div", {
+          style: {
+            fontFamily: "BebasNeue", fontSize: 80, fontWeight: 400,
+            color: "white", letterSpacing: 4, display: "flex",
           },
         }, content.artist.toUpperCase()),
+      ),
+
+      // Bottom: title + caption + accent line
+      h("div", {
+        style: {
+          position: "absolute", bottom: 0, left: 0,
+          width: 1080,
+          display: "flex", flexDirection: "column",
+        },
+      },
         h("div", {
           style: {
-            fontSize: 42, fontWeight: 700, color: "rgba(255,255,255,0.92)",
-            textAlign: "center", lineHeight: 1.2, padding: "0 64px",
+            paddingLeft: 60, paddingRight: 60,
+            paddingBottom: content.imageCaption ? 20 : 48,
+            display: "flex",
           },
-        }, content.title)
+        },
+          h("div", {
+            style: {
+              fontSize: 72, fontWeight: 700, color: "white",
+              lineHeight: 1.1,
+            },
+          }, content.title)
+        ),
+        content.imageCaption
+          ? h("div", {
+              style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 48, display: "flex" },
+            },
+              h("div", {
+                style: {
+                  fontSize: 36, fontWeight: 400,
+                  color: "rgba(255,255,255,0.75)", lineHeight: 1.35,
+                },
+              }, content.imageCaption)
+            )
+          : h("div", { style: { display: "flex" } }),
+        // Accent line at bottom edge
+        h("div", { style: { width: 1080, height: 8, background: accent } }),
       )
     ),
     { width: 1080, height: 1920, fonts: fonts as never }
@@ -437,7 +478,7 @@ const KB_TARGETS = [
 export async function createKaraokeReelVideo(
   imageBuffers: Buffer[],
   slides: string[],
-  content: { artist: string; title: string; category: string },
+  content: { artist: string; title: string; category: string; imageCaption?: string },
   audioPath?: string | null,
   karaoke = false
 ): Promise<Buffer> {
