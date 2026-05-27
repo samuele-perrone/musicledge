@@ -489,7 +489,7 @@ export async function createKaraokeReelVideo(
   const fonts  = loadFonts();
   const INTRO_DURATION  = 3.0;
   const WORD_DURATION   = 0.40;
-  const SLIDE_DURATION  = 4.0;
+  const SLIDE_DURATION  = 5.0;
   const FOLLOW_DURATION = 3.0;
 
   const segmentPaths: string[] = [];
