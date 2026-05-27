@@ -95,6 +95,15 @@ async function renderIntroFrame(
         style: { position: "absolute", top: 0, left: 0, width: 1080, height: 1920 },
       }),
 
+      // Top gradient scrim — ensures text is readable on light photos
+      h("div", {
+        style: {
+          position: "absolute", top: 0, left: 0,
+          width: 1080, height: 800,
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.30) 60%, transparent 100%)",
+        },
+      }),
+
       // Bottom dark gradient
       h("div", {
         style: {
@@ -105,9 +114,10 @@ async function renderIntroFrame(
       }),
 
       // Top-left: MUSICLEDGE badge + category label + artist name
+      // Positioned within Instagram safe zone (y > 420 for 9:16→1:1 square crop)
       h("div", {
         style: {
-          position: "absolute", top: 64, left: 60,
+          position: "absolute", top: 460, left: 60,
           display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12,
         },
       },
@@ -137,9 +147,10 @@ async function renderIntroFrame(
       ),
 
       // Bottom: title + caption + accent line
+      // Positioned within Instagram safe zone (bottom > 420 for 9:16→1:1 square crop)
       h("div", {
         style: {
-          position: "absolute", bottom: 0, left: 0,
+          position: "absolute", bottom: 440, left: 0,
           width: 1080,
           display: "flex", flexDirection: "column",
         },
@@ -147,7 +158,7 @@ async function renderIntroFrame(
         h("div", {
           style: {
             paddingLeft: 60, paddingRight: 60,
-            paddingBottom: content.imageCaption ? 20 : 48,
+            paddingBottom: content.imageCaption ? 16 : 24,
             display: "flex",
           },
         },
@@ -160,7 +171,7 @@ async function renderIntroFrame(
         ),
         content.imageCaption
           ? h("div", {
-              style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 48, display: "flex" },
+              style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 24, display: "flex" },
             },
               h("div", {
                 style: {
@@ -170,7 +181,7 @@ async function renderIntroFrame(
               }, content.imageCaption)
             )
           : h("div", { style: { display: "flex" } }),
-        // Accent line at bottom edge
+        // Accent line
         h("div", { style: { width: 1080, height: 8, background: accent } }),
       )
     ),
