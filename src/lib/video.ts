@@ -89,9 +89,18 @@ function accentInfo(category: string): { accent: string; badgeText: string; labe
   return   { accent: "#f59e0b", badgeText: "black", label: "MUSIC STORY", gradient: "linear-gradient(160deg,#f59e0b 0%,#d97706 100%)" };
 }
 
-/** Strips emoji (no font coverage) and collapses extra whitespace. */
+/**
+ * Strips emoji and related Unicode sequences (variation selectors, ZWJ, tags)
+ * that Inter/BebasNeue can't render, then collapses extra whitespace.
+ */
 function cleanText(text: string): string {
-  return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/\s{2,}/g, " ").trim();
+  return text
+    .replace(/\p{Extended_Pictographic}/gu, "") // emoji base characters
+    .replace(/[︀-️]/g, "")            // variation selectors (cause ⊠ boxes)
+    .replace(/‍/g, "")                      // zero-width joiners
+    .replace(/[\u{E0000}-\u{E01EF}]/gu, "")     // emoji tag sequences
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 /**
@@ -388,11 +397,20 @@ async function renderCombinedFollowOverlay(
             display: "flex", flexWrap: "wrap", justifyContent: "center",
           },
         }, cleanText(slideText).toUpperCase()),
-        h("div", { style: { height: 56, display: "flex" } }),
+        h("div", { style: { height: 28, display: "flex" } }),
+
+        // Tap invite
+        h("div", {
+          style: {
+            fontSize: 28, fontWeight: 700, color: accent,
+            letterSpacing: 2, textAlign: "center", display: "flex",
+          },
+        }, "TAP THE CAPTION FOR THE FULL STORY"),
+        h("div", { style: { height: 40, display: "flex" } }),
 
         // Accent divider
         h("div", { style: { width: 80, height: 4, background: accent, borderRadius: 2, display: "flex" } }),
-        h("div", { style: { height: 48, display: "flex" } }),
+        h("div", { style: { height: 40, display: "flex" } }),
 
         // Follow tagline
         h("div", {
