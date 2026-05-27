@@ -21,17 +21,45 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 // ─── Audio helpers ────────────────────────────────────────────────────────────
 
+const HEAVY_TRACKS = [
+  "guitar_mayhem_1.mp3",
+  "guitar_mayhem_2.mp3",
+  "guitar_mayhem_3.mp3",
+  "guitar_mayhem_4.mp3",
+  "guitar_mayhem_5.mp3",
+  "extreme_sports_mayhem.mp3",
+  "playin_in_the_dirt.mp3",
+];
+
+const MELODIC_TRACKS = [
+  "rock_drama.mp3",
+  "rock_emotions_run_high.mp3",
+  "rock_80s_summertime.mp3",
+  "rock_outdoor_adventures.mp3",
+];
+
 /**
- * Picks a random .mp3 from public/audio/ (if any exist).
- * Returns the absolute path, or null if the directory is empty or missing.
+ * Picks a track from public/audio/ based on artist genre.
+ * "heavy" → hard rock / metal pool; "melodic" (or unknown) → melodic rock pool.
+ * Falls back to any available file if the preferred pool is missing.
  */
-export function findAudioTrack(): string | null {
+export function findAudioTrack(musicGenre?: string | null): string | null {
   const audioDir = pathModule.join(process.cwd(), "public", "audio");
+  const pool = musicGenre === "heavy" ? HEAVY_TRACKS : MELODIC_TRACKS;
+
+  const existing = pool
+    .map((f) => pathModule.join(audioDir, f))
+    .filter((p) => { try { fs.statSync(p); return true; } catch { return false; } });
+
+  if (existing.length > 0) {
+    return existing[Math.floor(Math.random() * existing.length)];
+  }
+
+  // Fallback: any audio file available
   try {
-    const files = fs.readdirSync(audioDir).filter((f) => f.endsWith(".mp3") || f.endsWith(".m4a") || f.endsWith(".aac"));
-    if (files.length === 0) return null;
-    const pick = files[Math.floor(Math.random() * files.length)];
-    return pathModule.join(audioDir, pick);
+    const all = fs.readdirSync(audioDir).filter((f) => /\.(mp3|m4a|aac)$/.test(f));
+    if (all.length === 0) return null;
+    return pathModule.join(audioDir, all[Math.floor(Math.random() * all.length)]);
   } catch {
     return null;
   }

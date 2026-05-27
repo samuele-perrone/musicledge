@@ -169,7 +169,7 @@ async function runCron() {
       imageBuffers,
       slides,
       { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption },
-      findAudioTrack()
+      findAudioTrack(content.musicGenre)
     );
     const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
     post.reelBlobUrl = reelBlobUrl;

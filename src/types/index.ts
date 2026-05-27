@@ -11,6 +11,7 @@ export interface StoryContent {
   hashtags: string[];
   amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
   albumName?: string;          // exact album title (vinyl_art only) — used for iTunes/Spotify lookup
+  musicGenre?: "heavy" | "melodic"; // used to pick background audio track
   carouselSlides?: string[];  // 3 slide texts for slides 2-4
   // Harmony-specific fields
   influenceSource?: string;    // e.g. "Led Zeppelin — Whole Lotta Love (1969)"

@@ -161,6 +161,7 @@ Return ONLY valid JSON with this exact structure:
   "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 facts about [Song] most fans don't know' — max 80 chars, bold and specific", "Slide 2 — two of those facts as very short punchy sentences back-to-back, max 110 chars total", "Slide 3 — save-bait CTA e.g. 'Save this. Which fact surprised you most?' — max 80 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
+  "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
   "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
   "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork — pick accounts that would genuinely be interested in this story"]
 }`;
@@ -191,6 +192,7 @@ Return ONLY valid JSON with this exact structure:
   "carouselSlides": ["Slide 1 — a bold hook naming both songs, e.g. 'Most fans don't know [Song B] copied this riff from [Song A]' — max 80 chars", "Slide 2 — the specific riff/chord detail in plain language, max 100 chars", "Slide 3 — save-bait verdict e.g. 'Save this. Inspiration or imitation?' — max 80 chars"],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD",
+  "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
   "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
   "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
@@ -216,6 +218,7 @@ Return ONLY valid JSON with this exact structure:
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
   "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
   "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl",
+  "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
   "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
   "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
