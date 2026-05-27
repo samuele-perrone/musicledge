@@ -301,77 +301,112 @@ async function renderWordOverlay(
 }
 
 /**
- * Renders the follow slide as a full opaque JPEG (1080×1920).
- * Accent-colour gradient background + dark gradient overlay at bottom for readability.
+ * Renders the combined follow+CTA overlay as a transparent PNG (1080×1920).
+ * Shows the third slide's text prominently in the center, with the follow CTA below.
+ * Used as an overlay on the fourth image buffer (Ken Burns zoompan background).
  */
-async function renderFollowFrame(
+async function renderCombinedFollowOverlay(
+  slideText: string,
   category: string,
   fonts: FontEntry[]
 ): Promise<Buffer> {
-  const { accent, gradient } = accentInfo(category);
+  const { accent, badgeText, label } = accentInfo(category);
 
   const svg = await satori(
     h("div", {
       style: {
         width: 1080, height: 1920,
         display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "space-between",
-        background: gradient,
+        alignItems: "center", justifyContent: "center",
+        background: "rgba(0,0,0,0.78)",
         fontFamily: "Inter",
-        padding: "0 0 0 0",
+        position: "relative",
       },
     },
-      // Top spacer
-      h("div", { style: { flex: 1 } }),
+      // Top accent bar
+      h("div", { style: { position: "absolute", top: 0, left: 0, width: 1080, height: 6, background: accent, display: "flex" } }),
 
-      // Center content
+      // Center content block
       h("div", {
         style: {
-          display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 40,
+          display: "flex", flexDirection: "column", alignItems: "center",
+          paddingLeft: 80, paddingRight: 80,
         },
       },
+        // MUSICLEDGE badge
         h("div", {
           style: {
-            width: 130, height: 130, borderRadius: 65,
-            border: "5px solid rgba(255,255,255,0.5)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            background: accent, borderRadius: 8,
+            paddingTop: 14, paddingBottom: 14, paddingLeft: 36, paddingRight: 36,
+            display: "flex",
           },
         },
-          h("div", { style: { width: 36, height: 36, borderRadius: 18, border: "5px solid rgba(255,255,255,0.5)" } })
+          h("div", {
+            style: { fontSize: 40, fontWeight: 700, letterSpacing: 3, color: badgeText === "black" ? "black" : "white" },
+          }, "MUSICLEDGE")
         ),
-        h("div", { style: { fontSize: 64, fontWeight: 700, color: "white", letterSpacing: 6 } }, "MUSICLEDGE"),
-        h("div", { style: { width: 60, height: 4, background: "rgba(255,255,255,0.45)", borderRadius: 2 } }),
+        h("div", { style: { height: 12, display: "flex" } }),
+
+        // Category label
+        h("div", {
+          style: { fontSize: 22, fontWeight: 700, color: accent, letterSpacing: 6, display: "flex" },
+        }, label),
+        h("div", { style: { height: 52, display: "flex" } }),
+
+        // Slide 3 text — big, bold, centered
         h("div", {
           style: {
-            fontSize: 40, fontWeight: 700, color: "white",
-            textAlign: "center", lineHeight: 1.5, padding: "0 100px",
+            fontSize: 64, fontWeight: 700, color: "white",
+            lineHeight: 1.15, textAlign: "center",
+            display: "flex", flexWrap: "wrap", justifyContent: "center",
           },
-        }, "Follow for daily music stories & vinyl deep dives"),
-        h("div", { style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.75)", letterSpacing: 3 } }, "@musicledge")
+        }, slideText.toUpperCase()),
+        h("div", { style: { height: 56, display: "flex" } }),
+
+        // Accent divider
+        h("div", { style: { width: 80, height: 4, background: accent, borderRadius: 2, display: "flex" } }),
+        h("div", { style: { height: 48, display: "flex" } }),
+
+        // Follow tagline
+        h("div", {
+          style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.80)", display: "flex" },
+        }, "Follow for daily music stories"),
+        h("div", { style: { height: 4, display: "flex" } }),
+        h("div", {
+          style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.80)", display: "flex" },
+        }, "& vinyl deep dives"),
+        h("div", { style: { height: 16, display: "flex" } }),
+
+        // @musicledge in accent colour
+        h("div", {
+          style: {
+            fontFamily: "BebasNeue", fontSize: 84, fontWeight: 400,
+            color: accent, letterSpacing: 4, display: "flex",
+          },
+        }, "@MUSICLEDGE"),
+        h("div", { style: { height: 32, display: "flex" } }),
+
+        // CTA pill
+        h("div", {
+          style: {
+            background: accent, borderRadius: 40,
+            paddingTop: 16, paddingBottom: 16, paddingLeft: 48, paddingRight: 48,
+            display: "flex",
+          },
+        },
+          h("div", {
+            style: { fontSize: 28, fontWeight: 700, color: badgeText === "black" ? "black" : "white", letterSpacing: 1, display: "flex" },
+          }, "New post every day")
+        )
       ),
 
-      // Bottom: dark gradient strip for readability
-      h("div", {
-        style: {
-          flex: 1, width: 1080,
-          background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)",
-          display: "flex", alignItems: "flex-end", justifyContent: "center",
-          paddingBottom: 60,
-        },
-      },
-        h("div", {
-          style: {
-            background: accent, borderRadius: 40, padding: "14px 40px",
-            fontSize: 24, fontWeight: 700, color: "white", letterSpacing: 1,
-          },
-        }, "New post every day")
-      )
+      // Bottom accent bar
+      h("div", { style: { position: "absolute", bottom: 0, left: 0, width: 1080, height: 6, background: accent, display: "flex" } }),
     ),
     { width: 1080, height: 1920, fonts: fonts as never }
   );
 
-  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
+  return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
 // ─── FFmpeg segment renderers ─────────────────────────────────────────────────
@@ -495,13 +530,14 @@ const KB_TARGETS = [
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 /**
- * Creates a karaoke-style reel video:
- *   1. Intro  — gradient bg, centered photo card, branding overlay (static, fade-out)
- *   2. Slides — per-slide background photo with Ken Burns + word-by-word highlight
- *   3. Follow — background photo + CTA overlay (fade-in)
+ * Creates a reel video with 4 segments:
+ *   1. Intro  — dark-bg card with full photo + branding (static, fade-out)
+ *   2. Slide 1 — Ken Burns photo + slide text overlay
+ *   3. Slide 2 — Ken Burns photo + slide text overlay
+ *   4. Follow — Ken Burns photo + slide 3 text + follow CTA overlay (bold, accent colours)
  *
  * `imageBuffers[0]` is used for the intro card.
- * `imageBuffers[1..N]` (cycling) are used as slide backgrounds.
+ * `imageBuffers[1]` for slide 1, `[2]` for slide 2, `[3]` for the follow frame.
  * Falls back to imageBuffers[0] if fewer images are available.
  */
 export async function createKaraokeReelVideo(
@@ -518,7 +554,7 @@ export async function createKaraokeReelVideo(
   const INTRO_DURATION  = 3.0;
   const WORD_DURATION   = 0.40;
   const SLIDE_DURATION  = 5.0;
-  const FOLLOW_DURATION = 3.0;
+  const FOLLOW_DURATION = 6.0;
 
   const segmentPaths: string[] = [];
   const overlayPaths: string[] = [];
@@ -534,8 +570,8 @@ export async function createKaraokeReelVideo(
   );
   segmentPaths.push(introSeg);
 
-  // ── Content segments (one per slide) ──────────────────────────────────────
-  for (let si = 0; si < slides.length; si++) {
+  // ── Content segments — first 2 slides only; slide 3 moves to the follow frame ──
+  for (let si = 0; si < Math.min(slides.length, 2); si++) {
     const words = slides[si].split(/\s+/).filter(Boolean);
     if (words.length === 0) continue;
 
@@ -566,11 +602,18 @@ export async function createKaraokeReelVideo(
     segmentPaths.push(seg);
   }
 
-  // ── Follow segment — accent gradient frame, static ───────────────────────
-  const followFrame = await renderFollowFrame(content.category, fonts);
-  const followSeg = await renderStaticSegment(
-    followFrame, FOLLOW_DURATION,
-    { fadeIn: true, fadeOut: false },
+  // ── Combined follow+CTA segment — slide 3 text + follow CTA over image bg ──
+  const followSlideText = slides[2] ?? "Follow for more daily music stories";
+  const followOverlayPng = await renderCombinedFollowOverlay(followSlideText, content.category, fonts);
+  const followOverlayPath = join("/tmp", `follow_ol_${tmpId}.png`);
+  await writeFile(followOverlayPath, followOverlayPng);
+  overlayPaths.push(followOverlayPath);
+
+  const followKb = KB_TARGETS[2]; // top-right Ken Burns anchor
+  const followSeg = await renderZoompanSegment(
+    getBg(3),
+    [{ path: followOverlayPath, duration: FOLLOW_DURATION }],
+    { fadeIn: true, fadeOut: false, kbX: followKb.x, kbY: followKb.y },
     tmpId, "follow"
   );
   segmentPaths.push(followSeg);
