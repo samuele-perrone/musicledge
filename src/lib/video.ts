@@ -94,6 +94,16 @@ function cleanText(text: string): string {
   return text.replace(/\p{Extended_Pictographic}/gu, "").replace(/\s{2,}/g, " ").trim();
 }
 
+/**
+ * Estimates a comfortable reading duration for a block of words.
+ * Assumes ~2.5 words/second for large display text, with a 1.5s lead-in buffer.
+ * Clamped to [3.5s, 8s].
+ */
+function readingDuration(words: string[]): number {
+  const secs = words.length / 2.5 + 1.5;
+  return Math.min(Math.max(secs, 3.5), 8.0);
+}
+
 // ─── Frame / overlay renderers ────────────────────────────────────────────────
 
 /**
@@ -604,12 +614,12 @@ export async function createKaraokeReelVideo(
         entries.push({ path: p, duration: WORD_DURATION });
       }
     } else {
-      // All words visible at once for the full slide duration
+      // All words visible at once; duration scales with word count
       const png = await renderWordOverlay(words, -1, content, fonts);
       const p   = join("/tmp", `kol_s${si}_${tmpId}.png`);
       await writeFile(p, png);
       overlayPaths.push(p);
-      entries.push({ path: p, duration: SLIDE_DURATION });
+      entries.push({ path: p, duration: readingDuration(words) });
     }
 
     const kb  = KB_TARGETS[si % KB_TARGETS.length];
@@ -626,10 +636,14 @@ export async function createKaraokeReelVideo(
   await writeFile(followOverlayPath, followOverlayPng);
   overlayPaths.push(followOverlayPath);
 
+  const followWords = followSlideText.split(/\s+/).filter(Boolean);
+  // Add extra time on top of reading duration so viewers can also absorb the CTA
+  const followDuration = Math.min(readingDuration(followWords) + 2.0, FOLLOW_DURATION);
+
   const followKb = KB_TARGETS[2]; // top-right Ken Burns anchor
   const followSeg = await renderZoompanSegment(
     getBg(3),
-    [{ path: followOverlayPath, duration: FOLLOW_DURATION }],
+    [{ path: followOverlayPath, duration: followDuration }],
     { fadeIn: true, fadeOut: false, kbX: followKb.x, kbY: followKb.y },
     tmpId, "follow"
   );
