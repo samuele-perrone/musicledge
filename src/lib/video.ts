@@ -139,7 +139,7 @@ async function renderIntroFrame(
   return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
 }
 
-/** Transparent PNG overlay for karaoke word highlighting */
+/** Transparent PNG overlay for karaoke word highlighting or plain slide text. */
 async function renderWordOverlay(
   words: string[],
   activeIndex: number,
@@ -148,26 +148,35 @@ async function renderWordOverlay(
 ): Promise<Buffer> {
   const { accent, badgeText, label } = accentInfo(content.category);
 
-  const wordEls = words.map((word, i) => {
-    const isActive = i === activeIndex;
-    return h("div", {
-      key: String(i),
-      style: {
-        display: "flex",
-        background: isActive ? accent : "transparent",
-        borderRadius: 10,
-        padding: "6px 18px",
-      },
-    },
-      h("div", {
+  // activeIndex === -1 → non-karaoke mode: render all words as a plain text block
+  const wordEls = activeIndex === -1
+    ? [h("div", {
         style: {
-          fontSize: 64, fontWeight: 700, fontFamily: "Inter",
-          color: isActive && badgeText === "black" ? "black" : "white",
-          lineHeight: 1.15,
+          fontSize: 58, fontWeight: 700, fontFamily: "Inter",
+          color: "white", lineHeight: 1.35, textAlign: "center" as const,
+          padding: "0 64px",
         },
-      }, word.toUpperCase())
-    );
-  });
+      }, words.join(" ").toUpperCase())]
+    : words.map((word, i) => {
+        const isActive = i === activeIndex;
+        return h("div", {
+          key: String(i),
+          style: {
+            display: "flex",
+            background: isActive ? accent : "transparent",
+            borderRadius: 10,
+            padding: "6px 18px",
+          },
+        },
+          h("div", {
+            style: {
+              fontSize: 64, fontWeight: 700, fontFamily: "Inter",
+              color: isActive && badgeText === "black" ? "black" : "white",
+              lineHeight: 1.15,
+            },
+          }, word.toUpperCase())
+        );
+      });
 
   const svg = await satori(
     h("div", {
@@ -429,7 +438,8 @@ export async function createKaraokeReelVideo(
   imageBuffers: Buffer[],
   slides: string[],
   content: { artist: string; title: string; category: string },
-  audioPath?: string | null
+  audioPath?: string | null,
+  karaoke = false
 ): Promise<Buffer> {
   if (imageBuffers.length === 0) throw new Error("createKaraokeReelVideo: no images provided");
 
@@ -437,6 +447,7 @@ export async function createKaraokeReelVideo(
   const fonts  = loadFonts();
   const INTRO_DURATION  = 3.0;
   const WORD_DURATION   = 0.40;
+  const SLIDE_DURATION  = 4.0;
   const FOLLOW_DURATION = 3.0;
 
   const segmentPaths: string[] = [];
@@ -459,12 +470,23 @@ export async function createKaraokeReelVideo(
     if (words.length === 0) continue;
 
     const entries: { path: string; duration: number }[] = [];
-    for (let wi = 0; wi < words.length; wi++) {
-      const png = await renderWordOverlay(words, wi, content, fonts);
-      const p   = join("/tmp", `kol_s${si}w${wi}_${tmpId}.png`);
+
+    if (karaoke) {
+      // Word-by-word highlighting
+      for (let wi = 0; wi < words.length; wi++) {
+        const png = await renderWordOverlay(words, wi, content, fonts);
+        const p   = join("/tmp", `kol_s${si}w${wi}_${tmpId}.png`);
+        await writeFile(p, png);
+        overlayPaths.push(p);
+        entries.push({ path: p, duration: WORD_DURATION });
+      }
+    } else {
+      // All words visible at once for the full slide duration
+      const png = await renderWordOverlay(words, -1, content, fonts);
+      const p   = join("/tmp", `kol_s${si}_${tmpId}.png`);
       await writeFile(p, png);
       overlayPaths.push(p);
-      entries.push({ path: p, duration: WORD_DURATION });
+      entries.push({ path: p, duration: SLIDE_DURATION });
     }
 
     const kb  = KB_TARGETS[si % KB_TARGETS.length];
