@@ -223,15 +223,27 @@ async function renderWordOverlay(
 ): Promise<Buffer> {
   const { accent, badgeText, label } = accentInfo(content.category);
 
-  // activeIndex === -1 → non-karaoke mode: render all words as a plain text block
+  // activeIndex === -1 → non-karaoke mode: one line per sentence for readability
+  const fullText = stripUnsupported(words.join(" "));
+  const sentences = fullText.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
   const wordEls = activeIndex === -1
     ? [h("div", {
         style: {
-          fontSize: 58, fontWeight: 700, fontFamily: "Inter",
-          color: "white", lineHeight: 1.35, textAlign: "center" as const,
-          padding: "0 64px",
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 18,
+          paddingLeft: 64, paddingRight: 64,
         },
-      }, stripUnsupported(words.join(" ")).toUpperCase())]
+      },
+        ...sentences.map((sentence, i) =>
+          h("div", {
+            key: String(i),
+            style: {
+              fontSize: 58, fontWeight: 700, fontFamily: "Inter",
+              color: "white", lineHeight: 1.2, textAlign: "center" as const,
+              display: "flex", flexWrap: "wrap" as const, justifyContent: "center",
+            },
+          }, sentence.toUpperCase())
+        )
+      )]
     : words.map((word, i) => {
         const isActive = i === activeIndex;
         return h("div", {
