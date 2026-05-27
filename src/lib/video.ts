@@ -65,8 +65,7 @@ function accentInfo(category: string): { accent: string; badgeText: string; labe
 
 /**
  * Renders the intro frame as a full opaque JPEG (1080×1920):
- * full-bleed photo + dark bottom gradient + top-left branding + bottom title/caption.
- * Matches the card style used in the dashboard post listing.
+ * dark background, full photo (no crop) centered, branding above, title/caption below.
  */
 async function renderIntroFrame(
   imageBuffer: Buffer,
@@ -75,9 +74,22 @@ async function renderIntroFrame(
 ): Promise<Buffer> {
   const { accent, badgeText, label } = accentInfo(content.category);
 
+  // Preserve the photo's aspect ratio — cap height so there's room for text
+  const meta = await sharp(imageBuffer).metadata();
+  const srcW = meta.width ?? 1080;
+  const srcH = meta.height ?? 1080;
+  const aspect = srcW / srcH;
+  const MAX_PHOTO_H = 1200;
+  let photoW = 1080;
+  let photoH = Math.round(1080 / aspect);
+  if (photoH > MAX_PHOTO_H) {
+    photoH = MAX_PHOTO_H;
+    photoW = Math.round(MAX_PHOTO_H * aspect);
+  }
+
   const photoResized = await sharp(imageBuffer)
-    .resize(1080, 1920, { fit: "cover", position: "centre" })
-    .jpeg({ quality: 90 })
+    .resize(photoW, photoH, { fit: "cover" })
+    .jpeg({ quality: 88 })
     .toBuffer();
   const photoDataUrl = `data:image/jpeg;base64,${photoResized.toString("base64")}`;
 
@@ -85,104 +97,82 @@ async function renderIntroFrame(
     h("div", {
       style: {
         width: 1080, height: 1920,
-        display: "flex", position: "relative",
-        overflow: "hidden", fontFamily: "Inter",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        background: "#0f0f0f",
+        fontFamily: "Inter",
       },
     },
-      // Full-bleed photo
-      h("img", {
-        src: photoDataUrl,
-        style: { position: "absolute", top: 0, left: 0, width: 1080, height: 1920 },
-      }),
-
-      // Top gradient scrim — ensures text is readable on light photos
       h("div", {
-        style: {
-          position: "absolute", top: 0, left: 0,
-          width: 1080, height: 800,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.70) 0%, rgba(0,0,0,0.30) 60%, transparent 100%)",
-        },
-      }),
-
-      // Bottom dark gradient
-      h("div", {
-        style: {
-          position: "absolute", bottom: 0, left: 0,
-          width: 1080, height: 1100,
-          background: "linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 45%, transparent 100%)",
-        },
-      }),
-
-      // Top-left: MUSICLEDGE badge + category label + artist name
-      // Positioned within Instagram safe zone (y > 420 for 9:16→1:1 square crop)
-      h("div", {
-        style: {
-          position: "absolute", top: 460, left: 60,
-          display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12,
-        },
+        style: { width: 1080, display: "flex", flexDirection: "column", alignItems: "center" },
       },
+        // ── Branding above the photo ───────────────────────────────
         h("div", {
           style: {
-            background: accent, borderRadius: 6,
-            paddingTop: 10, paddingBottom: 10, paddingLeft: 22, paddingRight: 22,
-            display: "flex",
+            width: 1080,
+            display: "flex", flexDirection: "column", alignItems: "flex-start",
+            paddingLeft: 60, paddingRight: 60, paddingBottom: 20,
+            gap: 8,
           },
         },
           h("div", {
             style: {
-              fontSize: 30, fontWeight: 700, letterSpacing: 2,
-              color: badgeText === "black" ? "black" : "white",
+              background: accent, borderRadius: 6,
+              paddingTop: 10, paddingBottom: 10, paddingLeft: 22, paddingRight: 22,
+              display: "flex",
             },
-          }, "MUSICLEDGE")
+          },
+            h("div", {
+              style: {
+                fontSize: 30, fontWeight: 700, letterSpacing: 2,
+                color: badgeText === "black" ? "black" : "white",
+              },
+            }, "MUSICLEDGE")
+          ),
+          h("div", {
+            style: { fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: 5, display: "flex" },
+          }, label),
+          h("div", {
+            style: {
+              fontFamily: "BebasNeue", fontSize: 72, fontWeight: 400,
+              color: "white", letterSpacing: 3, display: "flex", lineHeight: 1.0,
+            },
+          }, content.artist.toUpperCase()),
         ),
-        h("div", {
-          style: { fontSize: 24, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: 5, display: "flex" },
-        }, label),
-        h("div", {
-          style: {
-            fontFamily: "BebasNeue", fontSize: 80, fontWeight: 400,
-            color: "white", letterSpacing: 4, display: "flex",
-          },
-        }, content.artist.toUpperCase()),
-      ),
 
-      // Bottom: title + caption + accent line
-      // Positioned within Instagram safe zone (bottom > 420 for 9:16→1:1 square crop)
-      h("div", {
-        style: {
-          position: "absolute", bottom: 440, left: 0,
-          width: 1080,
-          display: "flex", flexDirection: "column",
-        },
-      },
+        // ── Full photo (no crop) ────────────────────────────────────
+        h("img", {
+          src: photoDataUrl,
+          style: { width: photoW, height: photoH },
+        }),
+
+        // ── Title + caption + accent line below the photo ──────────
         h("div", {
-          style: {
-            paddingLeft: 60, paddingRight: 60,
-            paddingBottom: content.imageCaption ? 16 : 24,
-            display: "flex",
-          },
+          style: { width: 1080, display: "flex", flexDirection: "column" },
         },
           h("div", {
             style: {
-              fontSize: 72, fontWeight: 700, color: "white",
-              lineHeight: 1.1,
+              paddingLeft: 60, paddingRight: 60,
+              paddingTop: 24,
+              paddingBottom: content.imageCaption ? 12 : 20,
+              display: "flex",
             },
-          }, content.title)
-        ),
-        content.imageCaption
-          ? h("div", {
-              style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 24, display: "flex" },
-            },
-              h("div", {
-                style: {
-                  fontSize: 36, fontWeight: 400,
-                  color: "rgba(255,255,255,0.75)", lineHeight: 1.35,
-                },
-              }, content.imageCaption)
-            )
-          : h("div", { style: { display: "flex" } }),
-        // Accent line
-        h("div", { style: { width: 1080, height: 8, background: accent } }),
+          },
+            h("div", {
+              style: { fontSize: 62, fontWeight: 700, color: "white", lineHeight: 1.1 },
+            }, content.title)
+          ),
+          content.imageCaption
+            ? h("div", {
+                style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 20, display: "flex" },
+              },
+                h("div", {
+                  style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.60)", lineHeight: 1.35 },
+                }, content.imageCaption)
+              )
+            : h("div", { style: { display: "flex" } }),
+          h("div", { style: { width: 1080, height: 8, background: accent } }),
+        )
       )
     ),
     { width: 1080, height: 1920, fonts: fonts as never }
