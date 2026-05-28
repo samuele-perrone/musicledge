@@ -292,7 +292,7 @@ async function renderWordOverlay(
         alignItems: "center", justifyContent: "space-between",
         background: "rgba(0,0,0,0.55)",
         fontFamily: "Inter",
-        padding: "480px 0 480px 0",
+        padding: "120px 0 120px 0",
       },
     },
       h("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 12 } },
