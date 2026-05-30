@@ -81,6 +81,7 @@ async function runCron() {
     const category = activeBreakingNews ? "music_story" : nextCategory;
     log.push(`Category: ${category} (cycle next: ${nextCategory}${activeBreakingNews ? ", overridden by breaking news" : ""})`);
 
+    console.log(`[cron] generating content, category=${category}`);
     const content = await generateStoryContent(
       usedArtists,
       category,
@@ -89,6 +90,7 @@ async function runCron() {
       activeBreakingNews ?? undefined
     );
     log.push(`Post: "${content.title}" — ${content.artist}`);
+    console.log(`[cron] content ready: "${content.title}" — ${content.artist}`);
 
     const affiliateUrl = buildAffiliateUrl(content.amazonSearchTerms);
     const post: GeneratedPost = {
@@ -103,6 +105,7 @@ async function runCron() {
     await savePost(post);
 
     // Fetch real image — never fall back to AI
+    console.log(`[cron] fetching image for ${content.artist}`);
     let imageBase64: string;
     if (category === "vinyl_art" && content.albumName) {
       const albumInfo = await searchAlbum(content.artist, content.albumName).catch(() => null);
@@ -127,6 +130,7 @@ async function runCron() {
     }
 
     // Compose cover image (for dashboard preview + intro reel frame)
+    console.log(`[cron] composing cover image`);
     const composedBuffer = await composeImage(imageBase64, content);
     post.imageBase64 = composedBuffer.toString("base64");
     const blobUrl = await uploadImageToBlob(composedBuffer, `posts/${post.id}.jpg`);
@@ -165,12 +169,14 @@ async function runCron() {
       artistPhotoBuffer ?? albumArts[1] ?? primaryBuffer,
     ];
 
+    console.log(`[cron] creating reel video`);
     const reelBuffer = await createKaraokeReelVideo(
       imageBuffers,
       slides,
       { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption },
       findAudioTrack(content.musicGenre)
     );
+    console.log(`[cron] reel encoded (${reelBuffer.length} bytes), uploading`);
     const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
     post.reelBlobUrl = reelBlobUrl;
     log.push(`Reel video: ${reelBlobUrl}`);
@@ -202,11 +208,12 @@ async function runCron() {
 
     // ── Instagram Reels ───────────────────────────────────────────────────────
     try {
+      console.log(`[cron] creating Instagram reel container`);
       const containerId = await createReelContainer(reelBlobUrl, caption);
       let status = "IN_PROGRESS";
       let attempts = 0;
-      while (status === "IN_PROGRESS" && attempts < 12) {
-        await new Promise((r) => setTimeout(r, 5000));
+      while (status === "IN_PROGRESS" && attempts < 8) {
+        await new Promise((r) => setTimeout(r, 4000));
         status = await checkContainerStatus(containerId);
         attempts++;
       }
@@ -223,6 +230,7 @@ async function runCron() {
 
     // ── Facebook Video ────────────────────────────────────────────────────────
     try {
+      console.log(`[cron] posting Facebook video`);
       const videoId = await postFacebookVideo(reelBlobUrl, caption, content.title);
       post.platforms.facebook = { status: "posted", postId: videoId, postedAt: new Date().toISOString() };
       log.push(`Facebook video: ${videoId}`);
