@@ -14,7 +14,7 @@ export async function getTodaysMusicEvent(date: Date): Promise<TodayEvent | null
   const monthDay = date.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 
   const response = await getClient().messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 512,
     messages: [{
       role: "user",
@@ -49,7 +49,7 @@ If nothing significant: null`,
 }
 
 function getClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 120_000 });
 }
 
 export async function getBreakingMusicNews(): Promise<string | null> {
@@ -86,7 +86,7 @@ export async function getBreakingMusicNews(): Promise<string | null> {
   if (headlines.length === 0) return null;
 
   const response = await getClient().messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 256,
     messages: [{
       role: "user",
@@ -300,7 +300,7 @@ export async function generateStoryContent(
   const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix;
 
   const response = await getClient().messages.create({
-    model: "claude-opus-4-6",
+    model: "claude-opus-4-7",
     max_tokens: 8192,
     messages: [{ role: "user", content: prompt }],
   });

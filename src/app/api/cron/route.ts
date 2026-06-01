@@ -253,6 +253,7 @@ async function runCron() {
     return NextResponse.json({ success: errors.length === 0, log, errors });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error(`[cron] FATAL:`, error);
     log.push(`FATAL: ${message}`);
     await sendErrorAlert([`FATAL: ${message}`]).catch(() => {});
     return NextResponse.json({ success: false, log, error: message }, { status: 500 });
