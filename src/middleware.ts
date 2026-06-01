@@ -16,8 +16,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow cron endpoint with its own auth
-  if (pathname === "/api/cron") {
+  // Allow cron and watchdog endpoints with their own auth
+  if (pathname === "/api/cron" || pathname === "/api/watchdog") {
     return NextResponse.next();
   }
 
