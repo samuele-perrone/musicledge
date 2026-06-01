@@ -355,12 +355,14 @@ export function buildRelatedLinks(
   overrides?: { spotifyUrl?: string; appleMusicUrl?: string; albumName?: string }
 ): RelatedLinks {
   const artistQ = artist.trim().replace(/\s+/g, "+");
-  // Use album name for search queries if available; fall back to artist-only
-  const searchSubject = overrides?.albumName ?? artist;
-  const searchQ = `${artist} ${searchSubject}`.trim().replace(/\s+/g, "+");
+  // For search queries, combine artist + album when available, otherwise artist only
+  const searchSubject = overrides?.albumName
+    ? `${artist} ${overrides.albumName}`
+    : artist;
+  const searchQ = searchSubject.trim().replace(/\s+/g, "+");
   const wikiSlug = artist.trim().replace(/ /g, "_");
   return {
-    spotify: overrides?.spotifyUrl ?? `https://open.spotify.com/search/${encodeURIComponent(`${artist} ${searchSubject}`)}`,
+    spotify: overrides?.spotifyUrl ?? `https://open.spotify.com/search/${encodeURIComponent(searchSubject)}`,
     youtube: `https://www.youtube.com/results?search_query=${searchQ}`,
     wikipedia: `https://en.wikipedia.org/wiki/${encodeURIComponent(wikiSlug)}`,
     appleMusic: overrides?.appleMusicUrl ?? `https://music.apple.com/search?term=${artistQ}`,
