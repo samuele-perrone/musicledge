@@ -9,13 +9,7 @@ export const maxDuration = 310;
 
 const STALE_MS = 5 * 60 * 60 * 1000; // 5 hours
 
-export async function GET(request: Request) {
-  const authHeader = request.headers.get("authorization");
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
+async function runWatchdog() {
   const posts = await loadPosts();
   const lastPost = posts[0];
   const ageMs = lastPost
@@ -43,4 +37,17 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ healthy: false, ageMinutes, retried: true, result });
+}
+
+export async function POST() {
+  return runWatchdog();
+}
+
+export async function GET(request: Request) {
+  const authHeader = request.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return runWatchdog();
 }
