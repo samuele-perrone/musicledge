@@ -212,8 +212,8 @@ async function runCron() {
       const containerId = await createReelContainer(reelBlobUrl, caption);
       let status = "IN_PROGRESS";
       let attempts = 0;
-      while (status === "IN_PROGRESS" && attempts < 8) {
-        await new Promise((r) => setTimeout(r, 4000));
+      while (status === "IN_PROGRESS" && attempts < 12) {
+        await new Promise((r) => setTimeout(r, 5000));
         status = await checkContainerStatus(containerId);
         attempts++;
       }
