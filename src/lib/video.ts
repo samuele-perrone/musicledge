@@ -27,15 +27,28 @@ const HEAVY_TRACKS = [
   "guitar_mayhem_3.mp3",
   "guitar_mayhem_4.mp3",
   "guitar_mayhem_5.mp3",
+  "guitar_mayhem_6.mp3",
+  "guitar_mayhem_7.mp3",
+  "guitar_mayhem_8.mp3",
+  "guitar_mayhem_9.mp3",
+  "guitar_mayhem_10.mp3",
   "extreme_sports_mayhem.mp3",
   "playin_in_the_dirt.mp3",
+  "training.mp3",
+  "hangin_ten.mp3",
+  "steamtech_mayhem.mp3",
 ];
 
 const MELODIC_TRACKS = [
   "rock_drama.mp3",
+  "rock_drama_2084.mp3",
   "rock_emotions_run_high.mp3",
   "rock_80s_summertime.mp3",
   "rock_outdoor_adventures.mp3",
+  "struttin_down_main.mp3",
+  "summertime_romance.mp3",
+  "chillin_with_friends.mp3",
+  "80s_teen_melodrama.mp3",
 ];
 
 /**
