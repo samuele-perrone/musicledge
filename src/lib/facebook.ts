@@ -48,8 +48,9 @@ export async function postFacebookPhoto(
 }
 
 /**
- * Posts a video to the Facebook Page feed via public URL.
- * Used for Reels / video posts from a Blob-hosted MP4.
+ * Posts a short video as a Facebook Reel via the /video_reels endpoint.
+ * Requires only pages_manage_posts + pages_read_engagement (no publish_video needed).
+ * Three-step flow: start → binary upload → finish/publish.
  */
 export async function postFacebookVideo(
   videoUrl: string,
@@ -60,19 +61,52 @@ export async function postFacebookVideo(
   if (!pageId) throw new Error("FACEBOOK_PAGE_ID not set");
   const token = await getPageAccessToken();
 
-  const body = new URLSearchParams({
-    file_url: videoUrl,
-    description: caption,
-    published: "true",
+  // Fetch video from blob storage
+  const videoRes = await fetch(videoUrl);
+  if (!videoRes.ok) throw new Error(`Failed to fetch reel from blob: ${videoRes.status}`);
+  const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
+  const fileSize = videoBuffer.length;
+
+  // Step 1 — initialise upload
+  const startBody = new URLSearchParams({
+    upload_phase: "start",
+    file_size: String(fileSize),
     access_token: token,
   });
-  if (title) body.set("title", title);
+  const startRes = await fetch(`${BASE}/${pageId}/video_reels`, { method: "POST", body: startBody });
+  const startData = await startRes.json() as { video_id?: string; upload_url?: string; error?: { message: string } };
+  if (startData.error) throw new Error(`Facebook video: ${startData.error.message}`);
+  const { video_id: videoId, upload_url: uploadUrl } = startData;
+  if (!videoId || !uploadUrl) throw new Error("Facebook video: missing video_id or upload_url");
 
-  const res = await fetch(`${BASE}/${pageId}/videos`, {
+  // Step 2 — binary upload
+  const uploadRes = await fetch(uploadUrl, {
     method: "POST",
-    body,
+    headers: {
+      Authorization: `OAuth ${token}`,
+      "Content-Type": "video/mp4",
+      offset: "0",
+      file_size: String(fileSize),
+    },
+    body: videoBuffer,
   });
-  const data = await res.json();
-  if (data.error) throw new Error(`Facebook video: ${data.error.message}`);
-  return data.id as string;
+  if (!uploadRes.ok) {
+    const text = await uploadRes.text();
+    throw new Error(`Facebook video upload: ${uploadRes.status} ${text}`);
+  }
+
+  // Step 3 — finish and publish
+  const finishBody = new URLSearchParams({
+    upload_phase: "finish",
+    video_id: videoId,
+    video_state: "PUBLISHED",
+    description: caption.slice(0, 2000),
+    access_token: token,
+  });
+  if (title) finishBody.set("title", title.slice(0, 255));
+  const finishRes = await fetch(`${BASE}/${pageId}/video_reels`, { method: "POST", body: finishBody });
+  const finishData = await finishRes.json() as { success?: boolean; error?: { message: string } };
+  if (finishData.error) throw new Error(`Facebook video: ${finishData.error.message}`);
+
+  return videoId;
 }
