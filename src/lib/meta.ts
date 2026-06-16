@@ -115,10 +115,18 @@ export async function getUserAccessToken(): Promise<string> {
 }
 
 /**
- * Exchanges the user token for a Page Access Token — required for Facebook
- * photo uploads and feed posts, which must be made as the Page itself.
+ * Returns a Page Access Token for Facebook page operations.
+ * Prefers the explicitly-configured FACEBOOK_PAGE_ACCESS_TOKEN (never-expiring)
+ * before falling back to exchanging the user token via the Graph API.
  */
 export async function getPageAccessToken(): Promise<string> {
+  // Prefer the explicitly configured page token (never-expiring, set up manually).
+  const explicitPageToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  if (explicitPageToken) {
+    console.log("[meta] Using FACEBOOK_PAGE_ACCESS_TOKEN");
+    return explicitPageToken;
+  }
+
   const pageId = process.env.FACEBOOK_PAGE_ID;
   const userToken = await getUserAccessToken();
 
@@ -130,10 +138,12 @@ export async function getPageAccessToken(): Promise<string> {
       );
       const data = await res.json() as { access_token?: string; error?: unknown };
       if (data.access_token && !data.error) {
+        console.log("[meta] Exchanged user token for page token");
         return data.access_token;
       }
-    } catch {
-      // Fall through to user token
+      console.warn("[meta] Page token exchange failed, falling back to user token", data);
+    } catch (e) {
+      console.warn("[meta] Page token exchange threw, falling back to user token", e);
     }
   }
 
