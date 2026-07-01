@@ -10,7 +10,6 @@ import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createKaraokeReelVideo, findAudioTrack } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
-import { postFacebookVideo } from "@/lib/facebook";
 import { createReelContainer, checkContainerStatus, publishMediaContainer } from "@/lib/instagram";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
@@ -228,22 +227,8 @@ async function runCron() {
       log.push(`Instagram Reel failed: ${msg}`);
     }
 
-    // ── Facebook Video ────────────────────────────────────────────────────────
-    try {
-      console.log(`[cron] posting Facebook video`);
-      const videoId = await postFacebookVideo(reelBlobUrl, caption, content.title);
-      post.platforms.facebook = { status: "posted", postId: videoId, postedAt: new Date().toISOString() };
-      log.push(`Facebook video: ${videoId}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      post.platforms.facebook = { status: "failed", error: msg };
-      errors.push(`Facebook video: ${msg}`);
-      log.push(`Facebook video failed: ${msg}`);
-    }
-
-    const allPosted = post.platforms.reel?.status === "posted" && post.platforms.facebook?.status === "posted";
-    const anyPosted = post.platforms.reel?.status === "posted" || post.platforms.facebook?.status === "posted";
-    post.status = allPosted ? "posted" : anyPosted ? "posted" : "failed";
+    post.platforms.facebook = { status: "skipped" };
+    post.status = post.platforms.reel?.status === "posted" ? "posted" : "failed";
     await savePost(post);
 
     if (errors.length > 0) {

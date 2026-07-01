@@ -8,7 +8,6 @@ type Tab = "dashboard" | "generate";
 
 const PLATFORM_META: Partial<Record<Platform, { label: string; icon: string; color: string }>> = {
   reel: { label: "Reel", icon: "🎬", color: "text-purple-400" },
-  facebook: { label: "Facebook", icon: "👥", color: "text-blue-400" },
   tiktok: { label: "TikTok", icon: "🎵", color: "text-cyan-400" },
   youtube: { label: "YouTube", icon: "▶️", color: "text-red-400" },
 };
@@ -26,7 +25,6 @@ export default function Home() {
   const [selectedPost, setSelectedPost] = useState<GeneratedPost | null>(null);
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([
     "reel",
-    "facebook",
   ]);
   const [selectedCategory, setSelectedCategory] = useState<PostCategory | "random">("random");
   const [breakingNews, setBreakingNews] = useState("");
@@ -212,7 +210,7 @@ export default function Home() {
         <div>
           <h1 className="text-xl font-bold tracking-tight text-amber-400">MusicLedge</h1>
           <p className="text-xs text-gray-500">
-            Rock &amp; Pop Stories • Instagram · Facebook
+            Rock &amp; Pop Stories • Instagram
           </p>
         </div>
         <nav className="flex gap-2 items-center">
