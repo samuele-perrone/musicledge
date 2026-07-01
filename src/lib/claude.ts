@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { StoryContent, PostCategory } from "@/types";
 
@@ -7,18 +8,37 @@ export interface TodayEvent {
   suggestedCategory: PostCategory; // vinyl_art for album anniversaries, music_story for birthdays/milestones
 }
 
+// Switch provider via AI_PROVIDER env var: "gemini" (default) or "claude"
+async function generate(prompt: string, maxTokens = 8192): Promise<string> {
+  const provider = process.env.AI_PROVIDER ?? "gemini";
+
+  if (provider === "claude") {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 120_000 });
+    const response = await client.messages.create({
+      model: "claude-opus-4-7",
+      max_tokens: maxTokens,
+      messages: [{ role: "user", content: prompt }],
+    });
+    return response.content[0].type === "text" ? response.content[0].text : "";
+  }
+
+  // Default: Gemini
+  const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+  const model = client.getGenerativeModel({
+    model: "gemini-2.5-pro",
+    generationConfig: { maxOutputTokens: maxTokens },
+  });
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
 export async function getTodaysMusicEvent(date: Date): Promise<TodayEvent | null> {
   const dateStr = date.toLocaleDateString("en-GB", {
     day: "numeric", month: "long", year: "numeric",
   });
   const monthDay = date.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
 
-  const response = await getClient().messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 512,
-    messages: [{
-      role: "user",
-      content: `Today is ${dateStr}. Is there a significant rock or pop music anniversary, birthday, or milestone on ${monthDay} that would make a compelling social media post for a music history brand?
+  const text = await generate(`Today is ${dateStr}. Is there a significant rock or pop music anniversary, birthday, or milestone on ${monthDay} that would make a compelling social media post for a music history brand?
 
 Focus on: artist birthdays (round numbers preferred), iconic album release anniversaries (especially round years like 25th, 30th, 40th, 50th), landmark recording sessions, or major career events.
 
@@ -31,14 +51,12 @@ If an event exists:
 
 For album cover/release anniversaries where the artwork is iconic, use "vinyl_art" instead.
 
-If nothing significant: null`,
-    }],
-  });
+If nothing significant: null`, 512);
 
-  const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-  if (text === "null" || !text || text.toLowerCase().includes("null")) return null;
+  const trimmed = text.trim();
+  if (trimmed === "null" || !trimmed || trimmed.toLowerCase().includes("null")) return null;
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
   if (!jsonMatch) return null;
 
   try {
@@ -46,10 +64,6 @@ If nothing significant: null`,
   } catch {
     return null;
   }
-}
-
-function getClient() {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 120_000 });
 }
 
 export async function getBreakingMusicNews(): Promise<string | null> {
@@ -85,18 +99,22 @@ export async function getBreakingMusicNews(): Promise<string | null> {
 
   if (headlines.length === 0) return null;
 
-  const response = await getClient().messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 256,
-    messages: [{
-      role: "user",
-      content: `Here are recent music news headlines from the last 48 hours. Is any of these significant breaking news that a rock and pop music history brand should feature immediately?\n\nThe brand covers: classic rock, alternative, indie, punk, metal, grunge, and iconic internationally known pop/soul artists (e.g. Michael Jackson, Prince, David Bowie, Elton John, Madonna, Whitney Houston, Stevie Wonder, Marvin Gaye, Amy Winehouse).\n\nDo NOT select headlines about: K-pop, modern pop acts, hip-hop, R&B, country, EDM, or niche/regional artists with limited international recognition.\n\nLook for: band reunions, surprise album drops, major artist deaths, landmark tours, major awards.\n\nHeadlines:\n${headlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join("\n")}\n\nIf yes, return ONLY the single most significant headline as plain text. If nothing qualifies, return null.`,
-    }],
-  });
+  const text = await generate(`Here are recent music news headlines from the last 48 hours. Is any of these significant breaking news that a rock and pop music history brand should feature immediately?
 
-  const text = response.content[0].type === "text" ? response.content[0].text.trim() : "";
-  if (!text || text.toLowerCase() === "null") return null;
-  return text;
+The brand covers: classic rock, alternative, indie, punk, metal, grunge, and iconic internationally known pop/soul artists (e.g. Michael Jackson, Prince, David Bowie, Elton John, Madonna, Whitney Houston, Stevie Wonder, Marvin Gaye, Amy Winehouse).
+
+Do NOT select headlines about: K-pop, modern pop acts, hip-hop, R&B, country, EDM, or niche/regional artists with limited international recognition.
+
+Look for: band reunions, surprise album drops, major artist deaths, landmark tours, major awards.
+
+Headlines:
+${headlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join("\n")}
+
+If yes, return ONLY the single most significant headline as plain text. If nothing qualifies, return null.`, 256);
+
+  const trimmed = text.trim();
+  if (!trimmed || trimmed.toLowerCase() === "null") return null;
+  return trimmed;
 }
 
 const ARTISTS_POOL = [
@@ -299,16 +317,9 @@ export async function generateStoryContent(
 
   const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix;
 
-  const response = await getClient().messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 8192,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await generate(prompt);
   const rawJson = extractFirstJson(text);
-  if (!rawJson) throw new Error("Failed to parse Claude response as JSON");
+  if (!rawJson) throw new Error("Failed to parse Gemini response as JSON");
 
   let content: StoryContent;
   try {
@@ -316,20 +327,20 @@ export async function generateStoryContent(
   } catch {
     // Salvage: replace smart quotes, dashes, and other non-ASCII punctuation
     const sanitized = rawJson
-      .replace(/[\u0000-\u001F\u007F]/g, " ")   // control chars
-      .replace(/[\u2018\u2019\u02BC\u0060]/g, "'") // smart single quotes
-      .replace(/[\u201C\u201D]/g, '"')             // smart double quotes
-      .replace(/[\u2013\u2014]/g, "-")             // en/em dashes
-      .replace(/[\u2026]/g, "...")                  // ellipsis
-      .replace(/[\u00A0]/g, " ");                   // non-breaking space
+      .replace(/[ -]/g, " ")   // control chars
+      .replace(/[‘’ʼ`]/g, "'") // smart single quotes
+      .replace(/[“”]/g, '"')             // smart double quotes
+      .replace(/[–—]/g, "-")             // en/em dashes
+      .replace(/[…]/g, "...")                  // ellipsis
+      .replace(/[ ]/g, " ");                   // non-breaking space
     try {
       content = JSON.parse(sanitized) as StoryContent;
     } catch (e2) {
-      throw new Error(`Claude JSON unparseable after sanitization: ${e2 instanceof Error ? e2.message : e2}\n\nRaw: ${rawJson.slice(0, 200)}`);
+      throw new Error(`Gemini JSON unparseable after sanitization: ${e2 instanceof Error ? e2.message : e2}\n\nRaw: ${rawJson.slice(0, 200)}`);
     }
   }
   // Always enforce category; only enforce artist when no breaking news
-  // (breaking news lets Claude set the artist from the news subject)
+  // (breaking news lets the model set the artist from the news subject)
   content.category = category;
   if (!breakingNews) content.artist = artist;
   return content;
@@ -355,7 +366,6 @@ export function buildRelatedLinks(
   overrides?: { spotifyUrl?: string; appleMusicUrl?: string; albumName?: string }
 ): RelatedLinks {
   const artistQ = artist.trim().replace(/\s+/g, "+");
-  // For search queries, combine artist + album when available, otherwise artist only
   const searchSubject = overrides?.albumName
     ? `${artist} ${overrides.albumName}`
     : artist;
@@ -378,4 +388,3 @@ export function buildRelatedLinksCaption(links: RelatedLinks, affiliateUrl: stri
     affiliateUrl ? `🛒 Find the vinyl: ${affiliateUrl}` : "",
   ].filter(Boolean).join("\n");
 }
-
