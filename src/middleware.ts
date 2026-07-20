@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Allow cron, watchdog, and token-reset endpoints with their own auth
-  if (pathname === "/api/cron" || pathname === "/api/watchdog" || pathname === "/api/token-reset") {
+  if (pathname === "/api/cron" || pathname === "/api/watchdog" || pathname === "/api/token-reset" || pathname === "/api/token-debug") {
     return NextResponse.next();
   }
 
