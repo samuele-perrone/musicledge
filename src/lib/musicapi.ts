@@ -169,7 +169,8 @@ async function searchArtistDeezer(
       items[0];
     if (!match) return null;
     const imageUrl = (match.picture_xl ?? match.picture_big ?? match.picture_medium) as string | undefined;
-    if (!imageUrl) return null;
+    // Deezer returns a placeholder URL with no image hash (double slash) when no photo exists
+    if (!imageUrl || imageUrl.includes("/artist//")) return null;
     return { imageUrl, artistName: match.name as string };
   } catch {
     return null;
