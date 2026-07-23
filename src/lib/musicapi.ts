@@ -167,10 +167,19 @@ async function searchArtistDeezer(
     const match =
       items.find((a) => (a.name as string)?.toLowerCase() === artist.toLowerCase()) ??
       items[0];
+    // d41d8cd98f00b204e9800998ecf8427e is md5("") — Deezer's placeholder for artists with no photo
+    const DEEZER_PLACEHOLDER = "d41d8cd98f00b204e9800998ecf8427e";
+    const hasRealPhoto = (item: Record<string, unknown>) => {
+      const url = (item.picture_xl ?? item.picture_big ?? item.picture_medium) as string | undefined;
+      return url && !url.includes(DEEZER_PLACEHOLDER) && !url.includes("/artist//");
+    };
+
+    // Prefer exact name match with a real photo, then any result with a real photo
+    const match =
+      items.find((a) => (a.name as string)?.toLowerCase() === artist.toLowerCase() && hasRealPhoto(a)) ??
+      items.find((a) => hasRealPhoto(a));
     if (!match) return null;
-    const imageUrl = (match.picture_xl ?? match.picture_big ?? match.picture_medium) as string | undefined;
-    // Deezer returns a placeholder URL with no image hash (double slash) when no photo exists
-    if (!imageUrl || imageUrl.includes("/artist//")) return null;
+    const imageUrl = (match.picture_xl ?? match.picture_big ?? match.picture_medium) as string;
     return { imageUrl, artistName: match.name as string };
   } catch {
     return null;
