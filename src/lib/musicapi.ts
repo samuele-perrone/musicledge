@@ -175,12 +175,12 @@ async function searchArtistDeezer(
     };
 
     // Prefer exact name match with a real photo, then any result with a real photo
-    const match =
+    const artistMatch =
       items.find((a) => (a.name as string)?.toLowerCase() === artist.toLowerCase() && hasRealPhoto(a)) ??
       items.find((a) => hasRealPhoto(a));
-    if (!match) return null;
-    const imageUrl = (match.picture_xl ?? match.picture_big ?? match.picture_medium) as string;
-    return { imageUrl, artistName: match.name as string };
+    if (!artistMatch) return null;
+    const imageUrl = (artistMatch.picture_xl ?? artistMatch.picture_big ?? artistMatch.picture_medium) as string;
+    return { imageUrl, artistName: artistMatch.name as string };
   } catch {
     return null;
   }
