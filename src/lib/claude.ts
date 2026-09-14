@@ -117,47 +117,238 @@ If yes, return ONLY the single most significant headline as plain text. If nothi
   return trimmed;
 }
 
+// How far back to look when blocking a recently used artist, widest window first.
+// Only the narrower tiers apply if ARTISTS_POOL is ever trimmed below the window.
+const RECENCY_TIERS = [90, 60, 30, 15, 5];
+
+// Anniversary and birthday posts are date-bound, so they use a tighter window
+// than the random rotation — but still far wider than the previous 3 posts.
+const EVENT_RECENCY = 30;
+
+// Artist pool for scheduled posts. Sized well above the recency window in
+// RECENCY_TIERS so the selector never has to fall back to a recently used artist.
 const ARTISTS_POOL = [
+  // Foundational rock, 60s and 70s
   "The Beatles",
+  "The Rolling Stones",
   "Led Zeppelin",
   "Pink Floyd",
-  "David Bowie",
+  "The Who",
+  "The Kinks",
+  "Cream",
+  "Deep Purple",
+  "Black Sabbath",
+  "Jefferson Airplane",
+  "The Byrds",
+  "Creedence Clearwater Revival",
+  "Santana",
+  "The Allman Brothers Band",
+  "Lynyrd Skynyrd",
+  "ZZ Top",
+  "AC/DC",
+  "Aerosmith",
+  "Thin Lizzy",
+  "Rush",
+  "Yes",
+  "Genesis",
+  "King Crimson",
+  "Jethro Tull",
+  "Roxy Music",
+  "T. Rex",
+  "The Band",
+  "Crosby, Stills & Nash",
+  "Simon & Garfunkel",
+  "The Beach Boys",
+  "Steely Dan",
+  "Eagles",
+  "Heart",
+  "Electric Light Orchestra",
   "Fleetwood Mac",
-  "The Rolling Stones",
   "Queen",
-  "Nirvana",
-  "Radiohead",
-  "Bruce Springsteen",
-  "Bob Dylan",
-  "Joni Mitchell",
-  "Tom Waits",
-  "The Velvet Underground",
-  "R.E.M.",
-  "Talking Heads",
-  "Joy Division",
-  "The Clash",
-  "Blondie",
-  "Patti Smith",
-  "Neil Young",
   "The Doors",
   "Jimi Hendrix",
   "Janis Joplin",
   "Grateful Dead",
-  "The Smiths",
-  "Depeche Mode",
+  "Neil Young",
+  "Bruce Springsteen",
+  "David Bowie",
+
+  // Songwriters and roots
+  "Bob Dylan",
+  "Joni Mitchell",
+  "Tom Waits",
+  "Leonard Cohen",
+  "Van Morrison",
+  "Nick Drake",
+  "Carole King",
+  "Johnny Cash",
+  "Roy Orbison",
+  "Chuck Berry",
+  "Little Richard",
+  "Buddy Holly",
+  "Elvis Presley",
+  "Paul Simon",
+  "Billy Joel",
+
+  // Punk, post-punk and new wave
+  "Ramones",
+  "Sex Pistols",
+  "The Clash",
+  "The Damned",
+  "Buzzcocks",
+  "The Jam",
+  "Elvis Costello",
+  "Television",
+  "The Stooges",
+  "MC5",
+  "New York Dolls",
+  "Patti Smith",
+  "Blondie",
+  "Dead Kennedys",
+  "Black Flag",
+  "Bad Brains",
+  "Hüsker Dü",
+  "The Replacements",
+  "Devo",
+  "Talking Heads",
+  "The Velvet Underground",
+  "Joy Division",
   "New Order",
-  "Sonic Youth",
+  "The Cure",
+  "Siouxsie and the Banshees",
+  "Bauhaus",
+  "The Specials",
+  "Madness",
+  "The Police",
+  "XTC",
+  "Gang of Four",
+  "Wire",
+  "Echo and the Bunnymen",
+  "Depeche Mode",
+  "The Smiths",
+
+  // Shoegaze, Britpop and 90s alternative
+  "The Jesus and Mary Chain",
+  "Cocteau Twins",
+  "My Bloody Valentine",
+  "Slowdive",
+  "Ride",
+  "The Stone Roses",
+  "Happy Mondays",
+  "Primal Scream",
+  "Oasis",
+  "Blur",
+  "Pulp",
+  "Suede",
+  "Manic Street Preachers",
+  "The Verve",
+  "Massive Attack",
+  "Portishead",
+  "Radiohead",
+  "Jeff Buckley",
+  "Nick Cave and the Bad Seeds",
+  "Tori Amos",
+  "Fiona Apple",
+  "PJ Harvey",
+  "Kate Bush",
+  "Björk",
+  "Hole",
+  "Garbage",
+  "The Breeders",
   "Pixies",
-  "Smashing Pumpkins",
+  "Dinosaur Jr.",
+  "Sonic Youth",
+  "Mudhoney",
+  "Nirvana",
   "Pearl Jam",
   "Soundgarden",
   "Alice in Chains",
-  "Foo Fighters",
-  "Weezer",
+  "Stone Temple Pilots",
+  "Rage Against the Machine",
+  "Jane's Addiction",
+  "Red Hot Chili Peppers",
+  "Faith No More",
+  "Pavement",
+  "Elliott Smith",
   "Beck",
-  "Bjork",
-  "PJ Harvey",
-  "Kate Bush",
+  "Weezer",
+  "Foo Fighters",
+  "R.E.M.",
+  "Smashing Pumpkins",
+
+  // Indie and art rock, 2000s onward
+  "The Flaming Lips",
+  "Wilco",
+  "Modest Mouse",
+  "Belle and Sebastian",
+  "Neutral Milk Hotel",
+  "Gorillaz",
+  "The Strokes",
+  "The White Stripes",
+  "Arctic Monkeys",
+  "Interpol",
+  "Yeah Yeah Yeahs",
+  "The Killers",
+  "Franz Ferdinand",
+  "LCD Soundsystem",
+  "Arcade Fire",
+  "The National",
+  "Vampire Weekend",
+  "Spoon",
+  "Death Cab for Cutie",
+  "TV on the Radio",
+  "Sigur Rós",
+  "Muse",
+  "Coldplay",
+  "The Libertines",
+
+  // Metal and hard rock
+  "Metallica",
+  "Iron Maiden",
+  "Judas Priest",
+  "Motörhead",
+  "Slayer",
+  "Megadeth",
+  "Anthrax",
+  "Pantera",
+  "Slipknot",
+  "System of a Down",
+  "Tool",
+  "Mastodon",
+  "Queens of the Stone Age",
+  "Ozzy Osbourne",
+  "Van Halen",
+  "Guns N' Roses",
+  "Def Leppard",
+  "Scorpions",
+
+  // Iconic pop and soul
+  "Michael Jackson",
+  "Prince",
+  "Madonna",
+  "Elton John",
+  "Whitney Houston",
+  "Stevie Wonder",
+  "Marvin Gaye",
+  "Amy Winehouse",
+  "Aretha Franklin",
+  "Ray Charles",
+  "James Brown",
+  "Otis Redding",
+  "Sam Cooke",
+  "Nina Simone",
+  "Tina Turner",
+  "Diana Ross",
+  "Al Green",
+  "Curtis Mayfield",
+  "Sly and the Family Stone",
+  "Earth, Wind & Fire",
+  "Chic",
+  "Donna Summer",
+  "George Michael",
+  "Peter Gabriel",
+  "Dusty Springfield",
+  "Annie Lennox",
 ];
 
 function buildMusicStoryPrompt(artist: string): string {
@@ -267,18 +458,23 @@ export async function generateStoryContent(
   recentSummaries: { artist: string; title: string; category: string }[] = [],
   breakingNews?: string
 ): Promise<StoryContent> {
-  // Artists posted in the last 3 posts — block them from being selected again
-  const last3Artists = new Set(recentSummaries.slice(0, 3).map((s) => s.artist.toLowerCase()));
-
-  const available = ARTISTS_POOL.filter(
-    (a) => !usedArtists.includes(a) && !last3Artists.has(a.toLowerCase())
-  );
-  const pool = available.length > 0 ? available : ARTISTS_POOL.filter((a) => !last3Artists.has(a.toLowerCase()));
-  const finalPool = pool.length > 0 ? pool : ARTISTS_POOL;
+  // Pick an artist that has not featured recently, widening the window only as
+  // far as needed. The previous version fell straight back to "anything not in
+  // the last 3 posts" whenever the pool was exhausted, which let the same artist
+  // reappear within a few days.
+  const recent = usedArtists.map((a) => a.toLowerCase());
+  let finalPool: string[] = [];
+  for (const tier of RECENCY_TIERS) {
+    const blocked = new Set(recent.slice(0, tier));
+    finalPool = ARTISTS_POOL.filter((a) => !blocked.has(a.toLowerCase()));
+    if (finalPool.length > 0) break;
+  }
+  if (finalPool.length === 0) finalPool = ARTISTS_POOL;
   const randomArtist = finalPool[Math.floor(Math.random() * finalPool.length)];
 
-  // Event takes priority, but skip if that artist was in the last 3 posts
-  const eventArtist = todayEvent && !last3Artists.has(todayEvent.artist.toLowerCase())
+  // Event takes priority, but skip if that artist featured recently
+  const eventBlocked = new Set(recent.slice(0, EVENT_RECENCY));
+  const eventArtist = todayEvent && !eventBlocked.has(todayEvent.artist.toLowerCase())
     ? todayEvent.artist
     : undefined;
   const artist = eventArtist ?? randomArtist;
