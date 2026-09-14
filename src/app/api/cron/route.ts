@@ -60,12 +60,14 @@ async function runCron() {
     if (breakingNews) log.push(`Breaking news: ${breakingNews}`);
     if (todayEvent) log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
 
-    const usedArtists = await getRecentArtists(40);
+    // Pulled deeper than the prompt summaries: this list only blocks artist reuse,
+    // so it can cover a wide window without inflating the generation prompt.
+    const usedArtists = await getRecentArtists(90);
     const recentSummaries = await getRecentPostSummaries(40);
 
-    // Suppress breaking news if the artist was already covered in the last 3 posts
-    const last3Artists = recentSummaries.slice(0, 3).map((s) => s.artist.toLowerCase());
-    const newsAboutRecentArtist = breakingNews && last3Artists.some((a) =>
+    // Suppress breaking news if the artist was already covered recently
+    const recentNewsArtists = usedArtists.slice(0, 10).map((a) => a.toLowerCase());
+    const newsAboutRecentArtist = breakingNews && recentNewsArtists.some((a) =>
       a.split(/[\s/,]+/).some((word) => word.length > 3 && breakingNews.toLowerCase().includes(word))
     );
     const activeBreakingNews = newsAboutRecentArtist ? null : breakingNews;

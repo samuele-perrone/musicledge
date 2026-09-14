@@ -9,7 +9,7 @@
  * error — manual re-authentication is required in that case.
  */
 
-import { getStoredMetaToken, setStoredMetaToken } from "./store";
+import { getStoredMetaToken, setStoredMetaToken, clearStoredMetaToken } from "./store";
 
 const BASE = "https://graph.facebook.com/v21.0";
 const REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000; // refresh if < 7 days left
@@ -62,8 +62,12 @@ export async function getUserAccessToken(): Promise<string> {
   if (stored) {
     const expiresMs = stored.expiresAt * 1000;
     if (expiresMs - nowMs > REFRESH_THRESHOLD_MS) {
-      // Still fresh — use as-is
-      return stored.token;
+      // Validate with Facebook before trusting — catches revoked/permission-stripped tokens
+      const info = await debugToken(stored.token).catch(() => null);
+      if (info?.isValid) return stored.token;
+      // Token invalid despite not being expired — clear stale cache and fall through
+      console.log("[meta] Cached token failed validation, clearing Redis cache");
+      await clearStoredMetaToken().catch(() => {});
     }
     // Expiring soon — fall through to refresh using the stored token
     const refreshed = await exchangeForLongLivedToken(stored.token);

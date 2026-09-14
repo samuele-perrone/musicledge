@@ -94,3 +94,9 @@ export async function setStoredMetaToken(token: string, expiresAt: number): Prom
   if (!redis) return;
   await redis.set(META_TOKEN_KEY, { token, expiresAt });
 }
+
+export async function clearStoredMetaToken(): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  await redis.del(META_TOKEN_KEY);
+}

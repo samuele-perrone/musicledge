@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     ]);
     const breakingNews = manualNews ?? autoNews ?? undefined;
 
-    const usedArtists = await getRecentArtists(40);
+    const usedArtists = await getRecentArtists(90);
     const recentSummaries = await getRecentPostSummaries(40);
     const category = forceCategory ?? todayEvent?.suggestedCategory;
     const content = await generateStoryContent(

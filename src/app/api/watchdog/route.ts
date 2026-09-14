@@ -1,13 +1,17 @@
 /**
- * Watchdog cron — runs every 12 hours.
- * Checks if the last post is stale (>5 hours old) and auto-retries the cron if so.
+ * Watchdog cron — runs ~1 hour after each posting slot (09:30 and 12:30 UTC).
+ * Checks if the last post is stale and auto-retries the cron if so.
+ *
+ * STALE_MS must be wider than the gap between a posting slot and the watchdog
+ * that follows it, but narrower than the gap back to the previous slot, so a
+ * missed run is caught without firing on a healthy schedule.
  */
 import { NextResponse } from "next/server";
 import { loadPosts } from "@/lib/store";
 
 export const maxDuration = 310;
 
-const STALE_MS = 5 * 60 * 60 * 1000; // 5 hours
+const STALE_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 async function runWatchdog() {
   const posts = await loadPosts();
