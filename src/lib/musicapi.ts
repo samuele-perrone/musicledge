@@ -7,23 +7,130 @@
  */
 
 export interface AlbumInfo {
-  artworkUrl: string;     // high-res JPEG from iTunes CDN (up to 3000×3000)
-  appleMusicUrl: string;  // direct Apple Music album page
-  albumName: string;      // canonical album name from iTunes
-  artistName: string;     // canonical artist name from iTunes
-  spotifyUrl?: string;    // direct Spotify album URL (if Spotify creds available)
+  artworkUrl: string;      // high-res sleeve JPEG (iTunes up to 3000×3000, Deezer 1800×1800)
+  appleMusicUrl?: string;  // direct Apple Music album page — absent on Deezer results
+  albumName: string;       // canonical album name from the provider
+  artistName: string;      // canonical artist name from the provider
+  spotifyUrl?: string;     // direct Spotify album URL (if Spotify creds available)
+  source: "apple" | "deezer"; // which provider supplied the artwork, for the caption credit
+}
+
+// ─── Artist name matching ────────────────────────────────────────────────────
+
+/** Folds accents, punctuation and ampersands so "R.E.M." and "Earth, Wind & Fire" compare cleanly. */
+function normaliseArtistName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+const withoutLeadingThe = (s: string) => s.replace(/^the/, "");
+
+/** Normalises an album title: drops "(Deluxe Edition)" style suffixes and punctuation. */
+function normaliseAlbumName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\(.*?\)|\[.*?\]/g, " ")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+/**
+ * Ranks how well a release title matches the album we asked for. 0 means no match.
+ *
+ * Selection previously keyed on the album's first word, so "The Dark Side of the
+ * Moon" matched on "the" and happily returned "The Wall" — a vinyl_art post would
+ * then describe one sleeve while showing another.
+ */
+/**
+ * True when a release is a variant whose sleeve differs from the studio album —
+ * a single, EP, live record or instrumental cut. Markers present in the requested
+ * title do not count, so asking for "Live at Leeds" still matches the live album.
+ */
+function isAlternateRelease(candidate: string | undefined, wanted: string): boolean {
+  const c = (candidate ?? "").toLowerCase();
+  const w = wanted.toLowerCase();
+  const marker = (re: RegExp) => re.test(c) && !re.test(w);
+  return (
+    marker(/\s[-–—]\s(single|ep)\b/) ||
+    marker(/\blive\b/) ||
+    marker(/\binstrumental\b/) ||
+    marker(/\bkaraoke\b/)
+  );
+}
+
+function albumMatchScore(candidate: string | undefined, wanted: string): number {
+  if (!candidate) return 0;
+  const c = normaliseAlbumName(candidate);
+  const w = normaliseAlbumName(wanted);
+  if (!c || !w) return 0;
+  if (c === w) return 3;
+  if (c.startsWith(w) || w.startsWith(c)) return 2;
+  if (c.includes(w)) return 1;
+  return 0;
+}
+
+/**
+ * True when a search result genuinely refers to the artist we asked for.
+ *
+ * Every provider here returns fuzzy, popularity-ranked results, so taking the
+ * first hit means a search for one artist can quietly return another act's
+ * photo or artwork. Matching is therefore exact after normalisation, with one
+ * allowance: a credited variant that extends the name ("Bruce Springsteen &
+ * The E Street Band"). The reverse is not allowed — "Queens" must not satisfy
+ * a search for "Queens of the Stone Age".
+ */
+export function artistNameMatches(candidate: string | undefined, wanted: string): boolean {
+  if (!candidate) return false;
+  const c = normaliseArtistName(candidate);
+  const w = normaliseArtistName(wanted);
+  if (!c || !w) return false;
+  if (c === w) return true;
+
+  const cBare = withoutLeadingThe(c);
+  const wBare = withoutLeadingThe(w);
+  if (cBare === wBare) return true;
+
+  // Long enough that a shared prefix cannot be coincidental.
+  return wBare.length >= 5 && cBare.startsWith(wBare);
 }
 
 // ─── iTunes ──────────────────────────────────────────────────────────────────
 
+/** Album artwork, preferring iTunes (higher resolution, carries the Apple Music link). */
 export async function searchAlbum(
+  artist: string,
+  albumName: string
+): Promise<AlbumInfo | null> {
+  const itunes = await searchAlbumItunes(artist, albumName);
+  if (itunes && !isAlternateRelease(itunes.albumName, albumName)) return itunes;
+
+  // iTunes found nothing, or only a variant sleeve. Searching "Ace of Spades"
+  // there returns singles and live cuts but never the album, so try Deezer before
+  // settling for artwork that is not the record the post describes.
+  const deezer = await searchAlbumDeezer(artist, albumName);
+  if (deezer && !isAlternateRelease(deezer.albumName, albumName)) return deezer;
+
+  return itunes ?? deezer;
+}
+
+async function searchAlbumItunes(
   artist: string,
   albumName: string
 ): Promise<AlbumInfo | null> {
   try {
     const query = encodeURIComponent(`${artist} ${albumName}`);
     const res = await fetch(
-      `https://itunes.apple.com/search?term=${query}&entity=album&limit=5`,
+      // Wide limit: iTunes mixes reissues, singles and compilations into the top
+      // results, so the actual album is often outside the first handful.
+      `https://itunes.apple.com/search?term=${query}&entity=album&limit=25`,
       { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return null;
@@ -33,17 +140,25 @@ export async function searchAlbum(
     if (results.length === 0) return null;
 
     // Require artist name match, then prefer closest album name match
-    const artistLower = artist.toLowerCase();
-    const albumLower = albumName.toLowerCase();
-    const artistMatches = results.filter((r) =>
-      r.artistName?.toLowerCase().includes(artistLower) ||
-      artistLower.includes(r.artistName?.toLowerCase() ?? "____")
-    );
-    const pool = artistMatches.length > 0 ? artistMatches : [];
+    const pool = results.filter((r) => artistNameMatches(r.artistName, artist));
     if (pool.length === 0) return null; // don't fall back to wrong artist
-    const best =
-      pool.find((r) => r.collectionName?.toLowerCase().includes(albumLower.split(" ")[0])) ??
-      pool[0];
+    // Highest album score wins; ties go to the shortest title, which favours the
+    // original release over live, deluxe and anniversary reissues.
+    let best: Record<string, string> | undefined;
+    let bestScore = 0;
+    for (const r of pool) {
+      const base = albumMatchScore(r.collectionName, albumName);
+      if (base === 0) continue;
+      const score = isAlternateRelease(r.collectionName, albumName) ? base - 0.5 : base;
+      const better =
+        score > bestScore ||
+        (score === bestScore && best !== undefined &&
+          (r.collectionName?.length ?? 0) < (best.collectionName?.length ?? 0));
+      if (better) { best = r; bestScore = score; }
+    }
+    // Returning null lets the caller fall back to an artist photo. For a post about
+    // a specific sleeve, no album art beats confidently showing the wrong one.
+    if (!best) return null;
 
     // iTunes artwork comes as 100×100; replace with 3000×3000
     const artworkUrl = best.artworkUrl100?.replace("100x100bb", "3000x3000bb");
@@ -54,11 +169,65 @@ export async function searchAlbum(
       appleMusicUrl: best.collectionViewUrl,
       albumName: best.collectionName,
       artistName: best.artistName,
+      source: "apple",
     };
 
     info.spotifyUrl = (await getSpotifyAlbumUrl(artist, albumName)) ?? undefined;
 
     return info;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Album artwork via Deezer, used when iTunes cannot find the record.
+ *
+ * The iTunes Search API has real gaps: Nevermind, The Dark Side of the Moon and
+ * Appetite for Destruction return only tribute and covers records, no matter how
+ * the query is phrased. Deezer carries all of them, so without this fallback the
+ * most famous sleeves in the catalogue could never illustrate a vinyl_art post.
+ */
+async function searchAlbumDeezer(artist: string, albumName: string): Promise<AlbumInfo | null> {
+  try {
+    const res = await fetch(
+      `https://api.deezer.com/search/album?q=${encodeURIComponent(`${albumName} ${artist}`)}&limit=25`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const items: Record<string, unknown>[] = data.data ?? [];
+
+    let best: Record<string, unknown> | undefined;
+    let bestScore = 0;
+    for (const r of items) {
+      const candidateArtist = (r.artist as { name?: string } | undefined)?.name;
+      if (!artistNameMatches(candidateArtist, artist)) continue;
+      const base = albumMatchScore(r.title as string, albumName);
+      if (base === 0) continue;
+      const notAnAlbum = r.record_type !== undefined && r.record_type !== "album";
+      const score =
+        notAnAlbum || isAlternateRelease(r.title as string, albumName) ? base - 0.5 : base;
+      const better =
+        score > bestScore ||
+        (score === bestScore && best !== undefined &&
+          ((r.title as string)?.length ?? 0) < ((best.title as string)?.length ?? 0));
+      if (better) { best = r; bestScore = score; }
+    }
+    if (!best) return null;
+
+    const cover = (best.cover_xl ?? best.cover_big) as string | undefined;
+    if (!cover) return null;
+
+    return {
+      // Deezer serves the sleeve at any size from the same path; 1000 is the
+      // documented xl but 1800 renders cleanly on a 1080-wide canvas.
+      artworkUrl: cover.replace("1000x1000", "1800x1800"),
+      albumName: best.title as string,
+      artistName: (best.artist as { name: string }).name,
+      spotifyUrl: (await getSpotifyAlbumUrl(artist, albumName)) ?? undefined,
+      source: "deezer",
+    };
   } catch {
     return null;
   }
@@ -108,10 +277,7 @@ export async function searchArtistInfo(artist: string): Promise<ArtistInfo | nul
     if (res.ok) {
       const data = await res.json();
       const results: Record<string, string>[] = data.results ?? [];
-      const match = results.find((r) =>
-        r.artistName?.toLowerCase().includes(artist.toLowerCase()) ||
-        artist.toLowerCase().includes(r.artistName?.toLowerCase() ?? "____")
-      );
+      const match = results.find((r) => artistNameMatches(r.artistName, artist));
       if (match?.artworkUrl100) {
         const artworkUrl = match.artworkUrl100.replace("100x100bb", "3000x3000bb");
         return {
@@ -142,10 +308,9 @@ async function searchArtistItunes(
     if (!res.ok) return null;
     const data = await res.json();
     const results: Record<string, string>[] = data.results ?? [];
-    const match =
-      results.find((r) =>
-        r.artistName?.toLowerCase() === artist.toLowerCase()
-      ) ?? results[0];
+    // No results[0] fallback: iTunes ranks by popularity, so the first hit for an
+    // unmatched query is simply a different artist.
+    const match = results.find((r) => artistNameMatches(r.artistName, artist));
     if (!match?.artistLinkUrl) return null;
     return { appleMusicUrl: match.artistLinkUrl, artistName: match.artistName };
   } catch {
@@ -158,15 +323,15 @@ async function searchArtistDeezer(
 ): Promise<{ imageUrl: string; artistName: string } | null> {
   try {
     const res = await fetch(
-      `https://api.deezer.com/search/artist?q=${encodeURIComponent(artist)}&limit=5`,
+      // Wide limit on purpose: common names return many namesakes, and the real act
+      // is often outside the top 5 (searching "Genesis" or "Madness" does not surface
+      // the famous band early). The name match plus fan-count tiebreak below picks it.
+      `https://api.deezer.com/search/artist?q=${encodeURIComponent(artist)}&limit=25`,
       { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return null;
     const data = await res.json();
     const items: Record<string, unknown>[] = data.data ?? [];
-    const match =
-      items.find((a) => (a.name as string)?.toLowerCase() === artist.toLowerCase()) ??
-      items[0];
     // d41d8cd98f00b204e9800998ecf8427e is md5("") — Deezer's placeholder for artists with no photo
     const DEEZER_PLACEHOLDER = "d41d8cd98f00b204e9800998ecf8427e";
     const hasRealPhoto = (item: Record<string, unknown>) => {
@@ -174,11 +339,18 @@ async function searchArtistDeezer(
       return url && !url.includes(DEEZER_PLACEHOLDER) && !url.includes("/artist//");
     };
 
-    // Prefer exact name match with a real photo, then any result with a real photo
-    const artistMatch =
-      items.find((a) => (a.name as string)?.toLowerCase() === artist.toLowerCase() && hasRealPhoto(a)) ??
-      items.find((a) => hasRealPhoto(a));
-    if (!artistMatch) return null;
+    // Must be this artist. The previous version fell back to any result carrying a
+    // photo, so a search that failed to match returned an unrelated act's picture.
+    const candidates = items.filter(
+      (a) => artistNameMatches(a.name as string, artist) && hasRealPhoto(a)
+    );
+    if (candidates.length === 0) return null;
+
+    // Distinct acts share a name — "Oasis" returns four — and Deezer's ordering can
+    // put a 400-fan namesake above the 4.7M-fan band, so the first exact match is
+    // not necessarily the right one. Take the most followed.
+    const fanCount = (a: Record<string, unknown>) => (a.nb_fan as number) ?? 0;
+    const artistMatch = candidates.reduce((best, a) => (fanCount(a) > fanCount(best) ? a : best));
     const imageUrl = (artistMatch.picture_xl ?? artistMatch.picture_big ?? artistMatch.picture_medium) as string;
     return { imageUrl, artistName: artistMatch.name as string };
   } catch {
@@ -196,7 +368,7 @@ async function searchArtistSpotify(
     // Try field-filtered search first, fall back to plain query
     const trySearch = async (q: string) => {
       const res = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=artist&limit=5`,
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=artist&limit=25`,
         { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) }
       );
       console.log(`[spotify] search "${q}" → ${res.status}`);
@@ -206,11 +378,18 @@ async function searchArtistSpotify(
     };
     let items = await trySearch(`artist:${artist}`);
     if (items.length === 0) items = await trySearch(artist);
-    const match =
-      items.find(
-        (a: Record<string, unknown>) =>
-          (a.name as string)?.toLowerCase() === artist.toLowerCase()
-      ) ?? items[0];
+    // No items[0] fallback — an unmatched Spotify search returns another artist,
+    // whose press photo would then be published as this artist's. Among genuine
+    // name matches, prefer the most followed so a namesake cannot win.
+    const spotifyCandidates = items.filter((a: Record<string, unknown>) =>
+      artistNameMatches(a.name as string, artist)
+    );
+    const followers = (a: Record<string, unknown>) =>
+      ((a.followers as { total?: number } | undefined)?.total) ?? 0;
+    const match = spotifyCandidates.length
+      ? spotifyCandidates.reduce((best: Record<string, unknown>, a: Record<string, unknown>) =>
+          (followers(a) > followers(best) ? a : best))
+      : undefined;
     console.log(`[spotify] match=${match?.name ?? "none"}, images=${match?.images?.length ?? 0}`);
     if (!match) return null;
     // Pick the largest image
@@ -247,13 +426,11 @@ export async function searchAdditionalImages(
 
     const data = await res.json();
     const results: Record<string, string>[] = data.results ?? [];
-    const artistLower = artist.toLowerCase();
     const seen = new Set<string>();
     const urls: string[] = [];
 
     for (const r of results) {
-      const rArtist = (r.artistName ?? "").toLowerCase();
-      if (!rArtist.includes(artistLower) && !artistLower.includes(rArtist)) continue;
+      if (!artistNameMatches(r.artistName, artist)) continue;
       const url = r.artworkUrl100?.replace("100x100bb", "600x600bb");
       if (!url || seen.has(url)) continue;
       seen.add(url);

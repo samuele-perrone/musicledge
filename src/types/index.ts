@@ -1,3 +1,5 @@
+import type { AlbumInfo } from "@/lib/musicapi";
+
 export type PostCategory = "music_story" | "vinyl_art" | "harmony";
 
 export interface StoryContent {
@@ -43,13 +45,9 @@ export interface GeneratedPost {
   todayEvent?: string;         // e.g. "50th anniversary of Dark Side of the Moon"
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
-  albumInfo?: {               // populated for vinyl_art posts when iTunes lookup succeeds
-    artworkUrl: string;
-    appleMusicUrl: string;
-    albumName: string;
-    artistName: string;
-    spotifyUrl?: string;
-  };
+  // Populated for vinyl_art posts when an album lookup succeeds (iTunes, else Deezer).
+  // Mirrors AlbumInfo in lib/musicapi rather than redeclaring a narrower shape.
+  albumInfo?: AlbumInfo;
   artistInfo?: {              // populated for music_story/harmony posts
     imageUrl: string;
     isArtistPhoto: boolean;   // true = real press photo (Deezer/Spotify); false = iTunes album art fallback

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     });
     const linksBlock = buildRelatedLinksCaption(relatedLinks, post.affiliateUrl ?? "");
     const creditLine = post.albumInfo
-      ? `\n📷 Album artwork © ${post.albumInfo.artistName}, via @applemusic`
+      ? `\n📷 Album artwork © ${post.albumInfo.artistName}, via ${post.albumInfo.source === "deezer" ? "@deezer" : "@applemusic"}`
       : post.artistInfo
       ? `\n📷 Photo © ${post.artistInfo.artistName}, via @spotify`
       : "";
