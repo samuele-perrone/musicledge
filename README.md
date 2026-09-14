@@ -1,222 +1,177 @@
 # Musicledge
 
-An automated social media bot for a music history brand. Every day it generates a richly formatted post about rock and pop music history — complete with real album artwork or artist photography — and publishes it across Instagram Stories, Facebook, and optionally Instagram Reels, TikTok, and YouTube Shorts.
+An automated social media bot for a music history brand. Twice a day it generates a post about rock and pop music history — complete with real album artwork or artist photography — composes it into a vertical video, and publishes it as an Instagram Reel.
 
 Inspired by accounts like @explainingpaintings, but for music.
 
 **Live dashboard:** https://musicledge.vercel.app
 **Instagram:** https://www.instagram.com/musicledge/
-**Facebook:** https://www.facebook.com/musicledge
 
 ---
 
 ## What it does
 
-Musicledge runs on a daily schedule. At **7:30am BST (6:30 UTC)** it:
+Musicledge runs on a schedule. At **08:30 and 11:30 UTC** it:
 
 1. Checks for a breaking music news story (from NME, Rolling Stone, Pitchfork RSS feeds)
 2. Checks whether today is a significant music anniversary or birthday
-3. Picks an artist from a curated pool (avoiding recent repeats)
-4. Generates a full post using Claude — story, caption, 3 story slide texts, hashtags, image prompt, artist Instagram handle, and relevant accounts to tag
-5. Fetches real album art from iTunes or a real artist photo from Spotify
-6. Composes branded 1080×1920 Story slides using Sharp + Satori
-7. Publishes each slide as an individual Instagram Story (with artist/account mention notifications)
-8. Posts the cover image to Facebook
-9. Sends an error alert email if anything fails
+3. Picks an artist from a 208-strong curated pool, avoiding anyone featured recently
+4. Generates the post — story, caption, 3 slide texts, hashtags, artist Instagram handle
+5. Fetches a real album cover or artist press photo (never AI-generated on the cron path)
+6. Composes branded 1080×1920 frames and encodes them into a reel with a music bed
+7. Publishes the reel to Instagram, tagging the artist when the handle can be verified
+8. Sends an error alert email if anything fails
 
-The dashboard lets you manually generate, preview, and publish posts to any platform combination at any time.
+A watchdog runs an hour after each slot and retries the pipeline if that slot produced nothing.
 
 ---
 
 ## Post types
 
+Categories cycle in order: **vinyl_art → music_story → harmony**. Breaking news forces a `music_story`.
+
 ### Vinyl Art
-Stories about the art direction and design behind iconic album covers — the photographer, the concept, hidden details, controversies. Uses real album art fetched from the iTunes CDN (up to 3000×3000px). Accent colour: teal.
+The art direction behind iconic album covers — the photographer, the concept, hidden details, controversies. Uses the real album sleeve. Accent colour: teal.
 
 ### Music Story
-Fascinating lesser-known stories about artists — specific recording sessions, career pivots, behind-the-scenes moments. Uses a real artist press photo fetched from Spotify. Accent colour: amber.
+Lesser-known stories about artists — recording sessions, career pivots, behind-the-scenes moments. Uses a real artist press photo. Accent colour: amber.
 
 ### Harmony
-Explores musical DNA — specific riffs, chord progressions, or motifs borrowed between songs across different eras and genres. Rates similarity as *subtle nod*, *clear influence*, or *nearly identical*. Uses a real artist press photo. Accent colour: purple.
+Musical DNA — riffs, chord progressions and motifs borrowed between songs across eras. Rates similarity as *subtle nod*, *clear influence*, or *nearly identical*. Uses a real artist press photo. Accent colour: purple.
 
 ---
 
-## Story slide format
+## Reel structure
 
-Each post generates **4 vertical slides** at 1080×1920 (Instagram Story / Reel format):
+Each post becomes one vertical video at 1080×1920, roughly 24 seconds:
 
-| Slide | Content |
-|-------|---------|
-| 1 | Hook — a punchy "Did you know..." or bold statement to stop the scroll |
-| 2 | The story — explained in a catchy, conversational way |
-| 3 | Closing reflection or twist — `@handle` + top hashtags baked into the image |
-| 4 | Follow slide — branded call to action ("Follow us for daily music stories...") |
+| Segment | Duration | Content |
+|---------|----------|---------|
+| Intro | 3.0s | Title card — artist banner, image, hook |
+| Slide 1 | 3.5–8s | A numbered, saves-bait hook |
+| Slide 2 | 3.5–8s | Two punchy facts back to back |
+| Follow | up to 6s | Closing line plus a branded call to action |
+
+Slide durations scale with word count (`words / 2.5 + 1.5`, clamped), so a typical post lands around 24 seconds. A royalty-free music bed is picked from `public/audio` (24 tracks, split into *heavy* and *melodic* pools) to match the story's genre.
+
+The Reel cover is pinned with `thumb_offset` to 1500ms — mid-intro, inside the window where the title card is fully opaque — so the grid thumbnail is deterministic rather than whatever frame Instagram picks.
 
 ---
 
 ## Platforms
 
-| Platform | Automation (cron) | Manual (dashboard) |
-|----------|-------------------|--------------------|
-| Instagram Story | Yes — 4 slides posted individually | Yes |
-| Facebook | Yes — cover image with caption | Yes |
-| Instagram Feed | No | Yes |
-| Instagram Reel | No | Yes (animated video from slides) |
-| TikTok | No | Yes |
-| YouTube Shorts | No | Yes |
+| Platform | Cron | Dashboard | Notes |
+|----------|------|-----------|-------|
+| Instagram Reel | Yes | Yes | The only automated output |
+| TikTok | No | Yes | Needs `TIKTOK_ACCESS_TOKEN`, currently unset in production |
+| YouTube Shorts | No | Yes | Needs `YOUTUBE_*` OAuth, currently unset in production |
+| Facebook | No | No | Dropped — the cron marks it `skipped` |
+
+Instagram Stories, Feed and Carousel publishing were removed. The helpers for them still exist in `lib/instagram.ts` but nothing calls them.
 
 ---
 
 ## Dashboard
 
-The Next.js dashboard at `/` provides:
+The Next.js dashboard at `/` is password-protected (`DASHBOARD_PASSWORD`, session cookie checked in `middleware.ts`). It provides:
 
-- **Generate** — create a new post with optional overrides: artist name, category, image style, or custom breaking news text
-- **Run daily posts** — trigger the full cron pipeline manually (generates and publishes immediately)
-- **Post cards** — preview each generated post, platform status badges (posted / failed / skipped / pending)
-- **Retry** — re-attempt publishing to any failed platform individually
-- **Publish** — choose specific platforms and publish manually
+- **Generate** — create a post with optional overrides: artist, category, image style, or custom breaking-news text
+- **Run daily posts** — trigger the full cron pipeline immediately
+- **Post cards** — preview each post with per-platform status badges
+- **Retry / Publish** — re-attempt or publish to a chosen platform set
+
+Unlike the cron path, dashboard generation *can* fall back to a DALL·E image when no real photo is found.
 
 ---
 
 ## Architecture
 
 ```
-Next.js App Router (Vercel)
+Next.js 16 App Router (Vercel)
 │
-├── /api/cron          — Vercel Cron job (GET, 6:30 UTC daily) + manual trigger (POST)
-├── /api/generate      — Generate a new post (images + slides + reel video)
-├── /api/post          — Publish a post to one or more platforms
+├── /api/cron          — scheduled pipeline (GET, cron secret) + manual trigger (POST)
+├── /api/watchdog      — retries the cron if a slot produced nothing
+├── /api/generate      — generate a post without publishing
+├── /api/post          — publish an existing post to chosen platforms
+├── /api/refresh       — regenerate image + slides for an unposted post
+├── /api/history       — list and delete stored posts
+├── /api/auth          — dashboard login
+├── /api/token-debug   — inspect the active Meta token, scopes and IG linkage
+├── /api/token-reset   — clear the cached Meta token
 │
-├── lib/claude.ts      — Claude claude-opus-4-6: content generation, news detection, event lookup
-├── lib/compose.ts     — Sharp + Satori: image composition (feed 1080×1080, story 1080×1920)
-├── lib/musicapi.ts    — iTunes Search API (album art) + Spotify Web API (artist photos)
-├── lib/imagegen.ts    — OpenAI DALL-E 3: fallback image generation
-├── lib/instagram.ts   — Instagram Graph API: Stories, Feed, Reels, Carousel, user_tags (mentions)
-├── lib/facebook.ts    — Facebook Graph API: photo posts with caption
-├── lib/tiktok.ts      — TikTok Content Posting API: photo posts
-├── lib/youtube.ts     — YouTube Data API v3: Shorts upload
-├── lib/video.ts       — FFmpeg: animated reel video from story slide buffers
-├── lib/blob.ts        — Vercel Blob: image + video storage (public HTTPS URLs)
-└── lib/store.ts       — Upstash Redis: post persistence (in-memory fallback for local dev)
+├── lib/claude.ts      — content generation, news detection, event lookup, artist pool
+├── lib/compose.ts     — Sharp + Satori image composition
+├── lib/musicapi.ts    — iTunes, Deezer and Spotify lookups for artwork and photos
+├── lib/video.ts       — FFmpeg reel encoding, audio selection
+├── lib/instagram.ts   — Instagram Graph API, handle validation, tagging
+├── lib/meta.ts        — Meta token management with Redis caching
+├── lib/blob.ts        — Vercel Blob storage
+├── lib/store.ts       — Upstash Redis post storage
+├── lib/imagegen.ts    — DALL·E 3, dashboard paths only
+├── lib/tiktok.ts      — TikTok Content Posting API
+└── lib/youtube.ts     — YouTube Data API v3
 ```
 
 ---
 
-## Content pipeline (per post)
+## Content generation
 
-```
-Claude generates content
-    ↓
-iTunes / Spotify → fetch real image
-    ↓ (fallback: DALL-E 3)
-Sharp + Satori → compose cover image (1080×1080)
-    ↓
-Sharp + Satori → compose 3 story slides + follow slide (1080×1920 each)
-    ↓
-FFmpeg → animated reel video from slides (dashboard only)
-    ↓
-Vercel Blob → upload all images + video
-    ↓
-Instagram Graph API → publish each story slide individually
-Facebook Graph API  → publish cover image with caption
-```
+Text comes from **Gemini 2.5 Pro** by default. Set `AI_PROVIDER=claude` to switch to `claude-opus-4-7` instead; both are wired behind one `generate()` function in `lib/claude.ts`.
 
----
+### Deduplication
 
-## Engagement features
+The artist pool holds 208 acts. Selection walks `RECENCY_TIERS` (`[90, 60, 30, 15, 5]`), taking the widest window that still leaves candidates rather than collapsing to a narrow one when the pool is exhausted. Anniversary posts use a 30-post window and breaking-news suppression a 10-post window.
 
-When Claude generates content it also produces:
+Recent titles are also passed to the model so it picks a different angle on artists that have appeared before.
 
-- **`instagramHandle`** — the artist's Instagram username
-- **`tagAccounts`** — 1-2 relevant music media accounts (e.g. `rollingstonemagazine`, `pitchfork`)
+### Breaking news
 
-These are used in two ways:
-
-1. **`user_tags` API parameter** — passed to the Instagram Stories API so the tagged accounts receive a real mention notification, boosting reach
-2. **Text overlay** — `@handle` + top 3 hashtags are baked directly into slide 3 so viewers can see who's been tagged even before tapping
-
----
-
-## Breaking news detection
-
-Every cron run fetches the last 48 hours of headlines from NME, Rolling Stone, and Pitchfork RSS. Claude judges whether any headline is significant enough (band reunions, surprise album drops, major deaths, landmark tours) to override the scheduled vinyl art post with a timely `music_story` instead.
-
----
-
-## Deduplication
-
-The system tracks the last 40 posts. When generating new content Claude is shown the full list of recent artist/title/category combinations and instructed not to repeat them. Artists featured recently are deprioritised in the random selection pool.
+Each run reads the last 48 hours of NME, Rolling Stone and Pitchfork headlines. The model judges whether anything is significant enough — reunions, surprise albums, major deaths, landmark tours — to override the scheduled category.
 
 ---
 
 ## Image sourcing
 
-| Post type | Primary source | Fallback |
-|-----------|---------------|---------|
-| Vinyl Art | iTunes CDN (up to 3000×3000) | DALL-E 3 — editorial style |
-| Music Story | Spotify artist press photo | DALL-E 3 — random style |
-| Harmony | Spotify artist press photo | DALL-E 3 — random style |
+Real imagery only on the cron path. If nothing genuine is found the run fails rather than publishing something invented.
 
-When real images are used, a credit line is added to the published caption:
-- `📷 Album artwork © Artist, via @applemusic`
-- `📷 Photo © Artist, via @spotify`
+| Post type | Primary | Fallback |
+|-----------|---------|----------|
+| Vinyl Art | iTunes album art (up to 3000×3000) | Deezer cover (1800×1800), then artist photo |
+| Music Story / Harmony | Deezer artist photo | Spotify artist photo, then iTunes album art |
 
----
+Matching is strict, because every provider returns fuzzy, popularity-ranked results:
 
-## API endpoints
+- Names compare **exactly** after folding accents, ampersands and punctuation, so `R.E.M.` and `Earth, Wind & Fire` still match. A credited variant that extends the name (`Bruce Springsteen & The E Street Band`) is allowed; a shorter one is not.
+- Among genuine matches, the **most-followed wins**. Different acts share names — searching "Oasis" returns four artists called Oasis, and the providers do not rank the famous one first.
+- Search limits are wide (25) because the real act is often outside the top five.
+- Album titles are **scored**, ties going to the shortest, so originals beat deluxe reissues.
+- A variant sleeve — single, EP, live or instrumental — is rejected while the other provider might still have the studio record. Markers already in the requested title do not count, so "Live at Leeds" still matches itself.
 
-### `POST /api/generate`
-Generates a new post (content + images + slides + reel). Does not publish. Returns the full post object.
+iTunes has genuine catalogue gaps (*Nevermind*, *The Dark Side of the Moon* and *Appetite for Destruction* return only tribute records), which is why Deezer backs it for artwork.
 
-```json
-// Request body (all optional)
-{
-  "artist": "Pink Floyd",
-  "category": "vinyl_art",
-  "imageStyle": "editorial",
-  "breakingNews": "Custom news override"
-}
-```
-
-### `POST /api/post`
-Publishes an existing post to the specified platforms.
-
-```json
-{ "postId": "uuid", "platforms": ["story", "facebook"] }
-```
-
-### `GET /api/cron`
-Full pipeline: generate + publish. Called by Vercel Cron. Requires `Authorization: Bearer <CRON_SECRET>` header.
-
-### `POST /api/cron`
-Same pipeline, no auth required — triggered from the dashboard "Run daily posts" button.
+A credit line is added to the caption naming the real source, `@applemusic` or `@deezer`.
 
 ---
 
-## Environment variables
+## Tagging
 
-| Variable | Purpose |
-|----------|---------|
-| `ANTHROPIC_API_KEY` | Claude API — content generation |
-| `OPENAI_API_KEY` | DALL-E 3 — fallback image generation |
-| `INSTAGRAM_ACCOUNT_ID` | Instagram Business/Creator account ID |
-| `INSTAGRAM_ACCESS_TOKEN` | Instagram Graph API long-lived access token |
-| `FACEBOOK_PAGE_ID` | Facebook Page ID |
-| `FACEBOOK_ACCESS_TOKEN` | Facebook Graph API page access token |
-| `SPOTIFY_CLIENT_ID` | Spotify Web API — artist photo lookup |
-| `SPOTIFY_CLIENT_SECRET` | Spotify Web API — artist photo lookup |
-| `KV_REST_API_URL` | Upstash Redis URL |
-| `KV_REST_API_TOKEN` | Upstash Redis token |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage |
-| `AMAZON_AFFILIATE_TAG` | Amazon Associates tag (optional) |
-| `CRON_SECRET` | Bearer token to authenticate Vercel's cron GET requests |
-| `RESEND_API_KEY` | Resend — error alert emails |
-| `ALERT_EMAIL` | Recipient for error alert emails |
-| `TIKTOK_ACCESS_TOKEN` | TikTok Content Posting API (optional) |
-| `YOUTUBE_CLIENT_ID` | YouTube Data API OAuth (optional) |
-| `YOUTUBE_CLIENT_SECRET` | YouTube Data API OAuth (optional) |
-| `YOUTUBE_REFRESH_TOKEN` | YouTube Data API OAuth (optional) |
+The model returns an `instagramHandle` for the artist and 1–2 `tagAccounts` for music media outlets.
+
+**The artist is tagged** when the handle can be tied back to their name. Handles cannot be verified — looking up an arbitrary username needs `business_discovery`, which this token does not carry — so an invented handle would tag an uninvolved stranger twice a day. The guard is deliberately strict: it accepts `pinkfloyd`, `thebeatles`, `remhq`, and rejects `radio` for Radiohead or `young` for Neil Young. It also skips genuine surname handles like `@springsteen`; losing a tag is cheaper than notifying a stranger.
+
+**Media outlets are not tagged** unless `TAG_MEDIA_ACCOUNTS=true`. Tagging outlets on posts they have no connection to is engagement bait that risks down-ranking the account.
+
+`collaborators` is deliberately unused — those are invitations the other account must accept.
+
+---
+
+## Storage
+
+Posts live one per Redis key, ordered by a sorted set scored on `createdAt`, capped at 500. Writing a post touches only that post; reads take the window they need.
+
+An earlier layout kept every post in a single JSON array, so each save rewrote the whole history — about 6MB of traffic per cron run at 455 posts, growing without bound, and prone to one run silently discarding another's post. Migration from that layout runs once on first access and leaves the legacy `musicledge:posts` key in place as a backup.
+
+Without Redis env vars the app falls back to in-memory storage.
 
 ---
 
@@ -225,32 +180,66 @@ Same pipeline, no auth required — triggered from the dashboard "Run daily post
 Configured in `vercel.json`:
 
 ```json
-{ "crons": [{ "path": "/api/cron", "schedule": "30 6 * * *" }] }
+{
+  "crons": [
+    { "path": "/api/cron",     "schedule": "30 8,11 * * *" },
+    { "path": "/api/watchdog", "schedule": "30 9,12 * * *" }
+  ]
+}
 ```
 
-Runs at **06:30 UTC = 07:30 BST** daily.
+Posting slots are 08:30 and 11:30 UTC, chosen to land on the audience's two strongest activity windows. Vercel cron is UTC-only, so these drift by an hour relative to UK local time across the DST boundary.
+
+The watchdog runs an hour after each slot with a 3-hour staleness threshold: a healthy run shows a post about an hour old, a missed slot shows roughly 22 hours and is retried the same day.
+
+**Cron schedules only update on a production deployment.**
 
 To trigger manually:
+
 ```bash
 curl -X POST https://musicledge.vercel.app/api/cron
 ```
-Or use the "Run daily posts" button in the dashboard.
+
+---
+
+## Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `GEMINI_API_KEY` | Gemini 2.5 Pro — default content generation |
+| `AI_PROVIDER` | `gemini` (default) or `claude` |
+| `ANTHROPIC_API_KEY` | Claude — used when `AI_PROVIDER=claude` |
+| `OPENAI_API_KEY` | DALL·E 3 — dashboard image fallback only |
+| `INSTAGRAM_ACCOUNT_ID` | Instagram Business/Creator account ID |
+| `FACEBOOK_USER_TOKEN` | Long-lived Meta user token used for all publishing |
+| `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` | Token debugging and refresh |
+| `FACEBOOK_PAGE_ID` / `FACEBOOK_PAGE_ACCESS_TOKEN` | Page linkage |
+| `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Artist photo and album URL lookup |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Upstash Redis |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage |
+| `AUTH_SECRET` / `DASHBOARD_PASSWORD` | Dashboard login |
+| `CRON_SECRET` | Authenticates Vercel's scheduled GET requests |
+| `RESEND_API_KEY` / `ALERT_EMAIL` | Error alert emails |
+| `AMAZON_AFFILIATE_TAG` | Amazon Associates tag (optional) |
+| `TAG_MEDIA_ACCOUNTS` | Set to `true` to tag media outlets (default off) |
+| `TIKTOK_ACCESS_TOKEN` | TikTok posting (optional, unset in production) |
+| `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` / `YOUTUBE_REFRESH_TOKEN` | YouTube Shorts (optional, unset in production) |
+
+Set in production but **no longer read by any code**: `INSTAGRAM_ACCESS_TOKEN`, `SUBSTACK_PUBLICATION_URL`, `SUBSTACK_SID`. Safe to remove.
 
 ---
 
 ## Access tokens
 
-Instagram and Facebook use a **long-lived Page Access Token**. To refresh if it ever expires:
+Publishing uses a long-lived Meta **user** token (`FACEBOOK_USER_TOKEN`), cached in Redis by `lib/meta.ts`. To refresh it:
 
-1. Go to [Meta Graph API Explorer](https://developers.facebook.com/tools/explorer/)
+1. Open the [Meta Graph API Explorer](https://developers.facebook.com/tools/explorer/)
 2. Select the MusicLedge app
-3. Generate a User Token with `pages_manage_posts`, `pages_read_engagement`, `instagram_basic`, `instagram_content_publish` permissions
-4. Extend to a long-lived token via the Access Token Debugger
-5. Fetch the Page token:
-   ```bash
-   curl "https://graph.facebook.com/v21.0/PAGE_ID?fields=access_token&access_token=LONG_LIVED_USER_TOKEN"
-   ```
-6. Update `FACEBOOK_ACCESS_TOKEN` and `INSTAGRAM_ACCESS_TOKEN` in Vercel environment variables
+3. Generate a user token with `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`
+4. Extend it to a long-lived token via the Access Token Debugger
+5. Update `FACEBOOK_USER_TOKEN` in Vercel, then call `/api/token-reset` to clear the cached copy
+
+`/api/token-debug` reports the active token's type, validity, expiry, scopes and Instagram account linkage. Both endpoints bypass the dashboard login.
 
 ---
 
@@ -262,9 +251,7 @@ cp .env.local.example .env.local  # add your API keys
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-Without Redis env vars the app falls back to in-memory storage (posts reset on restart).
+Open [http://localhost:3000](http://localhost:3000). FFmpeg ships via `@ffmpeg-installer/ffmpeg`, so no system install is needed.
 
 ---
 
@@ -272,19 +259,16 @@ Without Redis env vars the app falls back to in-memory storage (posts reset on r
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 16 (App Router) |
+| Framework | Next.js 16 (App Router), React 19 |
 | Hosting | Vercel |
-| AI — content | Claude claude-opus-4-6 (Anthropic) |
-| AI — images | DALL-E 3 (OpenAI) |
+| AI — text | Gemini 2.5 Pro, Claude Opus as an alternative |
+| AI — images | DALL·E 3 (dashboard only) |
 | Image processing | Sharp + Satori |
 | Video | FFmpeg (fluent-ffmpeg) |
 | Media storage | Vercel Blob |
 | Post storage | Upstash Redis |
-| Social — Instagram | Instagram Graph API v21 |
-| Social — Facebook | Facebook Graph API v21 |
-| Social — TikTok | TikTok Content Posting API |
-| Social — YouTube | YouTube Data API v3 |
-| Music metadata | iTunes Search API + Spotify Web API |
+| Social | Instagram Graph API v21, TikTok, YouTube Data API v3 |
+| Music metadata | iTunes Search API, Deezer API, Spotify Web API |
 | Scheduling | Vercel Cron |
 | Email alerts | Resend |
 | Styling | Tailwind CSS v4 |
