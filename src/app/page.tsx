@@ -75,7 +75,6 @@ export default function Home() {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      if (data.substackWarning) setError(`Substack: ${data.substackWarning}`);
 
       if (publish && data.post?.id && selectedPlatforms.length > 0) {
         setPosting(data.post.id);
@@ -315,8 +314,7 @@ export default function Home() {
                 { label: "Composing carousel slides 2–4", icon: "📐", delay: 38000 },
                 { label: "Generating animated reel", icon: "🎬", delay: 55000 },
                 { label: "Uploading to cloud", icon: "☁️", delay: 100000 },
-                { label: "Creating Substack draft", icon: "📧", delay: 115000 },
-                { label: posting ? "Publishing to social platforms" : "Finalising…", icon: posting ? "📲" : "✅", delay: 130000 },
+                { label: posting ? "Publishing to social platforms" : "Finalising…", icon: posting ? "📲" : "✅", delay: 115000 },
               ];
               return (
                 <div className="bg-gray-900 border border-gray-700 rounded-xl p-5 mb-4">

@@ -67,7 +67,7 @@ The Reel cover is pinned with `thumb_offset` to 1500ms — mid-intro, inside the
 | YouTube Shorts | No | Yes | Needs `YOUTUBE_*` OAuth, currently unset in production |
 | Facebook | No | No | Dropped — the cron marks it `skipped` |
 
-Instagram Stories, Feed and Carousel publishing were removed. The helpers for them still exist in `lib/instagram.ts` but nothing calls them.
+Instagram Stories, Feed and Carousel publishing were removed, along with their Graph API helpers.
 
 ---
 

@@ -30,23 +30,6 @@ async function igFetch(
   }
 }
 
-/**
- * Upload image to a public URL first, then create an IG container.
- * Instagram requires the image to be accessible via a public HTTPS URL.
- */
-export async function createMediaContainer(
-  imageUrl: string,
-  caption: string
-): Promise<string> {
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
-  const data = await igFetch(`/${accountId}/media`, "POST", {
-    image_url: imageUrl,
-    caption,
-    media_type: "IMAGE",
-  });
-  return data.id as string;
-}
-
 export async function publishMediaContainer(
   containerId: string
 ): Promise<string> {
@@ -171,54 +154,4 @@ export async function createReelContainer(
   }
   const data = await igFetch(`/${accountId}/media`, "POST", params);
   return data.id as string;
-}
-
-export async function createCarouselChildContainer(imageUrl: string): Promise<string> {
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
-  const data = await igFetch(`/${accountId}/media`, "POST", {
-    image_url: imageUrl,
-    is_carousel_item: "true",
-  });
-  return data.id as string;
-}
-
-export async function createCarouselContainer(childIds: string[], caption: string): Promise<string> {
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
-  const data = await igFetch(`/${accountId}/media`, "POST", {
-    media_type: "CAROUSEL",
-    children: childIds.join(","),
-    caption,
-  });
-  return data.id as string;
-}
-
-/**
- * Publishes an image as an Instagram Story.
- * Uses media_type=STORIES — requires instagram_content_publish permission.
- */
-export async function publishInstagramStory(imageUrl: string, userTags?: string[]): Promise<string> {
-  const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
-  // userTags intentionally unused — Instagram Stories user_tags requires numeric IDs
-  void userTags;
-
-  const container = await igFetch(`/${accountId}/media`, "POST", {
-    image_url: imageUrl,
-    media_type: "STORIES",
-  });
-  const containerId = container.id as string;
-
-  // Wait for container to be ready
-  let status = "IN_PROGRESS";
-  let attempts = 0;
-  while (status === "IN_PROGRESS" && attempts < 15) {
-    await new Promise((r) => setTimeout(r, 3000));
-    status = await checkContainerStatus(containerId);
-    attempts++;
-  }
-  if (status !== "FINISHED") throw new Error(`Story container not ready: ${status}`);
-
-  const published = await igFetch(`/${accountId}/media_publish`, "POST", {
-    creation_id: containerId,
-  });
-  return published.id as string;
 }
