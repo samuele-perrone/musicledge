@@ -171,12 +171,45 @@ async function renderIntroFrame(
       h("div", {
         style: { width: 1080, display: "flex", flexDirection: "column", alignItems: "center" },
       },
-        // ── Branding above the photo ───────────────────────────────
+        // ── Hook first: the title is the first line a scroller reads ──
+        h("div", {
+          style: { width: 1080, display: "flex", flexDirection: "column" },
+        },
+          h("div", {
+            style: {
+              paddingLeft: 60, paddingRight: 60,
+              paddingTop: 24,
+              paddingBottom: content.imageCaption ? 12 : 20,
+              display: "flex",
+            },
+          },
+            h("div", {
+              style: { fontSize: 62, fontWeight: 700, color: "white", lineHeight: 1.1 },
+            }, content.title)
+          ),
+          content.imageCaption
+            ? h("div", {
+                style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 20, display: "flex" },
+              },
+                h("div", {
+                  style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.60)", lineHeight: 1.35 },
+                }, content.imageCaption)
+              )
+            : h("div", { style: { display: "flex" } }),
+        ),
+
+        // ── Full photo (no crop) ────────────────────────────────────
+        h("img", {
+          src: photoDataUrl,
+          style: { width: photoW, height: photoH },
+        }),
+
+        // ── Branding after the hook: identity, not the opening line ──
         h("div", {
           style: {
             width: 1080,
             display: "flex", flexDirection: "column", alignItems: "flex-start",
-            paddingLeft: 60, paddingRight: 60, paddingBottom: 20,
+            paddingLeft: 60, paddingRight: 60, paddingTop: 24, paddingBottom: 20,
             gap: 8,
           },
         },
@@ -204,40 +237,7 @@ async function renderIntroFrame(
             },
           }, content.artist.toUpperCase()),
         ),
-
-        // ── Full photo (no crop) ────────────────────────────────────
-        h("img", {
-          src: photoDataUrl,
-          style: { width: photoW, height: photoH },
-        }),
-
-        // ── Title + caption + accent line below the photo ──────────
-        h("div", {
-          style: { width: 1080, display: "flex", flexDirection: "column" },
-        },
-          h("div", {
-            style: {
-              paddingLeft: 60, paddingRight: 60,
-              paddingTop: 24,
-              paddingBottom: content.imageCaption ? 12 : 20,
-              display: "flex",
-            },
-          },
-            h("div", {
-              style: { fontSize: 62, fontWeight: 700, color: "white", lineHeight: 1.1 },
-            }, content.title)
-          ),
-          content.imageCaption
-            ? h("div", {
-                style: { paddingLeft: 60, paddingRight: 60, paddingBottom: 20, display: "flex" },
-              },
-                h("div", {
-                  style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.60)", lineHeight: 1.35 },
-                }, content.imageCaption)
-              )
-            : h("div", { style: { display: "flex" } }),
-          h("div", { style: { width: 1080, height: 8, background: accent } }),
-        )
+        h("div", { style: { width: 1080, height: 8, background: accent } }),
       )
     ),
     { width: 1080, height: 1920, fonts: fonts as never }

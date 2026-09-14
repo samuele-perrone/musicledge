@@ -352,7 +352,7 @@ const ARTISTS_POOL = [
 ];
 
 function buildMusicStoryPrompt(artist: string): string {
-  return `You are creating content for a music history brand across Instagram and Facebook — similar to @explainingpaintings but for rock and pop music.
+  return `You are creating content for a music history brand on Instagram — similar to @explainingpaintings but for rock and pop music.
 
 Generate a fascinating, lesser-known story about ${artist} — a specific song, album, recording session, or pivotal career moment.
 
@@ -365,7 +365,7 @@ Return ONLY valid JSON with this exact structure:
   "title": "Max 8 words. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
-  "caption": "Instagram/Facebook caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
+  "caption": "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
   "imagePrompt": "Detailed AI image prompt specific to THIS artist and story — vary the setting creatively: it could be a concert venue, a specific era's street scene, iconic instruments, album sleeve objects, a tour bus, a festival crowd, backstage equipment, or a symbolic still life tied to the story's theme. Capture the exact decade's visual style and colour palette. Do NOT show any human face or figure. Do NOT use generic dark studio gear. Be specific and visually distinct. High contrast, cinematic, square format.",
   "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 facts about [Song] most fans don't know' — max 80 chars, bold and specific. You may use one emoji max.", "Slide 2 — two of those facts as very short punchy sentences back-to-back, max 110 chars total. You may use one emoji max.", "Slide 3 — save-bait CTA e.g. 'Save this. Which fact surprised you most?' — max 80 chars. You may use one emoji max."],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
@@ -390,7 +390,7 @@ Return ONLY valid JSON with this exact structure:
   "title": "Max 8 words, about the musical connection. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the musical DNA connection, used internally",
   "imageCaption": "One punchy line for the image overlay — max 55 characters, about the sonic connection",
-  "caption": "Instagram/Facebook caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression, or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
+  "caption": "Instagram caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression, or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
   "influenceSource": "Original artist — Song title (year)",
   "influencedWork": "Later artist — Song title (year)",
   "similarityLevel": "subtle_nod OR clear_influence OR nearly_identical",
@@ -408,7 +408,7 @@ Return ONLY valid JSON with this exact structure:
 }
 
 function buildVinylArtPrompt(artist: string): string {
-  return `You are creating content for a music history brand across Instagram and Facebook — similar to @explainingpaintings but for rock and pop music.
+  return `You are creating content for a music history brand on Instagram — similar to @explainingpaintings but for rock and pop music.
 
 Generate a fascinating, lesser-known story about the album cover artwork or sleeve design of a specific ${artist} record — focusing on the photographer, art director, visual concept, hidden meaning, or behind-the-scenes story of how the artwork was created.
 
@@ -421,7 +421,7 @@ Return ONLY valid JSON with this exact structure:
   "title": "Max 8 words, about the artwork. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the artwork story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, about the artwork",
-  "caption": "Instagram/Facebook caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each hidden detail as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
+  "caption": "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each hidden detail as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
   "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic still life image that evokes the aesthetic, colour palette, textures, and mood of this specific album cover artwork — reference the visual elements, lighting style, and era without depicting any real person. Focus on objects, surfaces, typography feel, light and shadow. Square format, editorial quality.",
   "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 hidden details in [Album] cover art most fans miss' — max 80 chars, bold and specific. You may use one emoji max.", "Slide 2 — two of those hidden details as very short punchy sentences back-to-back, max 110 chars total. You may use one emoji max.", "Slide 3 — save-bait CTA e.g. 'Save this. Which detail surprised you most?' — max 80 chars. You may use one emoji max."],
   "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
