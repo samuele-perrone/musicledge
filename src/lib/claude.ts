@@ -362,7 +362,7 @@ Return ONLY valid JSON with this exact structure:
 {
   "category": "music_story",
   "artist": "${artist}",
-  "title": "Short punchy title (max 8 words)",
+  "title": "Max 8 words. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
   "caption": "Instagram/Facebook caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
@@ -387,7 +387,7 @@ Return ONLY valid JSON with this exact structure:
 {
   "category": "harmony",
   "artist": "${artist}",
-  "title": "Short punchy title about the musical connection (max 8 words)",
+  "title": "Max 8 words, about the musical connection. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the musical DNA connection, used internally",
   "imageCaption": "One punchy line for the image overlay — max 55 characters, about the sonic connection",
   "caption": "Instagram/Facebook caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression, or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
@@ -418,7 +418,7 @@ Return ONLY valid JSON with this exact structure:
 {
   "category": "vinyl_art",
   "artist": "${artist}",
-  "title": "Short punchy title about the artwork (max 8 words)",
+  "title": "Max 8 words, about the artwork. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the artwork story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, about the artwork",
   "caption": "Instagram/Facebook caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each hidden detail as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
@@ -432,6 +432,48 @@ Return ONLY valid JSON with this exact structure:
   "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
 }
+
+/**
+ * Title rules, appended to every category prompt.
+ *
+ * The title is the large text on the reel's opening frame, so it is the first
+ * thing a scroller reads and it decides whether they stay. Left unconstrained,
+ * the model converged hard on one construction — "The Ping That Built Echoes",
+ * "The Dulcimer That Built Blue", "The Cassette That Built Heart Of Glass" — and
+ * ran it for most of 455 posts. Those titles read as riddles: they name an object
+ * the viewer has no context for and hide what is actually being offered.
+ *
+ * The two best-performing posts on the account both broke the pattern, which is
+ * why they are quoted below as the target.
+ */
+/**
+ * The construction TITLE_RULES bans: "The <1-3 words> That/Behind/Hidden ...".
+ * A generated title matching this means the prompt guidance stopped holding, which
+ * is worth seeing in the logs rather than discovering months later in the grid.
+ */
+const FORMULAIC_TITLE = /^the\s+(?:\S+\s+){1,3}(?:that|which|behind|hidden)\b/i;
+
+const TITLE_RULES = `
+
+TITLE RULES — these override any title guidance above.
+
+The title is the first line a scrolling viewer reads. Write it as a plain, human
+sentence someone would say out loud. Put the surprising part in the title itself
+rather than hinting at it.
+
+Never use the construction "The <noun> That <verb>ed <thing>" or its relatives:
+"That Built", "That Became", "That Named", "That Silenced", "Behind", "Hidden In".
+This shape has been overused on this account and now reads as a formula.
+
+Titles that worked, and why:
+- "The Drummer Who Actually Had No Beard" — a concrete, funny contradiction
+- "Blackmore Hated Deep Purple Farewell" — plain speech, a real opinion, names names
+
+Titles that failed, and why:
+- "The Ping That Built Echoes" — abstract, offers the reader nothing
+- "The Dulcimer That Built Blue" — the reader cannot tell what the story is
+
+Vary the grammatical shape from post to post. Do not settle into a new formula.`;
 
 /** Extracts the first complete JSON object from text, correctly tracking brace depth. */
 function extractFirstJson(text: string): string | null {
@@ -508,10 +550,10 @@ export async function generateStoryContent(
     .map((s) => `- ${s.artist}: "${s.title}" (${s.category})`)
     .join("\n");
   const dedupeSuffix = dedupeLines
-    ? `\n\nDO NOT repeat any of the following stories that have already been published. Choose a completely different song, album, event, or aspect of the artist's career:\n${dedupeLines}${artistSummaries.length > 0 ? `\n\nThis artist (${artist}) has already been featured ${artistSummaries.length} time(s) — pick a different era, album, or story angle.` : ""}`
+    ? `\n\nDO NOT repeat any of the following stories that have already been published. Choose a completely different song, album, event, or aspect of the artist's career. Also vary your title's sentence shape from theirs — if several share a construction, do not write a fourth in that mould:\n${dedupeLines}${artistSummaries.length > 0 ? `\n\nThis artist (${artist}) has already been featured ${artistSummaries.length} time(s) — pick a different era, album, or story angle.` : ""}`
     : "";
 
-  const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix;
+  const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix + TITLE_RULES;
 
   const text = await generate(prompt);
   const rawJson = extractFirstJson(text);
@@ -539,6 +581,11 @@ export async function generateStoryContent(
   // (breaking news lets the model set the artist from the news subject)
   content.category = category;
   if (!breakingNews) content.artist = artist;
+
+  if (FORMULAIC_TITLE.test(content.title ?? "")) {
+    console.warn(`[claude] formulaic title slipped through: "${content.title}"`);
+  }
+
   return content;
 }
 
