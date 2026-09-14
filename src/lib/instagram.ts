@@ -1,6 +1,6 @@
 // Instagram Graph API integration
 // Requires: Instagram Business/Creator account linked to a Facebook Page
-// Env vars: INSTAGRAM_ACCOUNT_ID, FACEBOOK_USER_TOKEN (+ FACEBOOK_PAGE_ID)
+// Env vars: INSTAGRAM_ACCOUNT_ID, FACEBOOK_USER_TOKEN
 
 import { getUserAccessToken } from "./meta";
 

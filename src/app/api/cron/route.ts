@@ -1,7 +1,7 @@
 /**
- * Vercel Cron endpoint — runs daily at 06:30 UTC (7:30am BST).
- * Generates one post, creates a karaoke reel video, and publishes to
- * Instagram Reels and Facebook video.
+ * Vercel Cron endpoint — runs at 08:30 and 11:30 UTC.
+ * Generates one post, creates a karaoke reel video, and publishes it
+ * as an Instagram Reel.
  */
 import { NextResponse } from "next/server";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
@@ -239,7 +239,6 @@ async function runCron() {
       log.push(`Instagram Reel failed: ${msg}`);
     }
 
-    post.platforms.facebook = { status: "skipped" };
     post.status = post.platforms.reel?.status === "posted" ? "posted" : "failed";
     await savePost(post);
 

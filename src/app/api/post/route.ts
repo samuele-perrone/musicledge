@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "No blob URL on post" }, { status: 400 });
     }
 
-    const targets: Platform[] = platforms ?? ["reel", "facebook"];
+    const targets: Platform[] = platforms ?? ["reel"];
     const hashtags = post.content.hashtags.map((h) => `#${h}`).join(" ");
     const relatedLinks = buildRelatedLinks(post.content.artist, post.content.title, {
       spotifyUrl: post.albumInfo?.spotifyUrl ?? post.artistInfo?.spotifyUrl,

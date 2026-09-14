@@ -665,9 +665,6 @@ export default function Home() {
                       {result?.postId && p === "youtube" && (
                         <a href={`https://www.youtube.com/shorts/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
                       )}
-                      {result?.postId && p === "facebook" && (
-                        <a href={`https://www.facebook.com/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
-                      )}
                       {result?.postId && p === "reel" && (
                         <a href={`https://www.instagram.com/reel/${result.postId}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline">View</a>
                       )}

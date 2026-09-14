@@ -65,9 +65,8 @@ The Reel cover is pinned with `thumb_offset` to 1500ms — mid-intro, inside the
 | Instagram Reel | Yes | Yes | The only automated output |
 | TikTok | No | Yes | Needs `TIKTOK_ACCESS_TOKEN`, currently unset in production |
 | YouTube Shorts | No | Yes | Needs `YOUTUBE_*` OAuth, currently unset in production |
-| Facebook | No | No | Dropped — the cron marks it `skipped` |
 
-Instagram Stories, Feed and Carousel publishing were removed, along with their Graph API helpers.
+Instagram Stories, Feed and Carousel publishing were removed, along with their Graph API helpers. Facebook publishing is gone entirely — `lib/facebook.ts` and the `facebook` platform no longer exist.
 
 ---
 
@@ -212,8 +211,8 @@ curl -X POST https://musicledge.vercel.app/api/cron
 | `OPENAI_API_KEY` | DALL·E 3 — dashboard image fallback only |
 | `INSTAGRAM_ACCOUNT_ID` | Instagram Business/Creator account ID |
 | `FACEBOOK_USER_TOKEN` | Long-lived Meta user token used for all publishing |
+| `INSTAGRAM_ACCESS_TOKEN` | Legacy fallback, used only if `FACEBOOK_USER_TOKEN` is unset |
 | `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` | Token debugging and refresh |
-| `FACEBOOK_PAGE_ID` / `FACEBOOK_PAGE_ACCESS_TOKEN` | Page linkage |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Artist photo and album URL lookup |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | Upstash Redis |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage |
@@ -225,7 +224,13 @@ curl -X POST https://musicledge.vercel.app/api/cron
 | `TIKTOK_ACCESS_TOKEN` | TikTok posting (optional, unset in production) |
 | `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` / `YOUTUBE_REFRESH_TOKEN` | YouTube Shorts (optional, unset in production) |
 
-Set in production but **no longer read by any code**: `INSTAGRAM_ACCESS_TOKEN`, `SUBSTACK_PUBLICATION_URL`, `SUBSTACK_SID`. Safe to remove.
+Set in production but read by no code in this repo, and safe to delete:
+`FACEBOOK_PAGE_ID`, `FACEBOOK_PAGE_ACCESS_TOKEN`, `SUBSTACK_PUBLICATION_URL`, `SUBSTACK_SID`.
+
+Two exceptions that look unused but are not. `BLOB_READ_WRITE_TOKEN` never appears
+in the source because `@vercel/blob` reads it directly, and `KV_URL`, `REDIS_URL`
+and `KV_REST_API_READ_ONLY_TOKEN` are provisioned by the Upstash integration.
+Leave all of those in place.
 
 ---
 
