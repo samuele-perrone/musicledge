@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
     // Fetch real image: always use real photos/artwork, never AI-generated fallback
     let imageBase64: string;
-    if (!forceStyle && content.category === "vinyl_art" && content.albumName) {
+    if (!forceStyle && content.category === "sleeve_stories" && content.albumName) {
       // Try exact album, then artist's most popular album, then artist photo
       const albumInfo = await searchAlbum(content.artist, content.albumName).catch(() => null);
       if (albumInfo) {
@@ -130,9 +130,9 @@ export async function POST(request: Request) {
         } catch {}
       }
 
-      // For vinyl_art without artist photo: repeat the album cover (consistent look).
+      // For sleeve_stories without artist photo: repeat the album cover (consistent look).
       // For other categories: fetch additional album arts for visual variety.
-      const albumArts = (!artistPhotoBuffer && content.category !== "vinyl_art")
+      const albumArts = (!artistPhotoBuffer && content.category !== "sleeve_stories")
         ? await searchAdditionalImages(content.artist, 2).catch(() => [] as Buffer[])
         : ([] as Buffer[]);
 

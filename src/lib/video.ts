@@ -12,6 +12,7 @@ import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import { writeFile, readFile, unlink } from "fs/promises";
 import { join } from "path";
 import sharp from "sharp";
+import { seriesMeta } from "@/lib/series";
 import satori from "satori";
 import { createElement as h } from "react";
 import fs from "fs";
@@ -94,12 +95,15 @@ function loadFonts(): FontEntry[] {
   ];
 }
 
+/** Series colours and label, derived from the shared table in lib/series.ts. */
 function accentInfo(category: string): { accent: string; badgeText: string; label: string; gradient: string } {
-  if (category === "vinyl_art")
-    return { accent: "#0891b2", badgeText: "white", label: "VINYL ART",   gradient: "linear-gradient(160deg,#0891b2 0%,#0e7490 100%)" };
-  if (category === "harmony")
-    return { accent: "#a855f7", badgeText: "white", label: "HARMONY",     gradient: "linear-gradient(160deg,#a855f7 0%,#7c3aed 100%)" };
-  return   { accent: "#f59e0b", badgeText: "black", label: "MUSIC STORY", gradient: "linear-gradient(160deg,#f59e0b 0%,#d97706 100%)" };
+  const m = seriesMeta(category);
+  return {
+    accent: m.accent,
+    badgeText: m.badgeText,
+    label: m.label,
+    gradient: `linear-gradient(160deg,${m.accent} 0%,${m.accentDark} 100%)`,
+  };
 }
 
 /**

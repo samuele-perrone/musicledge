@@ -26,18 +26,46 @@ A watchdog runs an hour after each slot and retries the pipeline if that slot pr
 
 ---
 
-## Post types
+## The six series
 
-Categories cycle in order: **vinyl_art → music_story → harmony**. Breaking news forces a `music_story`.
+Posts run as named recurring formats on fixed days, so a viewer can learn that
+Tuesday is Banned. Labels, colours and the schedule all live in `lib/series.ts`.
 
-### Vinyl Art
-The art direction behind iconic album covers — the photographer, the concept, hidden details, controversies. Uses the real album sleeve. Accent colour: teal.
+| Series | Slug | Format |
+|---|---|---|
+| **Same Riff** | `same_riff` | Two songs, one musical idea — rated *subtle nod → nearly identical* |
+| **Sleeve Stories** | `sleeve_stories` | The photographer, the concept, the hidden detail, the lawsuit |
+| **Band At War** | `band_at_war` | Who fell out with whom, and what it cost the record |
+| **Happy Accident** | `happy_accident` | Records that exist because something went wrong |
+| **Ten Minutes Flat** | `ten_minutes_flat` | Written or recorded absurdly fast, or in one take |
+| **Banned** | `banned` | Pulled, censored or refused airplay — and what followed |
 
-### Music Story
-Lesser-known stories about artists — recording sessions, career pivots, behind-the-scenes moments. Uses a real artist press photo. Accent colour: amber.
+`music_story` is a seventh, unscheduled format used only when breaking news or an
+anniversary takes a slot. Running today's headline as "Banned" would read as
+nonsense, so the override falls back to the general shape.
 
-### Harmony
-Musical DNA — riffs, chord progressions and motifs borrowed between songs across eras. Rates similarity as *subtle nod*, *clear influence*, or *nearly identical*. Uses a real artist press photo. Accent colour: purple.
+`vinyl_art` and `harmony` were the old slugs for Sleeve Stories and Same Riff.
+Nothing generates them now, but they sit on hundreds of stored posts, so
+`seriesMeta()` maps them rather than the union carrying them forever. It never
+throws — an unknown slug falls back to the general format instead of breaking a
+render.
+
+### Weekly schedule
+
+Twelve of the fourteen weekly slots give each series exactly two. Saturday
+doubles up on Happy Accident and Band At War, the two formats matching the only
+posts with real evidence behind them — the best post on the account was a
+contradiction and the second best a feud.
+
+| | 08:30 UTC | 11:30 UTC |
+|---|---|---|
+| Sun | Same Riff | Happy Accident |
+| Mon | Band At War | Sleeve Stories |
+| Tue | Ten Minutes Flat | Banned |
+| Wed | Same Riff | Happy Accident |
+| Thu | Band At War | Sleeve Stories |
+| Fri | Ten Minutes Flat | Banned |
+| Sat | Happy Accident | Band At War |
 
 ---
 
@@ -98,6 +126,7 @@ Next.js 16 App Router (Vercel)
 ├── /api/token-debug   — inspect the active Meta token, scopes and IG linkage
 ├── /api/token-reset   — clear the cached Meta token
 │
+├── lib/series.ts      — the six series: labels, colours, weekly schedule
 ├── lib/claude.ts      — content generation, news detection, event lookup, artist pool
 ├── lib/compose.ts     — Sharp + Satori image composition
 ├── lib/musicapi.ts    — iTunes, Deezer and Spotify lookups for artwork and photos

@@ -10,8 +10,9 @@ import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createKaraokeReelVideo, findAudioTrack, REEL_COVER_OFFSET_MS } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
+import { scheduledSeries, seriesMeta } from "@/lib/series";
 import { createReelContainer, checkContainerStatus, publishMediaContainer, buildPostTags } from "@/lib/instagram";
-import { GeneratedPost, defaultPlatforms } from "@/types";
+import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
 
 export const maxDuration = 300;
@@ -73,14 +74,12 @@ async function runCron() {
     const activeBreakingNews = newsAboutRecentArtist ? null : breakingNews;
     if (newsAboutRecentArtist) log.push(`Breaking news suppressed — artist recently posted`);
 
-    // Cycle categories in order: vinyl_art → music_story → harmony
-    // Breaking news forces music_story but the cycle position is still tracked by the last non-breaking post.
-    const CATEGORY_CYCLE = ["vinyl_art", "music_story", "harmony"] as const;
-    const lastCategory = recentSummaries[0]?.category ?? "harmony"; // default so first post is vinyl_art
-    const lastIdx = CATEGORY_CYCLE.indexOf(lastCategory as typeof CATEGORY_CYCLE[number]);
-    const nextCategory = CATEGORY_CYCLE[(lastIdx + 1) % CATEGORY_CYCLE.length];
-    const category = activeBreakingNews ? "music_story" : nextCategory;
-    log.push(`Category: ${category} (cycle next: ${nextCategory}${activeBreakingNews ? ", overridden by breaking news" : ""})`);
+    // Each series owns fixed slots so a viewer can learn that, say, Tuesday is
+    // Banned. Breaking news still takes the slot, using the general format —
+    // running today's news as "Banned" or "Same Riff" would read as nonsense.
+    const scheduled = scheduledSeries();
+    const category: PostCategory = activeBreakingNews ? "music_story" : scheduled;
+    log.push(`Series: ${seriesMeta(category).label}${activeBreakingNews ? ` (breaking news took the ${seriesMeta(scheduled).label} slot)` : ""}`);
 
     console.log(`[cron] generating content, category=${category}`);
     const content = await generateStoryContent(
@@ -108,7 +107,7 @@ async function runCron() {
     // Fetch real image — never fall back to AI
     console.log(`[cron] fetching image for ${content.artist}`);
     let imageBase64: string;
-    if (category === "vinyl_art" && content.albumName) {
+    if (category === "sleeve_stories" && content.albumName) {
       const albumInfo = await searchAlbum(content.artist, content.albumName).catch(() => null);
       if (albumInfo) {
         imageBase64 = await fetchAlbumArtAsBase64(albumInfo.artworkUrl);
@@ -157,9 +156,9 @@ async function runCron() {
       } catch {}
     }
 
-    // For vinyl_art without artist photo: repeat the album cover (consistent look).
+    // For sleeve_stories without artist photo: repeat the album cover (consistent look).
     // For other categories: fetch additional album arts for visual variety.
-    const albumArts = (!artistPhotoBuffer && category !== "vinyl_art")
+    const albumArts = (!artistPhotoBuffer && category !== "sleeve_stories")
       ? await searchAdditionalImages(content.artist, 2).catch(() => [] as Buffer[])
       : ([] as Buffer[]);
 

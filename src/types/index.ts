@@ -1,6 +1,22 @@
 import type { AlbumInfo } from "@/lib/musicapi";
 
-export type PostCategory = "music_story" | "vinyl_art" | "harmony";
+/**
+ * The six named series plus `music_story`, the general format used when breaking
+ * news or an anniversary overrides the weekly schedule. Labels and colours live
+ * in lib/series.ts.
+ *
+ * `vinyl_art` and `harmony` were the old slugs for what are now `sleeve_stories`
+ * and `same_riff`. They are not generated any more but still sit on stored posts,
+ * so seriesMeta() maps them rather than this union carrying them forever.
+ */
+export type PostCategory =
+  | "same_riff"
+  | "sleeve_stories"
+  | "band_at_war"
+  | "happy_accident"
+  | "ten_minutes_flat"
+  | "banned"
+  | "music_story";
 
 export interface StoryContent {
   category: PostCategory;
@@ -12,7 +28,7 @@ export interface StoryContent {
   imagePrompt: string;
   hashtags: string[];
   amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
-  albumName?: string;          // exact album title (vinyl_art only) — used for iTunes/Spotify lookup
+  albumName?: string;          // exact album title (sleeve_stories only) — used for iTunes/Spotify lookup
   musicGenre?: "heavy" | "melodic"; // used to pick background audio track
   carouselSlides?: string[];  // 3 slide texts for slides 2-4
   // Harmony-specific fields
@@ -45,10 +61,10 @@ export interface GeneratedPost {
   todayEvent?: string;         // e.g. "50th anniversary of Dark Side of the Moon"
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
-  // Populated for vinyl_art posts when an album lookup succeeds (iTunes, else Deezer).
+  // Populated for sleeve_stories posts when an album lookup succeeds (iTunes, else Deezer).
   // Mirrors AlbumInfo in lib/musicapi rather than redeclaring a narrower shape.
   albumInfo?: AlbumInfo;
-  artistInfo?: {              // populated for music_story/harmony posts
+  artistInfo?: {              // populated for series that use an artist photo
     imageUrl: string;
     isArtistPhoto: boolean;   // true = real press photo (Deezer/Spotify); false = iTunes album art fallback
     spotifyUrl?: string;

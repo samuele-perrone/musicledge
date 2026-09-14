@@ -1,11 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { StoryContent, PostCategory } from "@/types";
+import { scheduledSeries } from "@/lib/series";
 
 export interface TodayEvent {
   artist: string;
   event: string;          // e.g. "70th birthday" or "50th anniversary of Dark Side of the Moon"
-  suggestedCategory: PostCategory; // vinyl_art for album anniversaries, music_story for birthdays/milestones
+  suggestedCategory: PostCategory; // sleeve_stories for album anniversaries, music_story otherwise
 }
 
 // Switch provider via AI_PROVIDER env var: "gemini" (default) or "claude"
@@ -49,7 +50,7 @@ Return ONLY valid JSON in one of these two formats:
 If an event exists:
 {"artist": "Artist Name", "event": "description of the event e.g. 70th birthday or 50th anniversary of Abbey Road", "suggestedCategory": "music_story"}
 
-For album cover/release anniversaries where the artwork is iconic, use "vinyl_art" instead.
+For album cover/release anniversaries where the artwork is iconic, use "sleeve_stories" instead.
 
 If nothing significant: null`, 512);
 
@@ -351,84 +352,147 @@ const ARTISTS_POOL = [
   "Annie Lennox",
 ];
 
-function buildMusicStoryPrompt(artist: string): string {
+const TONE = `Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.`;
+
+interface SeriesSpec {
+  /** What this series asks for. */
+  brief: (artist: string) => string;
+  /** Caption instruction. Keep free of double quotes — it is embedded in a JSON spec. */
+  caption: string;
+  /** Three slide instructions: hook, detail, save-bait close. */
+  slides: [string, string, string];
+  imagePrompt: string;
+  /** Extra JSON fields this series needs, each line already indented and comma-terminated. */
+  extraFields?: string;
+  /** Appended to the hashtags array spec. */
+  hashtagHint?: string;
+}
+
+/**
+ * One spec per series. They share a single JSON contract so a change to the
+ * common fields lands everywhere, rather than being copied into each builder.
+ */
+const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
+  same_riff: {
+    brief: (a) => `Generate a "Same Riff" post exploring how a specific riff, chord progression, or musical motif connected to ${a} was borrowed, adapted, or directly copied between songs. Pick a pair of songs where the musical connection is clear, specific, and genuinely interesting — one that established the sound and one that borrowed it, or the reverse.`,
+    caption: "Instagram caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
+    slides: [
+      "Slide 1 — a bold hook naming both songs, max 80 chars. One emoji max.",
+      "Slide 2 — the specific riff or chord detail in plain language, max 100 chars. One emoji max.",
+      "Slide 3 — save-bait verdict e.g. 'Save this. Inspiration or imitation?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures spanning both eras. No human faces or figures. Square format, cinematic, high contrast.",
+    extraFields: `  "influenceSource": "Original artist — Song title (year)",
+  "influencedWork": "Later artist — Song title (year)",
+  "similarityLevel": "subtle_nod OR clear_influence OR nearly_identical",
+  "genre": "the genre lineage e.g. blues to hard rock, or soul to funk to hip-hop",
+  "emotion": "one word: the primary emotion this sound evokes",
+  "activityTags": ["2-4 tags from this list only: workout, running, driving, cycling, background, chill out, party, focus, romance, morning, late night"],
+`,
+    hashtagHint: "include MusicInfluence MusicDNA SoundAlike",
+  },
+
+  sleeve_stories: {
+    brief: (a) => `Generate a fascinating, lesser-known story about the album cover artwork or sleeve design of a specific ${a} record — the photographer, the art director, the visual concept, a hidden meaning, or how the artwork was actually made.`,
+    caption: "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each detail as a numbered item (1. ... 2. ... etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
+    slides: [
+      "Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 hidden details in [Album] cover art most fans miss' — max 80 chars. One emoji max.",
+      "Slide 2 — two of those hidden details as very short punchy sentences back-to-back, max 110 chars total. One emoji max.",
+      "Slide 3 — save-bait CTA e.g. 'Save this. Which detail surprised you most?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed prompt for an AI image generator: a photorealistic still life evoking the aesthetic, colour palette, textures and mood of this album cover — objects, surfaces, light and shadow, without depicting any real person. Square format, editorial quality.",
+    extraFields: `  "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
+`,
+    hashtagHint: "include AlbumArt VinylCover RecordSleeve",
+  },
+
+  band_at_war: {
+    brief: (a) => `Generate a "Band At War" post about a real, documented conflict involving ${a} — a feud between members, a fight with a producer, manager or label, or a rivalry with another band — and what it cost the music. Be specific about what happened and roughly when. Only use conflicts that genuinely happened and are well documented. Never invent a feud.`,
+    caption: "Instagram caption: open by naming who fell out and over what. Explain what triggered it, what it cost the record, the tour or the line-up, and whether it was ever resolved. Keep it factual rather than gossipy speculation. End with a question that invites people to take a side.",
+    slides: [
+      "Slide 1 — a hook naming who was at war and over what, max 80 chars. One emoji max.",
+      "Slide 2 — the flashpoint and its cost, two short punchy sentences, max 110 chars total. One emoji max.",
+      "Slide 3 — save-bait close e.g. 'Save this. Whose side are you on?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed prompt for an AI image generator: a photorealistic image evoking tension in a recording studio or backstage — separated gear, an empty chair, harsh light, cold colour palette. No human faces or figures. Square format, cinematic, high contrast.",
+    hashtagHint: "include BandDrama RockFeuds",
+  },
+
+  happy_accident: {
+    brief: (a) => `Generate a "Happy Accident" post about a specific ${a} recording that only exists in the form we know because something went wrong — broken gear, a mistake left in the take, a missed session, a wrong note kept, a studio mishap, a chance encounter. Be precise about what the accident was.`,
+    caption: "Instagram caption: open with what went wrong. Explain how the mistake ended up on the finished record, and why it turned out better than the plan. End with a question to spark discussion.",
+    slides: [
+      "Slide 1 — a hook naming the accident, max 80 chars. One emoji max.",
+      "Slide 2 — what actually happened, two short punchy sentences, max 110 chars total. One emoji max.",
+      "Slide 3 — save-bait close e.g. 'Save this. Best mistake in music?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed prompt for an AI image generator: a photorealistic still life of studio equipment caught mid-mishap — a snapped string, a spilled reel of tape, a blown speaker cone, warm accidental light. No human faces or figures. Square format, cinematic.",
+    hashtagHint: "include StudioStories HappyAccident",
+  },
+
+  ten_minutes_flat: {
+    brief: (a) => `Generate a "Ten Minutes Flat" post about a specific ${a} song written or recorded extraordinarily fast — in a single take, in one sitting, in a handful of minutes — or finished under absurd time pressure. Be precise about the timescale and say where the claim comes from.`,
+    caption: "Instagram caption: open with the timescale itself, because the number is the hook. Explain the circumstances that forced or allowed it, and contrast it with how long the rest of the record took. End with a question to spark discussion.",
+    slides: [
+      "Slide 1 — a hook built around the number, e.g. 'Written in ten minutes. Still a classic.' max 80 chars. One emoji max.",
+      "Slide 2 — the circumstances, two short punchy sentences, max 110 chars total. One emoji max.",
+      "Slide 3 — save-bait close e.g. 'Save this. Fastest great song ever written?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed prompt for an AI image generator: a photorealistic image evoking speed and pressure in a studio — a running tape reel, a clock, a scribbled lyric sheet, a single take light. No human faces or figures. Square format, cinematic.",
+    hashtagHint: "include OneTake SongwritingStories",
+  },
+
+  banned: {
+    brief: (a) => `Generate a "Banned" post about a specific ${a} song or record that was banned, censored, pulled, refused airplay, or forced to change — by a broadcaster, a label, a retailer or a government. Be accurate about who banned it, exactly why, and when.`,
+    caption: "Instagram caption: open by naming who banned it and why. Explain the reaction at the time, and what happened to the song afterwards — bans usually made records bigger. End with a question to spark discussion.",
+    slides: [
+      "Slide 1 — a hook naming the song and who banned it, max 80 chars. One emoji max.",
+      "Slide 2 — the stated reason and the real one, two short punchy sentences, max 110 chars total. One emoji max.",
+      "Slide 3 — save-bait close e.g. 'Save this. Would it be banned today?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed prompt for an AI image generator: a photorealistic still life evoking censorship — a redacted sleeve, tape over a label, a struck-through master box, stark directional light. No human faces or figures. Square format, cinematic, high contrast.",
+    hashtagHint: "include BannedSongs MusicCensorship",
+  },
+
+  music_story: {
+    brief: (a) => `Generate a fascinating, lesser-known story about ${a} — a specific song, album, recording session, or pivotal career moment.`,
+    caption: "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. ... 2. ... etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
+    slides: [
+      "Slide 1 — a numbered saves-bait hook, pick a number 3-7, max 80 chars. One emoji max.",
+      "Slide 2 — two of those facts as very short punchy sentences back-to-back, max 110 chars total. One emoji max.",
+      "Slide 3 — save-bait CTA e.g. 'Save this. Which fact surprised you most?' max 80 chars. One emoji max.",
+    ],
+    imagePrompt: "Detailed AI image prompt specific to THIS artist and story — vary the setting creatively: a venue, a specific era's street scene, iconic instruments, sleeve objects, a tour bus, backstage equipment, or a symbolic still life tied to the story. Capture the decade's visual style and palette. No human face or figure. High contrast, cinematic, square format.",
+  },
+};
+
+function buildSeriesPrompt(category: PostCategory, artist: string): string {
+  const spec = SERIES_PROMPTS[category];
+  const slides = spec.slides.map((s) => JSON.stringify(s)).join(", ");
+  const hashtags = spec.hashtagHint
+    ? `["10", "relevant", "hashtags", "without", "hash", "symbol", "${spec.hashtagHint}"]`
+    : `["10", "relevant", "hashtags", "without", "hash", "symbol"]`;
+
   return `You are creating content for a music history brand on Instagram — similar to @explainingpaintings but for rock and pop music.
 
-Generate a fascinating, lesser-known story about ${artist} — a specific song, album, recording session, or pivotal career moment.
+${spec.brief(artist)}
 
-Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.
+${TONE}
 
 Return ONLY valid JSON with this exact structure:
 {
-  "category": "music_story",
+  "category": "${category}",
   "artist": "${artist}",
   "title": "Max 8 words. Follow the TITLE RULES at the end of this prompt.",
   "story": "2-3 sentences summarising the story, used internally",
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
-  "caption": "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
-  "imagePrompt": "Detailed AI image prompt specific to THIS artist and story — vary the setting creatively: it could be a concert venue, a specific era's street scene, iconic instruments, album sleeve objects, a tour bus, a festival crowd, backstage equipment, or a symbolic still life tied to the story's theme. Capture the exact decade's visual style and colour palette. Do NOT show any human face or figure. Do NOT use generic dark studio gear. Be specific and visually distinct. High contrast, cinematic, square format.",
-  "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 facts about [Song] most fans don't know' — max 80 chars, bold and specific. You may use one emoji max.", "Slide 2 — two of those facts as very short punchy sentences back-to-back, max 110 chars total. You may use one emoji max.", "Slide 3 — save-bait CTA e.g. 'Save this. Which fact surprised you most?' — max 80 chars. You may use one emoji max."],
-  "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol"],
+  "caption": "${spec.caption}",
+${spec.extraFields ?? ""}  "imagePrompt": "${spec.imagePrompt}",
+  "carouselSlides": [${slides}],
+  "hashtags": ${hashtags},
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
   "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
-  "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
-  "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork — pick accounts that would genuinely be interested in this story"]
-}`;
-}
-
-function buildHarmonyPrompt(artist: string): string {
-  return `You are creating content for a music history brand — exploring musical DNA, influence, and the lineage of sound across rock and pop history.
-
-Generate a "Harmony" post exploring how a specific riff, chord progression, or musical motif connected to ${artist} was borrowed, adapted, or directly copied between songs. Pick a pair of songs where the musical connection is clear, specific, and musically interesting — one that established the sound and one that borrowed it (or vice versa involving ${artist}).
-
-Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.
-
-Return ONLY valid JSON with this exact structure:
-{
-  "category": "harmony",
-  "artist": "${artist}",
-  "title": "Max 8 words, about the musical connection. Follow the TITLE RULES at the end of this prompt.",
-  "story": "2-3 sentences summarising the musical DNA connection, used internally",
-  "imageCaption": "One punchy line for the image overlay — max 55 characters, about the sonic connection",
-  "caption": "Instagram caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression, or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
-  "influenceSource": "Original artist — Song title (year)",
-  "influencedWork": "Later artist — Song title (year)",
-  "similarityLevel": "subtle_nod OR clear_influence OR nearly_identical",
-  "genre": "the genre lineage e.g. blues → hard rock, or soul → funk → hip-hop",
-  "emotion": "one word: the primary emotion this sound evokes e.g. euphoric / melancholic / defiant / tender / tense / nostalgic / energetic",
-  "activityTags": ["2-4 tags from this list only: workout, running, driving, cycling, background, chill out, party, focus, romance, morning, late night"],
-  "imagePrompt": "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures that span both eras. No human faces or figures. Square format, cinematic, high contrast.",
-  "carouselSlides": ["Slide 1 — a bold hook naming both songs, e.g. 'Most fans don't know [Song B] copied this riff from [Song A]' — max 80 chars. You may use one emoji max.", "Slide 2 — the specific riff/chord detail in plain language, max 100 chars. You may use one emoji max.", "Slide 3 — save-bait verdict e.g. 'Save this. Inspiration or imitation?' — max 80 chars. You may use one emoji max."],
-  "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include MusicInfluence MusicDNA SoundAlike"],
-  "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl or CD",
-  "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
-  "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
-  "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
-}`;
-}
-
-function buildVinylArtPrompt(artist: string): string {
-  return `You are creating content for a music history brand on Instagram — similar to @explainingpaintings but for rock and pop music.
-
-Generate a fascinating, lesser-known story about the album cover artwork or sleeve design of a specific ${artist} record — focusing on the photographer, art director, visual concept, hidden meaning, or behind-the-scenes story of how the artwork was created.
-
-Write in a natural, human tone. Use commas and short sentences instead of em dashes. Avoid bullet points, numbered lists, and overly formal phrasing. Sound like a knowledgeable music fan writing to a friend, not an AI.
-
-Return ONLY valid JSON with this exact structure:
-{
-  "category": "vinyl_art",
-  "artist": "${artist}",
-  "title": "Max 8 words, about the artwork. Follow the TITLE RULES at the end of this prompt.",
-  "story": "2-3 sentences summarising the artwork story, used internally",
-  "imageCaption": "One short punchy line for the image overlay — max 55 characters, about the artwork",
-  "caption": "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each hidden detail as a numbered item (1. … 2. … etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
-  "imagePrompt": "Detailed prompt for an AI image generator: create a photorealistic still life image that evokes the aesthetic, colour palette, textures, and mood of this specific album cover artwork — reference the visual elements, lighting style, and era without depicting any real person. Focus on objects, surfaces, typography feel, light and shadow. Square format, editorial quality.",
-  "carouselSlides": ["Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 hidden details in [Album] cover art most fans miss' — max 80 chars, bold and specific. You may use one emoji max.", "Slide 2 — two of those hidden details as very short punchy sentences back-to-back, max 110 chars total. You may use one emoji max.", "Slide 3 — save-bait CTA e.g. 'Save this. Which detail surprised you most?' — max 80 chars. You may use one emoji max."],
-  "hashtags": ["10", "relevant", "hashtags", "without", "hash", "symbol", "include AlbumArt VinylCover RecordSleeve"],
-  "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
-  "amazonSearchTerms": "3-6 words to search Amazon for this specific vinyl record — e.g. Pink Floyd Dark Side Moon vinyl",
-  "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
-  "instagramHandle": "artist's Instagram handle without @ — e.g. kylieminogue (use your best knowledge, or omit if unknown)",
+  "instagramHandle": "artist's Instagram handle without @ — use your best knowledge, or omit if unknown",
   "tagAccounts": ["1-2 relevant music media Instagram handles without @ — e.g. rollingstonemagazine or pitchfork"]
 }`;
 }
@@ -520,19 +584,10 @@ export async function generateStoryContent(
     ? todayEvent.artist
     : undefined;
   const artist = eventArtist ?? randomArtist;
-  const randomCategory = (): PostCategory => {
-    const r = Math.random();
-    if (r < 0.4) return "music_story";
-    if (r < 0.7) return "vinyl_art";
-    return "harmony";
-  };
-  const category: PostCategory = forcedCategory ?? todayEvent?.suggestedCategory ?? randomCategory();
-
-  const basePrompt = category === "vinyl_art"
-    ? buildVinylArtPrompt(artist)
-    : category === "harmony"
-    ? buildHarmonyPrompt(artist)
-    : buildMusicStoryPrompt(artist);
+  // The schedule is the default so each series keeps a fixed slot viewers can learn.
+  // An explicit request or a dated event still overrides it.
+  const category: PostCategory = forcedCategory ?? todayEvent?.suggestedCategory ?? scheduledSeries();
+  const basePrompt = buildSeriesPrompt(category, artist);
 
   // Append breaking news context — takes highest priority if present
   const newsSuffix = breakingNews

@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { seriesMeta } from "@/lib/series";
 import satori from "satori";
 import { createElement as h } from "react";
 import fs from "fs";
@@ -32,8 +33,8 @@ export async function composeImage(
   const title = content.title;
   const caption = content.imageCaption || "";
 
-  // Accent colour: amber for music stories, teal for vinyl art, purple for harmony
-  const accent = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
+  const { accent, badgeText, label: categoryLabelTop } = seriesMeta(content.category);
+  void categoryLabelTop;
 
   // Satori renders HTML/CSS to SVG using our bundled fonts — no system font needed
   const svg = await satori(
@@ -71,7 +72,7 @@ export async function composeImage(
               padding: "10px 22px",
               fontSize: 30,
               fontWeight: 700,
-              color: content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black",
+              color: badgeText,
               letterSpacing: 2,
               display: "flex",
             },
@@ -90,7 +91,7 @@ export async function composeImage(
               display: "flex",
             },
           },
-          content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY"
+          seriesMeta(content.category).label
         ),
         h(
           "div",
@@ -193,19 +194,7 @@ export async function composeCarouselSlide(
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
   const boldFont = loadFontBuffer("Inter-Bold.ttf");
 
-  const accent =
-    content.category === "vinyl_art"
-      ? "#0891b2"
-      : content.category === "harmony"
-      ? "#a855f7"
-      : "#f59e0b";
-
-  const categoryLabel =
-    content.category === "vinyl_art"
-      ? "VINYL ART"
-      : content.category === "harmony"
-      ? "HARMONY"
-      : "MUSIC STORY";
+  const { accent, label: categoryLabel } = seriesMeta(content.category);
 
   // Build slide dots: solid accent circle for current slide, dim white for others
   const dots = Array.from({ length: totalSlides }, (_, i) => {
@@ -255,10 +244,7 @@ export async function composeCarouselSlide(
               padding: "7px 16px",
               fontSize: 22,
               fontWeight: 700,
-              color:
-                content.category === "vinyl_art" || content.category === "harmony"
-                  ? "white"
-                  : "black",
+              color: seriesMeta(content.category).badgeText,
               letterSpacing: 2,
               display: "flex",
             },
@@ -418,9 +404,7 @@ export async function composeStorySlide(
   const boldFont = loadFontBuffer("Inter-Bold.ttf");
   const bebasFont = loadFontBuffer("BebasNeue-Regular.ttf");
 
-  const accent = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
-  const categoryLabel = content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY";
-  const badgeTextColor = content.category === "music_story" ? "black" : "white";
+  const { accent, label: categoryLabel, badgeText: badgeTextColor } = seriesMeta(content.category);
 
   const dots = Array.from({ length: totalSlides }, (_, i) =>
     h("div", {
@@ -557,9 +541,7 @@ export async function makeVerticalSlide(squareBuffer: Buffer): Promise<Buffer> {
  * Pure gradient background matching the post's category accent colour.
  */
 export async function composeFollowSlide(content: StoryContent): Promise<Buffer> {
-  const accent      = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
-  const accentDark  = content.category === "vinyl_art" ? "#0e7490" : content.category === "harmony" ? "#7c3aed" : "#d97706";
-  const textColor   = content.category === "vinyl_art" || content.category === "harmony" ? "white" : "black";
+  const { accent, accentDark, badgeText: textColor } = seriesMeta(content.category);
 
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
   const boldFont    = loadFontBuffer("Inter-Bold.ttf");
@@ -625,8 +607,7 @@ export async function composeFollowSlide(content: StoryContent): Promise<Buffer>
  * Composes a 1080×1920 vertical follow slide for Story/Reel sequences.
  */
 export async function composeFollowSlideVertical(content: StoryContent): Promise<Buffer> {
-  const accent      = content.category === "vinyl_art" ? "#0891b2" : content.category === "harmony" ? "#a855f7" : "#f59e0b";
-  const accentDark  = content.category === "vinyl_art" ? "#0e7490" : content.category === "harmony" ? "#7c3aed" : "#d97706";
+  const { accent, accentDark } = seriesMeta(content.category);
   const regularFont = loadFontBuffer("Inter-Regular.ttf");
   const boldFont    = loadFontBuffer("Inter-Bold.ttf");
 
@@ -693,12 +674,8 @@ export async function composeStory(
     { name: "Inter", data: boldFont,    weight: 700 as const, style: "normal" as const },
   ];
 
-  const categoryLabel = content.category === "vinyl_art" ? "VINYL ART" : content.category === "harmony" ? "HARMONY" : "MUSIC STORY";
-  const storyAccent = content.category === "vinyl_art"
-    ? "linear-gradient(160deg, #0891b2 0%, #0e7490 100%)"
-    : content.category === "harmony"
-    ? "linear-gradient(160deg, #a855f7 0%, #7c3aed 100%)"
-    : "linear-gradient(160deg, #f59e0b 0%, #d97706 100%)";
+  const { label: categoryLabel, accent: storyA, accentDark: storyB } = seriesMeta(content.category);
+  const storyAccent = `linear-gradient(160deg, ${storyA} 0%, ${storyB} 100%)`;
 
   // Raw clean image — no badge/title overlay
   const postImageSize = 860;

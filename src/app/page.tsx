@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { GeneratedPost, Platform, PostCategory } from "@/types";
+import { SERIES, seriesMeta, ROTATING_SERIES } from "@/lib/series";
 
 type Tab = "dashboard" | "generate";
 
@@ -277,18 +278,20 @@ export default function Home() {
             {/* Category selector */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
               <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Content type</p>
-              <div className="flex gap-2">
-                {([["random", "🎲 Random"], ["music_story", "🎵 Music Story"], ["vinyl_art", "💿 Vinyl Art"], ["harmony", "🎸 Harmony"]] as [PostCategory | "random", string][]).map(([val, label]) => (
-                  <button key={val} onClick={() => setSelectedCategory(val)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${
-                      selectedCategory === val
-                        ? val === "vinyl_art" ? "bg-cyan-900/50 border-cyan-600 text-cyan-300"
-                        : val === "harmony" ? "bg-purple-900/50 border-purple-600 text-purple-300"
-                        : "bg-gray-700 border-gray-500 text-white"
-                        : "bg-gray-900 border-gray-700 text-gray-500"
-                    }`}
-                  >{label}</button>
-                ))}
+              <div className="grid grid-cols-4 gap-2">
+                {(["random", ...ROTATING_SERIES, "music_story"] as (PostCategory | "random")[]).map((val) => {
+                  const meta = val === "random" ? null : SERIES[val as PostCategory];
+                  const on = selectedCategory === val;
+                  return (
+                    <button key={val} onClick={() => setSelectedCategory(val)}
+                      title={meta?.blurb ?? "Let the schedule decide"}
+                      className="py-2 px-1 rounded-lg text-[11px] font-medium border transition-colors truncate"
+                      style={on
+                        ? { background: `${meta?.accent ?? "#6b7280"}26`, borderColor: meta?.accent ?? "#9ca3af", color: meta?.accent ?? "#fff" }
+                        : { background: "#111827", borderColor: "#374151", color: "#6b7280" }}
+                    >{meta ? `${meta.emoji} ${meta.label}` : "🎲 SCHEDULED"}</button>
+                  );
+                })}
               </div>
             </div>
 
@@ -433,13 +436,11 @@ export default function Home() {
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5">
-                          <p className={`text-xs font-semibold truncate ${post.content.category === "vinyl_art" ? "text-cyan-400" : post.content.category === "harmony" ? "text-purple-400" : "text-amber-400"}`}>{post.content.artist}</p>
-                          {post.content.category === "vinyl_art" && (
-                            <span className="text-xs bg-cyan-900/50 text-cyan-400 px-1.5 py-0.5 rounded shrink-0">Vinyl Art</span>
-                          )}
-                          {post.content.category === "harmony" && (
-                            <span className="text-xs bg-purple-900/50 text-purple-400 px-1.5 py-0.5 rounded shrink-0">Harmony</span>
-                          )}
+                          <p className="text-xs font-semibold truncate" style={{ color: seriesMeta(post.content.category).accent }}>{post.content.artist}</p>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                            style={{ background: `${seriesMeta(post.content.category).accent}26`, color: seriesMeta(post.content.category).accent }}>
+                            {seriesMeta(post.content.category).label}
+                          </span>
                         </div>
                         <p className="text-sm font-medium truncate">{post.content.title}</p>
                       </div>
@@ -595,13 +596,11 @@ export default function Home() {
             })()}
             <div className="p-6">
 <div className="flex items-center gap-2 mb-1">
-                <p className={`text-sm font-bold ${selectedPost.content.category === "vinyl_art" ? "text-cyan-400" : selectedPost.content.category === "harmony" ? "text-purple-400" : "text-amber-400"}`}>{selectedPost.content.artist}</p>
-                {selectedPost.content.category === "vinyl_art" && (
-                  <span className="text-xs bg-cyan-900/50 text-cyan-400 px-2 py-0.5 rounded">Vinyl Art</span>
-                )}
-                {selectedPost.content.category === "harmony" && (
-                  <span className="text-xs bg-purple-900/50 text-purple-400 px-2 py-0.5 rounded">Harmony</span>
-                )}
+                <p className="text-sm font-bold" style={{ color: seriesMeta(selectedPost.content.category).accent }}>{selectedPost.content.artist}</p>
+                <span className="text-xs px-2 py-0.5 rounded"
+                  style={{ background: `${seriesMeta(selectedPost.content.category).accent}26`, color: seriesMeta(selectedPost.content.category).accent }}>
+                  {seriesMeta(selectedPost.content.category).label}
+                </span>
               </div>
               <h3 className="text-xl font-bold mb-1">{selectedPost.content.title}</h3>
               {selectedPost.todayEvent && (
@@ -609,8 +608,8 @@ export default function Home() {
               )}
               <p className="text-gray-300 text-sm mb-4">{selectedPost.content.story}</p>
 
-              {/* Harmony details */}
-              {selectedPost.content.category === "harmony" && (
+              {/* Same Riff details — keyed off the data so legacy harmony posts still render */}
+              {(selectedPost.content.influenceSource || selectedPost.content.influencedWork) && (
                 <div className="bg-purple-950/30 border border-purple-800/40 rounded-xl p-4 mb-4 space-y-2">
                   {selectedPost.content.influenceSource && (
                     <div className="text-xs"><span className="text-purple-400 font-semibold">Original: </span><span className="text-gray-300">{selectedPost.content.influenceSource}</span></div>
