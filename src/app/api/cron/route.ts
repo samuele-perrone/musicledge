@@ -8,9 +8,9 @@ import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelate
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createKaraokeReelVideo, findAudioTrack } from "@/lib/video";
+import { createKaraokeReelVideo, findAudioTrack, REEL_COVER_OFFSET_MS } from "@/lib/video";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
-import { createReelContainer, checkContainerStatus, publishMediaContainer } from "@/lib/instagram";
+import { createReelContainer, checkContainerStatus, publishMediaContainer, buildPostTags } from "@/lib/instagram";
 import { GeneratedPost, defaultPlatforms } from "@/types";
 import crypto from "crypto";
 
@@ -195,7 +195,13 @@ async function runCron() {
       : post.artistInfo
       ? `\n📷 Photo © ${post.artistInfo.artistName}, via @spotify`
       : "";
-    const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
+    const { artistHandle, userTags, mentionLine } = buildPostTags(content);
+    if (artistHandle) log.push(`Tagging @${artistHandle}`);
+    else if (content.instagramHandle) {
+      log.push(`Handle "${content.instagramHandle}" rejected — does not match ${content.artist}`);
+    }
+
+    const suffix = `${mentionLine}${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
     const maxBody = 2200 - suffix.length - 4;
     const captionBody = content.caption.length > maxBody
       ? content.caption.slice(0, maxBody).trimEnd() + "…"
@@ -210,7 +216,11 @@ async function runCron() {
     // ── Instagram Reels ───────────────────────────────────────────────────────
     try {
       console.log(`[cron] creating Instagram reel container`);
-      const containerId = await createReelContainer(reelBlobUrl, caption);
+      const containerId = await createReelContainer(reelBlobUrl, caption, {
+        thumbOffsetMs: REEL_COVER_OFFSET_MS,
+        userTags,
+        shareToFeed: true,
+      });
       let status = "IN_PROGRESS";
       let attempts = 0;
       while (status === "IN_PROGRESS" && attempts < 12) {

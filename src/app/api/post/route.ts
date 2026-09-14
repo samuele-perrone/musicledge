@@ -6,9 +6,10 @@ import {
   publishMediaContainer,
   checkContainerStatus,
   createReelContainer,
+  buildPostTags,
 } from "@/lib/instagram";
 import { postTikTokPhoto } from "@/lib/tiktok";
-import { createShortsVideo } from "@/lib/video";
+import { createShortsVideo, REEL_COVER_OFFSET_MS } from "@/lib/video";
 import { uploadYouTubeShort } from "@/lib/youtube";
 
 export const maxDuration = 120;
@@ -45,7 +46,8 @@ export async function POST(request: Request) {
       ? `\n📷 Photo © ${post.artistInfo.artistName}, via @spotify`
       : "";
     // Instagram limit is 2,200 characters — truncate caption body if needed
-    const suffix = `${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
+    const { userTags, mentionLine } = buildPostTags(post.content);
+    const suffix = `${mentionLine}${creditLine}\n\n${hashtags}\n\n${linksBlock}`;
     const maxBody = 2200 - suffix.length - 4;
     const captionBody = post.content.caption.length > maxBody
       ? post.content.caption.slice(0, maxBody).trimEnd() + "…"
@@ -97,7 +99,11 @@ export async function POST(request: Request) {
     if (targets.includes("reel")) {
       try {
         if (!post.reelBlobUrl) throw new Error("No reel video URL on post — regenerate to create it");
-        const containerId = await createReelContainer(post.reelBlobUrl, caption);
+        const containerId = await createReelContainer(post.reelBlobUrl, caption, {
+          thumbOffsetMs: REEL_COVER_OFFSET_MS,
+          userTags,
+          shareToFeed: true,
+        });
         let status = "IN_PROGRESS";
         let attempts = 0;
         while (status === "IN_PROGRESS" && attempts < 20) {

@@ -598,6 +598,16 @@ const KB_TARGETS = [
  * `imageBuffers[1]` for slide 1, `[2]` for slide 2, `[3]` for the follow frame.
  * Falls back to imageBuffers[0] if fewer images are available.
  */
+/** Intro segment length. The title card is opaque from 0s and fades out over the final 0.4s. */
+const INTRO_SECONDS = 3.0;
+
+/**
+ * Frame used as the Reel cover. Sits mid-intro, comfortably inside the opaque
+ * window, so the cover always shows the finished title card rather than a
+ * part-faded frame.
+ */
+export const REEL_COVER_OFFSET_MS = Math.round((INTRO_SECONDS / 2) * 1000);
+
 export async function createKaraokeReelVideo(
   imageBuffers: Buffer[],
   slides: string[],
@@ -609,7 +619,7 @@ export async function createKaraokeReelVideo(
 
   const tmpId  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const fonts  = loadFonts();
-  const INTRO_DURATION  = 3.0;
+  const INTRO_DURATION  = INTRO_SECONDS;
   const WORD_DURATION   = 0.40;
   const SLIDE_DURATION  = 5.0;
   const FOLLOW_DURATION = 6.0;
