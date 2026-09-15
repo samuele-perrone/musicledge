@@ -2,6 +2,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import Anthropic from "@anthropic-ai/sdk";
 import { StoryContent, PostCategory } from "@/types";
 import { scheduledSeries } from "@/lib/series";
+import { describePerformance } from "@/lib/insights";
+import type { PostMetrics } from "@/lib/insights";
 
 export interface TodayEvent {
   artist: string;
@@ -562,7 +564,11 @@ export async function generateStoryContent(
   forcedCategory?: PostCategory,
   todayEvent?: TodayEvent,
   recentSummaries: { artist: string; title: string; category: string }[] = [],
-  breakingNews?: string
+  breakingNews?: string,
+  performance?: {
+    best: { title: string; artist: string; category: string; metrics: PostMetrics }[];
+    worst: { title: string; artist: string; category: string; metrics: PostMetrics }[];
+  }
 ): Promise<StoryContent> {
   // Pick an artist that has not featured recently, widening the window only as
   // far as needed. The previous version fell straight back to "anything not in
@@ -615,7 +621,23 @@ export async function generateStoryContent(
     ? `\n\nDO NOT repeat any of the following stories that have already been published. Choose a completely different song, album, event, or aspect of the artist's career. Also vary your title's sentence shape from theirs — if several share a construction, do not write a fourth in that mould:\n${dedupeLines}${artistSummaries.length > 0 ? `\n\nThis artist (${artist}) has already been featured ${artistSummaries.length} time(s) — pick a different era, album, or story angle.` : ""}`
     : "";
 
-  const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix + TITLE_RULES;
+  /**
+   * What actually worked, measured rather than guessed. Retention leads because
+   * it is the metric with real variation; saves and shares are rare enough that
+   * most posts tie at zero. Likes are deliberately absent — they sit near 3% and
+   * have produced almost nothing, so showing them would teach the wrong lesson.
+   */
+  const performanceSuffix = performance?.best.length
+    ? `\n\nWHAT HAS ACTUALLY WORKED ON THIS ACCOUNT\n\n` +
+      `These are measured results, not opinion. Average watch time is the number that matters most: ` +
+      `viewers who leave early never reach the closing slide, never save and never share.\n\n` +
+      `Best performing:\n${describePerformance(performance.best)}\n\n` +
+      `Worst performing:\n${describePerformance(performance.worst)}\n\n` +
+      `Work out what the strong ones share — subject, angle, how concrete the hook is — and write more like them. ` +
+      `Do not copy their topics; the dedup list above still applies.`
+    : "";
+
+  const prompt = basePrompt + newsSuffix + eventSuffix + dedupeSuffix + performanceSuffix + TITLE_RULES;
 
   const text = await generate(prompt);
   const rawJson = extractFirstJson(text);

@@ -1,4 +1,5 @@
 import type { AlbumInfo } from "@/lib/musicapi";
+import type { PostMetrics } from "@/lib/insights";
 
 /**
  * The six named series plus `music_story`, the general format used when breaking
@@ -61,6 +62,10 @@ export interface GeneratedPost {
   todayEvent?: string;         // e.g. "50th anniversary of Dark Side of the Moon"
   imageBase64?: string;
   affiliateUrl?: string;       // constructed Amazon affiliate link
+  // Measured after publishing, refreshed while the post is recent. Absent until
+  // the first collection pass reaches it, and on anything that never published.
+  metrics?: PostMetrics;
+
   // Populated for sleeve_stories posts when an album lookup succeeds (iTunes, else Deezer).
   // Mirrors AlbumInfo in lib/musicapi rather than redeclaring a narrower shape.
   albumInfo?: AlbumInfo;

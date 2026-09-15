@@ -9,7 +9,7 @@ import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase6
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createKaraokeReelVideo, findAudioTrack, REEL_COVER_OFFSET_MS } from "@/lib/video";
-import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
+import { savePost, getRecentArtists, getRecentPostSummaries, getPerformanceExtremes, refreshRecentMetrics } from "@/lib/store";
 import { scheduledSeries, seriesMeta } from "@/lib/series";
 import { createReelContainer, checkContainerStatus, publishMediaContainer, buildPostTags } from "@/lib/instagram";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
@@ -96,12 +96,31 @@ async function runCron() {
       : "scheduled";
     console.log(`[cron] series=${seriesMeta(category).label} reason=${reason}`);
     log.push(`Series: ${seriesMeta(category).label} (${reason})`);
+    // Measured winners and losers, so the generator learns instead of guessing.
+    // Empty until enough posts carry metrics, and the prompt simply omits the
+    // section in that case rather than asserting anything from thin data.
+    const extremes = await getPerformanceExtremes();
+    const toEntries = (ps: typeof extremes.best) =>
+      ps.map((p) => ({
+        title: p.content.title,
+        artist: p.content.artist,
+        category: p.content.category,
+        metrics: p.metrics!,
+      }));
+    if (extremes.best.length) {
+      log.push(`Learning from ${extremes.best.length} best and ${extremes.worst.length} worst measured posts`);
+      console.log(`[cron] performance context: ${extremes.best.length} best, ${extremes.worst.length} worst`);
+    } else {
+      console.log(`[cron] performance context: not enough measured posts yet`);
+    }
+
     const content = await generateStoryContent(
       usedArtists,
       category,
       activeBreakingNews ? undefined : (todayEvent ?? undefined),
       recentSummaries,
-      activeBreakingNews ?? undefined
+      activeBreakingNews ?? undefined,
+      extremes.best.length ? { best: toEntries(extremes.best), worst: toEntries(extremes.worst) } : undefined
     );
     log.push(`Post: "${content.title}" — ${content.artist}`);
     console.log(`[cron] content ready: "${content.title}" — ${content.artist}`);
@@ -261,6 +280,15 @@ async function runCron() {
 
     if (errors.length > 0) {
       await sendErrorAlert(errors).catch(() => {});
+    }
+
+    // After publishing, not before: engagement keeps moving for days, so this
+    // refreshes a window of recent posts rather than only measuring new ones.
+    try {
+      const refreshed = await refreshRecentMetrics();
+      console.log(`[cron] metrics refreshed for ${refreshed} recent post(s)`);
+    } catch (e) {
+      console.warn(`[cron] metrics refresh failed: ${e instanceof Error ? e.message : e}`);
     }
 
     console.log(`[cron] done — ${errors.length === 0 ? "published" : `FAILED: ${errors.join("; ")}`}`);

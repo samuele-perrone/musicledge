@@ -76,25 +76,43 @@ This is the only lever that improves conversion today rather than in two months.
 
 ---
 
-## Phase 2 — stop guessing
+## Phase 2 — stop guessing — DONE 2026-09-15
 
-**The performance feedback loop.** 456 posts published, nothing learned from any
-of them. Every decision made this week, including all three bets, came from
-reading a grid and inferring.
+**The performance feedback loop shipped.** The `instagram_manage_insights` scope
+was added, and nine metrics came back: views, reach, likes, comments, saved,
+shares, total_interactions, `ig_reels_avg_watch_time` and
+`ig_reels_video_view_total_time`. The 1,000-follower limit does not apply at 204.
 
-Blocked on exactly one thing: **`instagram_manage_insights` on the Meta token**.
-Confirmed via `/api/insights-debug`, which reports all eleven metrics failing
-with an identical permission error rather than the follower-threshold error —
-so the scope is the blocker, and whether the 1,000-follower limit also applies
-stays unknown until it is added.
+**Correction to earlier guidance.** The stated objective was "saves, shares and
+follows". `follows` and `profile_visits` are **not available per post** for
+reels — the API supports them only at account level. The objective is therefore
+**retention, then saves and shares. Never likes**, which sit near 3% and have
+produced almost nothing.
 
-Steps: add the scope in the Meta app (App ID `1003253958940488`) → regenerate the
-long-lived user token → update `FACEBOOK_USER_TOKEN` → `POST /api/token-reset` →
-re-run `/api/insights-debug`.
+Retention leads for a practical reason as much as a principled one: it is the
+only metric with continuous variation. Saves and shares are so rare here — the
+best post of a month drew 3 saves and 0 shares — that ranking on them alone
+leaves nearly every post tied at zero.
 
-Non-negotiable in the design: **optimise for saves, shares and follows. Never
-likes.** Likes already sit at 3% and have produced nothing; tuning on them would
-only make forgettable content faster.
+Each cron run now refreshes metrics for a window of recent posts, and feeds the
+five best and five worst measured posts into the generation prompt as raw
+numbers. It refuses to do so until enough posts carry metrics, and ignores posts
+below 40 reach so a post seen by nine people cannot dominate a rate-based
+ranking.
+
+### The finding that may reframe everything
+
+First measured post (Judas Priest, 15 Sept): **4.9 seconds average watch on a
+~24 second reel** — roughly a fifth. Viewers are leaving within a second or two
+of the hook card finishing.
+
+One post, four hours old, 49 views, so treat it as a signal and not a
+conclusion. But if it holds across the catalogue, the binding constraint is
+**retention**, not reach and not the follow prompt. It would also explain the
+funnel better than anything else: people who leave at 5 seconds never reach the
+closing slide, never save, and never share.
+
+Watch this across the fortnight. It is the number that decides Phase 3.
 
 ---
 
@@ -103,8 +121,9 @@ only make forgettable content faster.
 Candidates, in current order:
 
 1. **Voiceover / TTS.** Silent text slideshows are the weakest reel format going.
-   Parked by choice on 2026-09-14. The feedback loop would show whether retention
-   is the binding problem and therefore whether this is worth it.
+   Parked on 2026-09-14 partly because there was no retention data. There is now,
+   and the first reading is poor — see Phase 2. If ~5s average watch holds, this
+   stops being a nice-to-have and becomes the main lever.
 2. **Lyrics Deep Dive** as a seventh series — where a song's lyrics draw from
    history, biography, mythology or politics, with a rating for how directly they
    map to the source. Predates the series architecture but now costs one prompt

@@ -11,6 +11,7 @@
  */
 import type { Redis as UpstashRedis } from "@upstash/redis";
 import { GeneratedPost } from "@/types";
+import { fetchMediaInsights, scorePost } from "@/lib/insights";
 
 const POSTS_KEY = "musicledge:posts";              // legacy array, kept as a backup
 const INDEX_KEY = "musicledge:posts:index";        // sorted set: member = id, score = createdAt
@@ -156,6 +157,53 @@ export async function getRecentPostSummaries(limit = 40): Promise<{ artist: stri
     title: p.content.title,
     category: p.content.category,
   }));
+}
+
+/**
+ * Refreshes metrics for recently published reels.
+ *
+ * Runs over a window rather than only new posts because engagement keeps moving
+ * for days — a post measured an hour after publishing reads as a failure no
+ * matter how it ends up. Bounded and concurrency-limited so it stays a cheap
+ * tail on the cron rather than a job of its own.
+ */
+export async function refreshRecentMetrics(limit = 24): Promise<number> {
+  const posts = await loadPosts(limit);
+  const targets = posts.filter((p) => p.platforms?.reel?.status === "posted" && p.platforms.reel.postId);
+
+  let updated = 0;
+  for (let i = 0; i < targets.length; i += 6) {
+    const batch = targets.slice(i, i + 6);
+    const results = await Promise.allSettled(
+      batch.map(async (post) => {
+        const m = await fetchMediaInsights(post.platforms.reel!.postId!);
+        if (!m) return false;
+        await savePost({ ...post, metrics: m });
+        return true;
+      })
+    );
+    updated += results.filter((r) => r.status === "fulfilled" && r.value).length;
+  }
+  return updated;
+}
+
+/**
+ * Best and worst measured posts, for the generation prompt.
+ *
+ * Only posts with enough reach to mean anything — a post seen by nine people
+ * says nothing about the writing, and would otherwise dominate a rate-based
+ * ranking through sheer smallness.
+ */
+export async function getPerformanceExtremes(
+  count = 5,
+  minReach = 40
+): Promise<{ best: GeneratedPost[]; worst: GeneratedPost[] }> {
+  const posts = await loadPosts(120);
+  const measured = posts.filter((p) => p.metrics && p.metrics.reach >= minReach);
+  if (measured.length < count * 2) return { best: [], worst: [] };
+
+  const ranked = [...measured].sort((a, b) => scorePost(b.metrics!) - scorePost(a.metrics!));
+  return { best: ranked.slice(0, count), worst: ranked.slice(-count).reverse() };
 }
 
 const META_TOKEN_KEY = "musicledge:meta_token";
