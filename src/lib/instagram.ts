@@ -140,10 +140,13 @@ export async function createReelContainer(
   options: ReelOptions = {}
 ): Promise<string> {
   const accountId = process.env.INSTAGRAM_ACCOUNT_ID!;
-  const params: Record<string, string> = {
+  const core: Record<string, string> = {
     video_url: videoUrl,
     caption,
     media_type: "REELS",
+  };
+  const params: Record<string, string> = {
+    ...core,
     share_to_feed: String(options.shareToFeed ?? true),
   };
   if (options.thumbOffsetMs !== undefined) {
@@ -152,6 +155,20 @@ export async function createReelContainer(
   if (options.userTags?.length) {
     params.user_tags = JSON.stringify(options.userTags.map((username) => ({ username })));
   }
-  const data = await igFetch(`/${accountId}/media`, "POST", params);
-  return data.id as string;
+
+  try {
+    const data = await igFetch(`/${accountId}/media`, "POST", params);
+    return data.id as string;
+  } catch (e) {
+    // Tagging is a nice-to-have; a day's post is not worth losing to it. Handles
+    // come from the content model and are unverifiable, so a plausible-looking
+    // one that does not resolve to a real account gets the whole container
+    // rejected — which silently cost a post on 2026-09-14. Retry without the
+    // optional extras rather than failing the run.
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`[instagram] reel container rejected with optional params (${msg}) — retrying bare`);
+    const data = await igFetch(`/${accountId}/media`, "POST", core);
+    console.warn(`[instagram] bare retry succeeded — the optional params were at fault`);
+    return data.id as string;
+  }
 }

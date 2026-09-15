@@ -233,6 +233,10 @@ async function runCron() {
       log.push(`Instagram Reel: ${mediaId}`);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      // console, not just the response body: a scheduled GET returns its log to
+      // Vercel's cron runner and nobody reads it, so a failed publish looked
+      // identical to a successful one in the runtime logs.
+      console.error(`[cron] Instagram Reel FAILED: ${msg}`);
       post.platforms.reel = { status: "failed", error: msg };
       errors.push(`Instagram Reel: ${msg}`);
       log.push(`Instagram Reel failed: ${msg}`);
@@ -245,6 +249,7 @@ async function runCron() {
       await sendErrorAlert(errors).catch(() => {});
     }
 
+    console.log(`[cron] done — ${errors.length === 0 ? "published" : `FAILED: ${errors.join("; ")}`}`);
     return NextResponse.json({ success: errors.length === 0, log, errors });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
