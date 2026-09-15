@@ -4,6 +4,7 @@
  * as an Instagram Reel.
  */
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage } from "@/lib/compose";
@@ -33,8 +34,12 @@ async function sendErrorAlert(errors: string[]) {
   });
 }
 
-// POST — triggered manually from the dashboard
-export async function POST() {
+// POST — triggered from the dashboard. Was completely open, which let anyone
+// with the URL publish posts at will; see lib/auth.
+export async function POST(request: Request) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   return runCron();
 }
 

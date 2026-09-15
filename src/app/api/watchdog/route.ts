@@ -7,6 +7,7 @@
  * missed run is caught without firing on a healthy schedule.
  */
 import { NextResponse } from "next/server";
+import { isAuthorized } from "@/lib/auth";
 import { loadPosts } from "@/lib/store";
 
 export const maxDuration = 310;
@@ -31,7 +32,12 @@ async function runWatchdog() {
   const baseUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL ?? "musicledge.vercel.app"}`;
   let result: unknown;
   try {
-    const res = await fetch(`${baseUrl}/api/cron`, { method: "POST" });
+    // GET with the cron secret, the same path Vercel's scheduler uses. This used
+    // to POST with no credentials, which only worked because POST was open.
+    const res = await fetch(`${baseUrl}/api/cron`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${process.env.CRON_SECRET ?? ""}` },
+    });
     result = await res.json();
     console.log(`[watchdog] retry result:`, JSON.stringify(result));
   } catch (e) {
@@ -43,7 +49,10 @@ async function runWatchdog() {
   return NextResponse.json({ healthy: false, ageMinutes, retried: true, result });
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   return runWatchdog();
 }
 
