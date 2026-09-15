@@ -125,9 +125,19 @@ function cleanText(text: string): string {
  * Assumes ~2.5 words/second for large display text, with a 1.5s lead-in buffer.
  * Clamped to [3.5s, 8s].
  */
+/**
+ * How long a slide stays up.
+ *
+ * Measured over 120 posts (19 Aug - 15 Sep 2026): the median viewer watched 4.8s
+ * of a ~24s reel, so 20% of it. The old 3.5-8s range was written for a viewer
+ * who does not exist here. Capping at 4.5s trades a little reading comfort for a
+ * far higher share of the reel actually being seen, and completion is what earns
+ * distribution — the top retention third averaged 437 views against 89 for the
+ * bottom.
+ */
 function readingDuration(words: string[]): number {
   const secs = words.length / 2.5 + 1.5;
-  return Math.min(Math.max(secs, 3.5), 8.0);
+  return Math.min(Math.max(secs, 2.5), 4.5);
 }
 
 // ─── Frame / overlay renderers ────────────────────────────────────────────────
@@ -602,8 +612,15 @@ const KB_TARGETS = [
  * `imageBuffers[1]` for slide 1, `[2]` for slide 2, `[3]` for the follow frame.
  * Falls back to imageBuffers[0] if fewer images are available.
  */
-/** Intro segment length. The title card is opaque from 0s and fades out over the final 0.4s. */
-const INTRO_SECONDS = 3.0;
+/**
+ * Intro segment length. The title card is opaque from 0s and fades over the final 0.4s.
+ *
+ * Was 3.0s, which consumed most of the median 4.8s view on its own — viewers
+ * were leaving during the title card, before any story started. 2.0s still
+ * leaves enough to read an eight-word title while returning most of that time
+ * to the content.
+ */
+const INTRO_SECONDS = 2.0;
 
 /**
  * Frame used as the Reel cover. Sits mid-intro, comfortably inside the opaque
@@ -625,8 +642,7 @@ export async function createKaraokeReelVideo(
   const fonts  = loadFonts();
   const INTRO_DURATION  = INTRO_SECONDS;
   const WORD_DURATION   = 0.40;
-  const SLIDE_DURATION  = 5.0;
-  const FOLLOW_DURATION = 6.0;
+  const FOLLOW_DURATION = 2.5;
 
   const segmentPaths: string[] = [];
   const overlayPaths: string[] = [];
@@ -637,7 +653,12 @@ export async function createKaraokeReelVideo(
   const introFrame = await renderIntroFrame(imageBuffers[0], content, fonts);
   const introSeg = await renderStaticSegment(
     introFrame, INTRO_DURATION,
-    { fadeIn: false, fadeOut: true },
+    // Hard cuts throughout. Every segment used to fade out to black and the next
+    // fade in from it, so each boundary showed roughly 0.8s of near-black — about
+    // 12% of the shortened reel spent displaying nothing, and a black frame
+    // mid-reel reads as "it ended" to a scrolling viewer. With Ken Burns motion
+    // on the slides, cutting straight is both snappier and standard for reels.
+    { fadeIn: false, fadeOut: false },
     tmpId, "intro"
   );
   segmentPaths.push(introSeg);
@@ -670,7 +691,7 @@ export async function createKaraokeReelVideo(
     const kb  = KB_TARGETS[si % KB_TARGETS.length];
     // Slide backgrounds cycle from index 1 onwards so intro image is separate
     const bgBuf = getBg(si + 1);
-    const seg = await renderZoompanSegment(bgBuf, entries, { fadeIn: true, fadeOut: true, kbX: kb.x, kbY: kb.y }, tmpId, `slide${si}`);
+    const seg = await renderZoompanSegment(bgBuf, entries, { fadeIn: false, fadeOut: false, kbX: kb.x, kbY: kb.y }, tmpId, `slide${si}`);
     segmentPaths.push(seg);
   }
 
@@ -683,13 +704,13 @@ export async function createKaraokeReelVideo(
 
   const followWords = followSlideText.split(/\s+/).filter(Boolean);
   // Add extra time on top of reading duration so viewers can also absorb the CTA
-  const followDuration = Math.min(readingDuration(followWords) + 2.0, FOLLOW_DURATION);
+  const followDuration = Math.min(readingDuration(followWords) + 1.0, FOLLOW_DURATION);
 
   const followKb = KB_TARGETS[2]; // top-right Ken Burns anchor
   const followSeg = await renderZoompanSegment(
     getBg(3),
     [{ path: followOverlayPath, duration: followDuration }],
-    { fadeIn: true, fadeOut: false, kbX: followKb.x, kbY: followKb.y },
+    { fadeIn: false, fadeOut: false, kbX: followKb.x, kbY: followKb.y },
     tmpId, "follow"
   );
   segmentPaths.push(followSeg);

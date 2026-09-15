@@ -100,19 +100,45 @@ numbers. It refuses to do so until enough posts carry metrics, and ignores posts
 below 40 reach so a post seen by nine people cannot dominate a rate-based
 ranking.
 
-### The finding that may reframe everything
+### Retention is the constraint — confirmed across 120 posts
 
-First measured post (Judas Priest, 15 Sept): **4.9 seconds average watch on a
-~24 second reel** — roughly a fifth. Viewers are leaving within a second or two
-of the hook card finishing.
+Measured 2026-09-15 over 120 reels published 19 Aug – 15 Sep:
 
-One post, four hours old, 49 views, so treat it as a signal and not a
-conclusion. But if it holds across the catalogue, the binding constraint is
-**retention**, not reach and not the follow prompt. It would also explain the
-funnel better than anything else: people who leave at 5 seconds never reach the
-closing slide, never save, and never share.
+| | |
+|---|---|
+| Median average watch | **4.8s** |
+| Mean | 5.4s |
+| Median share of reel watched | **20.1%** |
+| Spread | 1.3s – 18.2s |
 
-Watch this across the fortnight. It is the number that decides Phase 3.
+53% of posts hold the average viewer under five seconds; 89% under eight. The
+reel was ~21s: a 3s static title card, two slides, then the follow frame. The
+median viewer therefore saw the title card and roughly two seconds of the first
+slide, leaving before the story landed and long before a follow prompt they
+never reached.
+
+That one fact explains the funnel better than anything else. Across those 120
+posts there were 45 saves and 30 shares in total; 89 posts were never saved once.
+Nobody stays long enough to act.
+
+**Retention also drives reach here.** Top third by watch time: 8.2s → 437 average
+views. Bottom third: 3.1s → 89. A 4.9x difference, so holding attention compounds
+into distribution. Caveat: the two highest-retention posts have 13 and 29 views,
+where watch time is noise from a handful of people — but the pattern holds in the
+solid middle (11.3s → 702 views, 11.3s → 1,375, 10.5s → 1,200).
+
+**Acted on 2026-09-15:** reel length cut from 21.3s to 13.6s, measured end to
+end — 2.0s intro instead of 3.0s, slides capped at 4.5s instead of 8s, follow
+frame 2.5s. At the median 4.8s watch that lifts the share of the reel seen from
+roughly 22% to 35% with no content change.
+
+Rendering the result also exposed a long-standing defect: every segment faded out
+to black and the next faded in from it, so each boundary showed about 0.8s of
+near-black — roughly 12% of the shortened reel displaying nothing, and a black
+frame mid-reel reads as "it ended" to a scrolling viewer. Now hard cuts
+throughout.
+
+Next: re-measure in a week. If watch time has not moved, voiceover is the lever.
 
 ---
 
