@@ -58,6 +58,12 @@ async function runCron() {
       getBreakingMusicNews(),
     ]);
 
+    // Console as well as `log`: a scheduled GET returns its body to Vercel's cron
+    // runner and nowhere a person reads, so anything only pushed to `log` cannot
+    // be reviewed after the fact.
+    if (breakingNews) console.log(`[cron] breaking news found: ${breakingNews}`);
+    if (todayEvent) console.log(`[cron] today's event: ${todayEvent.event} — ${todayEvent.artist}`);
+    if (!breakingNews && !todayEvent) console.log(`[cron] no news or event today`);
     if (breakingNews) log.push(`Breaking news: ${breakingNews}`);
     if (todayEvent) log.push(`Today's event: ${todayEvent.event} — ${todayEvent.artist}`);
 
@@ -72,16 +78,24 @@ async function runCron() {
       a.split(/[\s/,]+/).some((word) => word.length > 3 && breakingNews.toLowerCase().includes(word))
     );
     const activeBreakingNews = newsAboutRecentArtist ? null : breakingNews;
-    if (newsAboutRecentArtist) log.push(`Breaking news suppressed — artist recently posted`);
+    if (newsAboutRecentArtist) {
+      console.log(`[cron] breaking news suppressed — that artist posted recently`);
+      log.push(`Breaking news suppressed — artist recently posted`);
+    }
 
     // Each series owns fixed slots so a viewer can learn that, say, Tuesday is
     // Banned. Breaking news still takes the slot, using the general format —
     // running today's news as "Banned" or "Same Riff" would read as nonsense.
     const scheduled = scheduledSeries();
     const category: PostCategory = activeBreakingNews ? "music_story" : scheduled;
-    log.push(`Series: ${seriesMeta(category).label}${activeBreakingNews ? ` (breaking news took the ${seriesMeta(scheduled).label} slot)` : ""}`);
 
-    console.log(`[cron] generating content, category=${category}`);
+    // Worth being able to count after a week: if news displaces the schedule too
+    // often, the fixed-day predictability the series exist for never materialises.
+    const reason = activeBreakingNews
+      ? `breaking news displaced ${seriesMeta(scheduled).label}`
+      : "scheduled";
+    console.log(`[cron] series=${seriesMeta(category).label} reason=${reason}`);
+    log.push(`Series: ${seriesMeta(category).label} (${reason})`);
     const content = await generateStoryContent(
       usedArtists,
       category,

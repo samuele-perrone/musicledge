@@ -587,6 +587,13 @@ export async function generateStoryContent(
   // The schedule is the default so each series keeps a fixed slot viewers can learn.
   // An explicit request or a dated event still overrides it.
   const category: PostCategory = forcedCategory ?? todayEvent?.suggestedCategory ?? scheduledSeries();
+
+  // The series is chosen by the caller; the artist is chosen here, so record where
+  // it came from — a dated event quietly overrides the rotation.
+  console.log(
+    `[claude] artist=${artist} (${eventArtist ? "today's event" : "rotation"}), ` +
+    `series=${category}, candidates=${finalPool.length}`
+  );
   const basePrompt = buildSeriesPrompt(category, artist);
 
   // Append breaking news context — takes highest priority if present
