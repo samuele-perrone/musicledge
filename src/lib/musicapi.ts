@@ -358,52 +358,53 @@ async function searchArtistDeezer(
   }
 }
 
+/** The subset of a Spotify artist object this module reads. */
+interface SpotifyArtist {
+  name?: string;
+  images?: { url: string; width: number }[];
+  followers?: { total?: number };
+  external_urls?: { spotify?: string };
+}
+
 async function searchArtistSpotify(
   artist: string
 ): Promise<{ imageUrl: string; spotifyUrl: string; artistName: string } | null> {
   try {
-    const token = await getSpotifyToken();
-    console.log(`[spotify] token=${token ? "ok" : "FAILED"}`);
-    if (!token) return null;
-    // Try field-filtered search first, fall back to plain query
-    const trySearch = async (q: string) => {
-      const res = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=artist&limit=25`,
-        { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(5000) }
-      );
-      console.log(`[spotify] search "${q}" → ${res.status}`);
-      if (!res.ok) return [];
-      const data = await res.json();
-      return data.artists?.items ?? [];
-    };
-    let items = await trySearch(`artist:${artist}`);
-    if (items.length === 0) items = await trySearch(artist);
+    const pick = (d: Record<string, unknown> | null): SpotifyArtist[] =>
+      ((d?.artists as { items?: SpotifyArtist[] } | undefined)?.items) ?? [];
+
+    // Field-filtered search first, then a plain query — but only when the first
+    // call actually succeeded and simply found nothing. A failed call means
+    // Spotify is refusing us, and asking again differently cannot change that.
+    const filtered = await spotifyGet(
+      `search?q=${encodeURIComponent(`artist:${artist}`)}&type=artist&limit=25`
+    );
+    let items = pick(filtered);
+    if (filtered && items.length === 0) {
+      items = pick(await spotifyGet(`search?q=${encodeURIComponent(artist)}&type=artist&limit=25`));
+    }
+    if (items.length === 0) return null;
     // No items[0] fallback — an unmatched Spotify search returns another artist,
     // whose press photo would then be published as this artist's. Among genuine
     // name matches, prefer the most followed so a namesake cannot win.
-    const spotifyCandidates = items.filter((a: Record<string, unknown>) =>
-      artistNameMatches(a.name as string, artist)
-    );
-    const followers = (a: Record<string, unknown>) =>
-      ((a.followers as { total?: number } | undefined)?.total) ?? 0;
-    const match = spotifyCandidates.length
-      ? spotifyCandidates.reduce((best: Record<string, unknown>, a: Record<string, unknown>) =>
-          (followers(a) > followers(best) ? a : best))
+    const candidates = items.filter((a) => artistNameMatches(a.name, artist));
+    const followers = (a: SpotifyArtist) => a.followers?.total ?? 0;
+    const match = candidates.length
+      ? candidates.reduce((best, a) => (followers(a) > followers(best) ? a : best))
       : undefined;
-    console.log(`[spotify] match=${match?.name ?? "none"}, images=${match?.images?.length ?? 0}`);
     if (!match) return null;
-    // Pick the largest image
-    const images: { url: string; width: number }[] = match.images ?? [];
-    images.sort((a: { width: number }, b: { width: number }) => b.width - a.width);
+
+    // Largest image available.
+    const images = [...(match.images ?? [])].sort((a, b) => b.width - a.width);
     const imageUrl = images[0]?.url;
-    if (!imageUrl) return null;
+    if (!imageUrl || !match.name) return null;
     return {
       imageUrl,
-      spotifyUrl: match.external_urls?.spotify,
+      spotifyUrl: match.external_urls?.spotify ?? "",
       artistName: match.name,
     };
   } catch (e) {
-    console.log(`[spotify] exception: ${e}`);
+    console.warn(`[spotify] artist lookup threw: ${e instanceof Error ? e.message : e}`);
     return null;
   }
 }
@@ -470,7 +471,24 @@ export async function fetchAlbumArtAsBase64(artworkUrl: string): Promise<string>
 
 // ─── Spotify ─────────────────────────────────────────────────────────────────
 
+/** Some hosts reject datacenter traffic that sends no User-Agent. Cheap to rule out. */
+const SPOTIFY_UA = "Musicledge/1.0 (+https://musicledge.vercel.app)";
+
+/**
+ * Spotify started answering every search from production with 403 while the token
+ * endpoint kept succeeding. A 403 is neither transient nor query-dependent, so the
+ * old behaviour — retry with a different query, on every post — could only ever
+ * add a round trip. One hard rejection now parks Spotify for a cooldown.
+ */
+let spotifyBlockedUntil = 0;
+const SPOTIFY_COOLDOWN_MS = 10 * 60_000;
+
+/** Client-credentials token, cached so one post does not fetch it twice. */
+let spotifyToken: { token: string; expiresAt: number } | null = null;
+
 async function getSpotifyToken(): Promise<string | null> {
+  if (spotifyToken && Date.now() < spotifyToken.expiresAt) return spotifyToken.token;
+
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
   if (!clientId || !clientSecret) return null;
@@ -480,15 +498,62 @@ async function getSpotifyToken(): Promise<string | null> {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": SPOTIFY_UA,
         Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
       },
       body: "grant_type=client_credentials",
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[spotify] token request ${res.status}: ${(await res.text().catch(() => "")).slice(0, 200)}`);
+      return null;
+    }
     const data = await res.json();
-    return (data.access_token as string) ?? null;
-  } catch {
+    const token = (data.access_token as string) ?? null;
+    if (!token) return null;
+    // expires_in is seconds; renew a minute early.
+    spotifyToken = { token, expiresAt: Date.now() + (((data.expires_in as number) ?? 3600) - 60) * 1000 };
+    return token;
+  } catch (e) {
+    console.warn(`[spotify] token request threw: ${e instanceof Error ? e.message : e}`);
+    return null;
+  }
+}
+
+/**
+ * One GET against the Spotify API. Returns null on any failure, having logged
+ * Spotify's own error body — the previous code discarded it, which is precisely
+ * why a persistent 403 went undiagnosed.
+ */
+async function spotifyGet(path: string): Promise<Record<string, unknown> | null> {
+  if (Date.now() < spotifyBlockedUntil) return null;
+  const token = await getSpotifyToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/${path}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "User-Agent": SPOTIFY_UA,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) return (await res.json()) as Record<string, unknown>;
+
+    const body = (await res.text().catch(() => "")).slice(0, 300);
+    if (res.status === 401 || res.status === 403 || res.status === 429) {
+      spotifyBlockedUntil = Date.now() + SPOTIFY_COOLDOWN_MS;
+      console.warn(
+        `[spotify] ${res.status} on ${path.split("?")[0]} — parking Spotify for ` +
+        `${SPOTIFY_COOLDOWN_MS / 60_000}m. Spotify said: ${body || "(empty body)"}`
+      );
+    } else {
+      console.warn(`[spotify] ${res.status} on ${path.split("?")[0]}: ${body}`);
+    }
+    return null;
+  } catch (e) {
+    console.warn(`[spotify] request failed: ${e instanceof Error ? e.message : e}`);
     return null;
   }
 }
@@ -497,22 +562,8 @@ async function getSpotifyAlbumUrl(
   artist: string,
   albumName: string
 ): Promise<string | null> {
-  try {
-    const token = await getSpotifyToken();
-    if (!token) return null;
-
-    const query = encodeURIComponent(`album:${albumName} artist:${artist}`);
-    const res = await fetch(
-      `https://api.spotify.com/v1/search?q=${query}&type=album&limit=1`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(5000),
-      }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return (data.albums?.items?.[0]?.external_urls?.spotify as string) ?? null;
-  } catch {
-    return null;
-  }
+  const query = encodeURIComponent(`album:${albumName} artist:${artist}`);
+  const data = await spotifyGet(`search?q=${query}&type=album&limit=1`);
+  const first = (data?.albums as { items?: { external_urls?: { spotify?: string } }[] } | undefined)?.items?.[0];
+  return first?.external_urls?.spotify ?? null;
 }
