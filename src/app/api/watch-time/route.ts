@@ -16,6 +16,11 @@ export const maxDuration = 300;
 
 const BASE = "https://graph.facebook.com/v21.0";
 
+/** Measured end to end before and after the 2026-09-15 shortening. */
+const REEL_SECONDS_LONG = 21.3;
+const REEL_SECONDS_SHORT = 13.6;
+const FORMAT_CHANGE = new Date("2026-09-15T15:23:00Z");
+
 interface Row {
   id: string;
   timestamp: string;
@@ -96,24 +101,49 @@ export async function GET(request: Request) {
     const top = byWatch.slice(0, third);
     const bottom = byWatch.slice(-third);
 
-    // Roughly: intro 3s + two slides + follow frame.
-    const APPROX_REEL_SECONDS = 24;
+    // Reel length is not the same for every post, so a single constant silently
+    // misreports one era or the other. On 2026-09-15 the format was cut from
+    // 21.3s to 13.6s, both measured end to end, so percentages are taken against
+    // whichever applied when the post was published.
+    const reelSecondsAt = (timestamp: string) =>
+      new Date(timestamp) >= FORMAT_CHANGE ? REEL_SECONDS_SHORT : REEL_SECONDS_LONG;
+    const pct = rows.map((r) => (r.watchSeconds / reelSecondsAt(r.timestamp)) * 100);
 
     return NextResponse.json({
       sampled: rows.length,
       oldest: rows.at(-1)?.timestamp,
       newest: rows[0]?.timestamp,
-      approxReelLengthSeconds: APPROX_REEL_SECONDS,
+      reelLengthSeconds: { beforeChange: REEL_SECONDS_LONG, afterChange: REEL_SECONDS_SHORT, changedAt: FORMAT_CHANGE.toISOString() },
       avgWatchSeconds: {
         mean: r1(mean(watch)),
         median: r1(median(watch)),
         min: r1(Math.min(...watch)),
         max: r1(Math.max(...watch)),
       },
-      percentOfReelWatched: {
-        mean: r1((mean(watch) / APPROX_REEL_SECONDS) * 100),
-        median: r1((median(watch) / APPROX_REEL_SECONDS) * 100),
-      },
+      percentOfReelWatched: { mean: r1(mean(pct)), median: r1(median(pct)) },
+
+      // The comparison the whole question turns on. A single blended figure hides
+      // it, because the sample spans two formats.
+      byFormat: (() => {
+        const split = (keep: (r: Row) => boolean, reel: number) => {
+          const rs = rows.filter(keep);
+          const w = rs.map((r) => r.watchSeconds);
+          return rs.length
+            ? {
+                posts: rs.length,
+                reelSeconds: reel,
+                medianWatchSeconds: r1(median(w)),
+                medianPercentOfReel: r1((median(w) / reel) * 100),
+                medianViews: Math.round(median(rs.map((r) => r.views))),
+                saves: rs.reduce((a, r) => a + r.saved, 0),
+              }
+            : null;
+        };
+        return {
+          before: split((r) => new Date(r.timestamp) < FORMAT_CHANGE, REEL_SECONDS_LONG),
+          after: split((r) => new Date(r.timestamp) >= FORMAT_CHANGE, REEL_SECONDS_SHORT),
+        };
+      })(),
       distribution: Object.fromEntries(buckets),
       retentionVsReach: {
         topThird: { avgWatch: r1(mean(top.map((r) => r.watchSeconds))), avgViews: Math.round(mean(top.map((r) => r.views))) },
