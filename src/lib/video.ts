@@ -13,6 +13,7 @@ import { writeFile, readFile, unlink } from "fs/promises";
 import { join } from "path";
 import sharp from "sharp";
 import { seriesMeta } from "@/lib/series";
+import { BED_VOLUME } from "@/lib/tts";
 import satori from "satori";
 import { createElement as h } from "react";
 import fs from "fs";
@@ -648,7 +649,7 @@ const INTRO_SECONDS = 2.0;
  * of competing text on the one frame that has a single job. The discussion
  * prompt still lives at the end of the caption, where it costs nothing.
  */
-const FOLLOW_HEADLINE = "Follow for more music stories";
+export const FOLLOW_HEADLINE = "Follow for more music stories";
 
 /**
  * Frame used as the Reel cover. Sits mid-intro, comfortably inside the opaque
@@ -664,19 +665,19 @@ export async function createKaraokeReelVideo(
   audioPath?: string | null,
   karaoke = false,
   /**
-   * Explicit durations, overriding the reading-time estimate.
+   * Spoken narration, which sets both the audio and every slide's length.
    *
-   * With narration a slide should last exactly as long as its line takes to say,
-   * so the spoken audio becomes the source of truth rather than a word-count
-   * guess. Omitted entirely, nothing changes.
+   * A line takes exactly as long as it takes to say, so the voice replaces the
+   * reading-time estimate rather than being layered on top of it. Omitted, the
+   * reel is silent over the music bed and timings fall back to the estimate.
    */
-  timing?: { introSeconds?: number; slideSeconds?: number[]; followSeconds?: number }
+  narration?: { audioPath: string; introSeconds: number; slideSeconds: number[]; followSeconds: number }
 ): Promise<Buffer> {
   if (imageBuffers.length === 0) throw new Error("createKaraokeReelVideo: no images provided");
 
   const tmpId  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const fonts  = loadFonts();
-  const INTRO_DURATION  = timing?.introSeconds ?? INTRO_SECONDS;
+  const INTRO_DURATION  = narration?.introSeconds ?? INTRO_SECONDS;
   const WORD_DURATION   = 0.40;
   const FOLLOW_DURATION = 2.5;
 
@@ -723,7 +724,7 @@ export async function createKaraokeReelVideo(
       const p   = join("/tmp", `kol_s${si}_${tmpId}.png`);
       await writeFile(p, png);
       overlayPaths.push(p);
-      entries.push({ path: p, duration: timing?.slideSeconds?.[si] ?? readingDuration(words) });
+      entries.push({ path: p, duration: narration?.slideSeconds?.[si] ?? readingDuration(words) });
     }
 
     const kb  = KB_TARGETS[si % KB_TARGETS.length];
@@ -742,7 +743,7 @@ export async function createKaraokeReelVideo(
 
   const followWords = followSlideText.split(/\s+/).filter(Boolean);
   // Add extra time on top of reading duration so viewers can also absorb the CTA
-  const followDuration = timing?.followSeconds ?? Math.min(readingDuration(followWords) + 1.0, FOLLOW_DURATION);
+  const followDuration = narration?.followSeconds ?? Math.min(readingDuration(followWords) + 1.0, FOLLOW_DURATION);
 
   const followKb = KB_TARGETS[2]; // top-right Ken Burns anchor
   const followSeg = await renderZoompanSegment(
@@ -766,7 +767,27 @@ export async function createKaraokeReelVideo(
       .addInput(concatListPath)
       .inputOptions(["-f concat", "-safe 0"]);
 
-    if (audioPath) {
+    if (narration && audioPath) {
+      // Voice on top, bed well underneath. The bed stays rather than being cut,
+      // because the silence between spoken lines otherwise reads as broken audio.
+      cmd = cmd
+        .addInput(audioPath).inputOptions(["-stream_loop -1"])
+        .addInput(narration.audioPath)
+        .complexFilter(
+          `[1:a]volume=${BED_VOLUME}[bed];[bed][2:a]amix=inputs=2:duration=longest:normalize=0[a]`,
+        )
+        .outputOptions([
+          "-map 0:v", "-map [a]", "-c:v copy", "-c:a aac", "-b:a 192k",
+          "-shortest", "-movflags +faststart",
+        ]);
+    } else if (narration) {
+      cmd = cmd
+        .addInput(narration.audioPath)
+        .outputOptions([
+          "-map 0:v", "-map 1:a", "-c:v copy", "-c:a aac", "-b:a 192k",
+          "-shortest", "-movflags +faststart",
+        ]);
+    } else if (audioPath) {
       cmd = cmd
         .addInput(audioPath)
         .inputOptions(["-stream_loop -1"])

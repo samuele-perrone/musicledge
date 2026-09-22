@@ -4,12 +4,14 @@
  * as an Instagram Reel.
  */
 import { NextResponse } from "next/server";
+import { unlink } from "fs/promises";
 import { isAuthorized } from "@/lib/auth";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews, reelBeats } from "@/lib/claude";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createKaraokeReelVideo, findAudioTrack, REEL_COVER_OFFSET_MS } from "@/lib/video";
+import { createKaraokeReelVideo, findAudioTrack, FOLLOW_HEADLINE, REEL_COVER_OFFSET_MS } from "@/lib/video";
+import { narrateReel } from "@/lib/tts";
 import { savePost, getRecentArtists, getRecentPostSummaries, getPerformanceExtremes, refreshRecentMetrics } from "@/lib/store";
 import { scheduledSeries, seriesMeta } from "@/lib/series";
 import { createReelContainer, checkContainerStatus, publishMediaContainer, buildPostTags } from "@/lib/instagram";
@@ -208,12 +210,23 @@ async function runCron() {
     ];
 
     console.log(`[cron] creating reel video`);
-    const reelBuffer = await createKaraokeReelVideo(
-      imageBuffers,
-      slides,
-      { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption, hook: content.hook },
-      findAudioTrack(content.musicGenre)
-    );
+      // Narration sets every slide's length, so it has to exist before the video does.
+      // Any failure returns null and the reel publishes silent rather than not at all.
+      const narration = await narrateReel(
+        { hook: content.hook ?? content.title, facts: slides, follow: FOLLOW_HEADLINE },
+        post.id,
+      );
+      console.log(`[cron] narration: ${narration ? "on" : "off (silent)"}`);
+
+      const reelBuffer = await createKaraokeReelVideo(
+        imageBuffers,
+        slides,
+        { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption, hook: content.hook },
+        findAudioTrack(content.musicGenre),
+        false,
+        narration ?? undefined,
+      );
+      await Promise.allSettled((narration?.cleanup ?? []).map((f) => unlink(f)));
     console.log(`[cron] reel encoded (${reelBuffer.length} bytes), uploading`);
     const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
     post.reelBlobUrl = reelBlobUrl;

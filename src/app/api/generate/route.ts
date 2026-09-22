@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { unlink } from "fs/promises";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, reelBeats } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
-import { createKaraokeReelVideo, findAudioTrack } from "@/lib/video";
+import { createKaraokeReelVideo, findAudioTrack, FOLLOW_HEADLINE } from "@/lib/video";
+import { narrateReel } from "@/lib/tts";
 import { savePost, getRecentArtists, getRecentPostSummaries } from "@/lib/store";
 import { GeneratedPost, defaultPlatforms, PostCategory } from "@/types";
 import crypto from "crypto";
@@ -145,12 +147,23 @@ export async function POST(request: Request) {
         artistPhotoBuffer ?? albumArts[1] ?? primaryBuffer, // slide 3: artist photo
       ];
 
-      const reelBuffer = await createKaraokeReelVideo(
-        imageBuffers,
-        slides,
-        { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption, hook: content.hook },
-        findAudioTrack(content.musicGenre)
-      );
+        // Narration sets every slide's length, so it has to exist before the video does.
+        // Any failure returns null and the reel publishes silent rather than not at all.
+        const narration = await narrateReel(
+          { hook: content.hook ?? content.title, facts: slides, follow: FOLLOW_HEADLINE },
+          post.id,
+        );
+        console.log(`[cron] narration: ${narration ? "on" : "off (silent)"}`);
+
+        const reelBuffer = await createKaraokeReelVideo(
+          imageBuffers,
+          slides,
+          { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption, hook: content.hook },
+          findAudioTrack(content.musicGenre),
+          false,
+          narration ?? undefined,
+        );
+        await Promise.allSettled((narration?.cleanup ?? []).map((f) => unlink(f)));
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);
       post.reelBlobUrl = reelBlobUrl;
     } catch (reelErr) {
