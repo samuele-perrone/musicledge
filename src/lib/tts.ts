@@ -29,9 +29,22 @@ const PAD_SECONDS = 0.35;
 const BED_VOLUME = 0.09;
 
 const INSTRUCTIONS =
-  "Warm, confident music documentary narrator. Unhurried but never sleepy. " +
+  "Warm, confident music documentary narrator. Keep it moving, but never rushed. " +
   "Land the facts with quiet authority, slight lift on the surprising detail. " +
   "British-leaning neutral. No hype, no radio-advert energy.";
+
+/**
+ * Playback rate. Measured on gpt-4o-mini-tts, which does honour the parameter:
+ * a six-second line runs 5.7s at 1.0, 4.9s at 1.15, 4.6s at 1.25 and 3.2s at
+ * 1.4 — the last fast enough to sound harried. 1.15 is brisk without it.
+ *
+ * Clamped because the API accepts up to 4.0, and a typo in an env var should not
+ * be able to make every post unlistenable.
+ */
+function configuredSpeed(): number {
+  const raw = Number(process.env.VOICEOVER_SPEED ?? 1.15);
+  return Number.isFinite(raw) ? Math.min(Math.max(raw, 0.8), 1.5) : 1.15;
+}
 
 export interface Narration {
   /** Assembled track: every line at its exact offset, silence between. */
@@ -91,6 +104,7 @@ export async function narrateReel(
 
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 60_000 });
+    const speed = configuredSpeed();
 
     const durations: number[] = [];
     for (let i = 0; i < script.length; i++) {
@@ -99,6 +113,7 @@ export async function narrateReel(
         voice: voice as "fable",
         input: script[i],
         instructions: INSTRUCTIONS,
+        speed,
       });
       const f = join("/tmp", `tts_${tmpId}_${i}.mp3`);
       await writeFile(f, Buffer.from(await res.arrayBuffer()));
@@ -130,7 +145,7 @@ export async function narrateReel(
     created.push(audioPath);
 
     const total = seg.reduce((a, b) => a + b, 0);
-    console.log(`[tts] ${voice}: ${script.length} lines, ${total.toFixed(1)}s narration`);
+    console.log(`[tts] ${voice} @${speed}x: ${script.length} lines, ${total.toFixed(1)}s narration`);
 
     return {
       audioPath,
