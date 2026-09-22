@@ -79,6 +79,24 @@ sample a week later gave 5.6s to 7.0s and 26% to 52% on 33 vs 12 posts — a rea
 gain, but +25% rather than the +63% first reported off three posts. **Saves did
 not move at all** across that period: 0.18 per post before, 0.17 after.
 
+**Reels are narrated** from the same day. `lib/tts.ts` speaks each line with
+gpt-4o-mini-tts, measures it, and assembles one track with every line at its
+slide's offset so audio and video cannot drift. Those measured durations then set
+slide length, replacing the word-count estimate entirely.
+
+Lines are spoken exactly as they appear on screen — separate prose for the ear
+reads better but is another model-written field that can drift from what the
+viewer is looking at.
+
+Voice is `fable` at 1.15x, both tunable via `VOICEOVER_VOICE` and
+`VOICEOVER_SPEED` without a deploy; `VOICEOVER_VOICE=off` kills narration
+outright. The bed stays underneath at 9% rather than being dropped, because the
+silence between lines otherwise reads as broken audio.
+
+**No narration failure can cost a post.** Kill switch, missing key, rejected key,
+no facts, timeout and unmeasurable audio all return null and publish silent. All
+six verified, two against the live API.
+
 ### This broke Phase 1 discipline, deliberately
 
 Phase 1 said add no variables before 28 September. A reel that promises five
@@ -187,16 +205,16 @@ Next: re-measure in a week. If watch time has not moved, voiceover is the lever.
 
 ## Phase 3 — led by the data, not by taste
 
-**Both of the top two are waiting on the same reading**, and that reading is the
-week after 2026-09-22, when the reel began delivering every fact it promises
-rather than two of five. Until then, saves being near zero has an obvious
-alternative explanation and neither candidate can be judged.
+**Voiceover shipped on 2026-09-22** — see the section above. Carousels are the
+one candidate still waiting on data, and that reading is the week after
+2026-09-22, when the reel began delivering every fact it promises rather than
+two of five. Until then, saves being near zero has an obvious alternative
+explanation and the question cannot be settled.
 
-The rule that picks between them:
+The rule that decides it:
 
 - **Saves rise on reels** → the content was the problem. Carousels become
-  amplification of a format already known to work; voiceover is judged on
-  retention alone.
+  amplification of a format already known to work.
 - **Saves stay flat** → the content was not the problem. The surface is, and
   carousels become the main experiment rather than an addition.
 
@@ -221,28 +239,11 @@ The rule that picks between them:
    comparable. `insights.ts` already collects saves and shares per post, so the
    scoring needs no change.
 
-2. **Voiceover / TTS.** Parked 2026-09-14, revisited 2026-09-22. Retention is
-   confirmed as the binding constraint, and a reel is watched with sound on by
-   default, so a silent slideshow fights the format.
-
-   Prototyped and measured. Narration sets slide length far better than the
-   word-count estimate does, and `createKaraokeReelVideo` already accepts a
-   `timing` override for exactly this — inert until used. A three-fact reel
-   narrated runs ~21s against ~19.8s silent, so the voice costs about two
-   seconds, not the four first estimated. Voices sampled with `gpt-4o-mini-tts`:
-   `fable` and `nova` are tightest, `onyx` carries the most documentary weight at
-   roughly four seconds slower. Sam has heard `fable` in context and not yet
-   chosen.
-
-   Still to build: TTS on the cron path, narration per post, audio mixed over the
-   bed. `OPENAI_API_KEY` is already in Vercel; note it is marked Sensitive there
-   and therefore cannot be read back, so local work needs a separate key.
-
-3. **Lyrics Deep Dive** as a seventh series — where a song's lyrics draw from
+2. **Lyrics Deep Dive** as a seventh series — where a song's lyrics draw from
    history, biography, mythology or politics, with a rating for how directly they
    map to the source. Predates the series architecture but now costs one prompt
    spec and a colour in `lib/series.ts`.
-4. **Fewer, better posts.** If the data says quality beats volume, one a day is a
+3. **Fewer, better posts.** If the data says quality beats volume, one a day is a
    legitimate answer.
 
 ---
