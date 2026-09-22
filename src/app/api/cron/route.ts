@@ -5,7 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
-import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews, reelBeats } from "@/lib/claude";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
@@ -175,7 +175,7 @@ async function runCron() {
     post.blobUrl = blobUrl;
 
     // Create karaoke reel
-    const slides = content.carouselSlides ?? [];
+    const { slides } = reelBeats(content);
     const primaryBuffer = Buffer.from(imageBase64, "base64");
 
     // Same logic for all categories: slides 2-3 use real artist photo (Deezer/Spotify)
@@ -211,7 +211,7 @@ async function runCron() {
     const reelBuffer = await createKaraokeReelVideo(
       imageBuffers,
       slides,
-      { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption },
+      { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption, hook: content.hook },
       findAudioTrack(content.musicGenre)
     );
     console.log(`[cron] reel encoded (${reelBuffer.length} bytes), uploading`);

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews } from "@/lib/claude";
+import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, reelBeats } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
 import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
 import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
 
     // Compose story slides (1080×1920): slide 1-3 content + follow slide
     // Keep buffers in memory to reuse for video (avoid double-composing)
-    const slides = content.carouselSlides ?? [];
+    const { slides } = reelBeats(content);
     const storySlideUrls: string[] = [];
     const slideBuffers: Buffer[] = [];
     for (let i = 0; i < slides.length; i++) {
@@ -147,8 +147,8 @@ export async function POST(request: Request) {
 
       const reelBuffer = await createKaraokeReelVideo(
         imageBuffers,
-        content.carouselSlides ?? [],
-        { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption },
+        slides,
+        { artist: content.artist, title: content.title, category: content.category ?? "music_story", imageCaption: content.imageCaption, hook: content.hook },
         findAudioTrack(content.musicGenre)
       );
       const reelBlobUrl = await uploadVideoToBlob(reelBuffer, `posts/${post.id}-reel.mp4`);

@@ -134,10 +134,15 @@ function cleanText(text: string): string {
  * far higher share of the reel actually being seen, and completion is what earns
  * distribution — the top retention third averaged 437 views against 89 for the
  * bottom.
+ *
+ * Capped at 3.0s from 2026-09-22, when slides became one short beat each rather
+ * than two facts crammed into 110 characters. A six-word line at big type is read
+ * at a glance; holding it longer is dead air, and with up to five beats the saved
+ * seconds are what keep the reel from running past twenty.
  */
 function readingDuration(words: string[]): number {
   const secs = words.length / 2.5 + 1.5;
-  return Math.min(Math.max(secs, 2.5), 4.5);
+  return Math.min(Math.max(secs, 2.2), 3.0);
 }
 
 // ─── Frame / overlay renderers ────────────────────────────────────────────────
@@ -148,9 +153,14 @@ function readingDuration(words: string[]): number {
  */
 async function renderIntroFrame(
   imageBuffer: Buffer,
-  content: { artist: string; title: string; category: string; imageCaption?: string },
+  content: { artist: string; title: string; category: string; imageCaption?: string; hook?: string },
   fonts: FontEntry[]
 ): Promise<Buffer> {
+  // The hook, not the title. The two used to say the same thing one after the
+  // other — an intro reading "Bradford Cox Returns As Atlas Sound After Seven
+  // Years" followed by a slide reading "5 things about Bradford Cox's Atlas Sound
+  // return" — so the promise now lands on the first frame and that slide is gone.
+  const headline = content.hook?.trim() || content.title;
   const { accent, badgeText, label } = accentInfo(content.category);
 
   // Preserve the photo's aspect ratio — cap height so there's room for text
@@ -199,7 +209,7 @@ async function renderIntroFrame(
           },
             h("div", {
               style: { fontSize: 62, fontWeight: 700, color: "white", lineHeight: 1.1 },
-            }, content.title)
+            }, headline)
           ),
           content.imageCaption
             ? h("div", {
@@ -265,13 +275,39 @@ async function renderWordOverlay(
   words: string[],
   activeIndex: number,
   content: { artist: string; category: string },
-  fonts: FontEntry[]
+  fonts: FontEntry[],
+  /** Position in the fact list, 1-based. Omitted for slides that are not list items. */
+  step?: number,
+  total?: number
 ): Promise<Buffer> {
   const { accent, badgeText, label } = accentInfo(content.category);
 
   // activeIndex === -1 → non-karaoke mode: one line per sentence for readability
   const fullText = cleanText(words.join(" "));
   const sentences = fullText.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  // Derived from the slide's position, never from the model, so the numbering
+  // cannot disagree with the count promised on the intro card.
+  //
+  // Only numbered when there are genuinely three or more beats. Posts stored in
+  // the old shape render two slides, the first of which is the hook rather than
+  // a list item, so numbering them would invent a list that was never promised.
+  const marker = step && total && total >= 3
+    ? h("div", {
+        style: {
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: accent, borderRadius: 999,
+          width: 92, height: 92, marginBottom: 14,
+        },
+      },
+        h("div", {
+          style: {
+            fontSize: 52, fontWeight: 700, fontFamily: "Inter",
+            color: badgeText === "black" ? "black" : "white", display: "flex",
+          },
+        }, String(step))
+      )
+    : null;
+
   const wordEls = activeIndex === -1
     ? [h("div", {
         style: {
@@ -279,6 +315,7 @@ async function renderWordOverlay(
           paddingLeft: 64, paddingRight: 64,
         },
       },
+        ...(marker ? [marker] : []),
         ...sentences.map((sentence, i) =>
           h("div", {
             key: String(i),
@@ -424,30 +461,11 @@ async function renderCombinedFollowOverlay(
             display: "flex", flexWrap: "wrap", justifyContent: "center",
           },
         }, cleanText(slideText).toUpperCase()),
-        h("div", { style: { height: 28, display: "flex" } }),
-
-        // Tap invite
-        h("div", {
-          style: {
-            fontSize: 28, fontWeight: 700, color: accent,
-            letterSpacing: 2, textAlign: "center", display: "flex",
-          },
-        }, "TAP THE CAPTION FOR THE FULL STORY"),
-        h("div", { style: { height: 40, display: "flex" } }),
+        h("div", { style: { height: 44, display: "flex" } }),
 
         // Accent divider
         h("div", { style: { width: 80, height: 4, background: accent, borderRadius: 2, display: "flex" } }),
-        h("div", { style: { height: 40, display: "flex" } }),
-
-        // Follow tagline
-        h("div", {
-          style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.80)", display: "flex" },
-        }, "Follow for daily music stories"),
-        h("div", { style: { height: 4, display: "flex" } }),
-        h("div", {
-          style: { fontSize: 32, fontWeight: 400, color: "rgba(255,255,255,0.80)", display: "flex" },
-        }, "& vinyl deep dives"),
-        h("div", { style: { height: 16, display: "flex" } }),
+        h("div", { style: { height: 44, display: "flex" } }),
 
         // @musicledge in accent colour
         h("div", {
@@ -623,6 +641,16 @@ const KB_TARGETS = [
 const INTRO_SECONDS = 2.0;
 
 /**
+ * The closing frame's headline. Fixed rather than generated per post.
+ *
+ * It used to carry a model-written CTA - "Save this. Logos or Parallax?" - above
+ * a tap invite, a two-line tagline, the handle and a pill, which put six blocks
+ * of competing text on the one frame that has a single job. The discussion
+ * prompt still lives at the end of the caption, where it costs nothing.
+ */
+const FOLLOW_HEADLINE = "Follow for more music stories";
+
+/**
  * Frame used as the Reel cover. Sits mid-intro, comfortably inside the opaque
  * window, so the cover always shows the finished title card rather than a
  * part-faded frame.
@@ -632,15 +660,23 @@ export const REEL_COVER_OFFSET_MS = Math.round((INTRO_SECONDS / 2) * 1000);
 export async function createKaraokeReelVideo(
   imageBuffers: Buffer[],
   slides: string[],
-  content: { artist: string; title: string; category: string; imageCaption?: string },
+  content: { artist: string; title: string; category: string; imageCaption?: string; hook?: string },
   audioPath?: string | null,
-  karaoke = false
+  karaoke = false,
+  /**
+   * Explicit durations, overriding the reading-time estimate.
+   *
+   * With narration a slide should last exactly as long as its line takes to say,
+   * so the spoken audio becomes the source of truth rather than a word-count
+   * guess. Omitted entirely, nothing changes.
+   */
+  timing?: { introSeconds?: number; slideSeconds?: number[]; followSeconds?: number }
 ): Promise<Buffer> {
   if (imageBuffers.length === 0) throw new Error("createKaraokeReelVideo: no images provided");
 
   const tmpId  = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   const fonts  = loadFonts();
-  const INTRO_DURATION  = INTRO_SECONDS;
+  const INTRO_DURATION  = timing?.introSeconds ?? INTRO_SECONDS;
   const WORD_DURATION   = 0.40;
   const FOLLOW_DURATION = 2.5;
 
@@ -663,8 +699,10 @@ export async function createKaraokeReelVideo(
   );
   segmentPaths.push(introSeg);
 
-  // ── Content segments — first 2 slides only; slide 3 moves to the follow frame ──
-  for (let si = 0; si < Math.min(slides.length, 2); si++) {
+  // ── Content segments — one slide per beat ────────────────────────────────
+  // Was hard-capped at two, which is why a hook promising five things delivered
+  // two of them and the rest lived only in the caption.
+  for (let si = 0; si < slides.length; si++) {
     const words = slides[si].split(/\s+/).filter(Boolean);
     if (words.length === 0) continue;
 
@@ -681,11 +719,11 @@ export async function createKaraokeReelVideo(
       }
     } else {
       // All words visible at once; duration scales with word count
-      const png = await renderWordOverlay(words, -1, content, fonts);
+      const png = await renderWordOverlay(words, -1, content, fonts, si + 1, slides.length);
       const p   = join("/tmp", `kol_s${si}_${tmpId}.png`);
       await writeFile(p, png);
       overlayPaths.push(p);
-      entries.push({ path: p, duration: readingDuration(words) });
+      entries.push({ path: p, duration: timing?.slideSeconds?.[si] ?? readingDuration(words) });
     }
 
     const kb  = KB_TARGETS[si % KB_TARGETS.length];
@@ -696,7 +734,7 @@ export async function createKaraokeReelVideo(
   }
 
   // ── Combined follow+CTA segment — slide 3 text + follow CTA over image bg ──
-  const followSlideText = slides[2] ?? "Follow for more daily music stories";
+  const followSlideText = FOLLOW_HEADLINE;
   const followOverlayPng = await renderCombinedFollowOverlay(followSlideText, content.category, fonts);
   const followOverlayPath = join("/tmp", `follow_ol_${tmpId}.png`);
   await writeFile(followOverlayPath, followOverlayPng);
@@ -704,7 +742,7 @@ export async function createKaraokeReelVideo(
 
   const followWords = followSlideText.split(/\s+/).filter(Boolean);
   // Add extra time on top of reading duration so viewers can also absorb the CTA
-  const followDuration = Math.min(readingDuration(followWords) + 1.0, FOLLOW_DURATION);
+  const followDuration = timing?.followSeconds ?? Math.min(readingDuration(followWords) + 1.0, FOLLOW_DURATION);
 
   const followKb = KB_TARGETS[2]; // top-right Ken Burns anchor
   const followSeg = await renderZoompanSegment(

@@ -54,6 +54,8 @@ If an event exists:
 
 For album cover/release anniversaries where the artwork is iconic, use "sleeve_stories" instead.
 
+Set artist to the name the story is actually about, not the best known name attached to that person. A story about a solo project belongs to that project, not to the band its member also plays in. The artist field sets the label on screen and drives the photo lookup, so a mismatch puts a band photo behind a solo story.
+
 If nothing significant: null`, 512);
 
   const trimmed = text.trim();
@@ -361,8 +363,10 @@ interface SeriesSpec {
   brief: (artist: string) => string;
   /** Caption instruction. Keep free of double quotes — it is embedded in a JSON spec. */
   caption: string;
-  /** Three slide instructions: hook, detail, save-bait close. */
-  slides: [string, string, string];
+  /** The promise line, shown on the intro card. */
+  hook: string;
+  /** What each fact slide should carry. */
+  facts: string;
   imagePrompt: string;
   /** Extra JSON fields this series needs, each line already indented and comma-terminated. */
   extraFields?: string;
@@ -378,11 +382,8 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   same_riff: {
     brief: (a) => `Generate a "Same Riff" post exploring how a specific riff, chord progression, or musical motif connected to ${a} was borrowed, adapted, or directly copied between songs. Pick a pair of songs where the musical connection is clear, specific, and genuinely interesting — one that established the sound and one that borrowed it, or the reverse.`,
     caption: "Instagram caption: open with a bold hook naming both songs (e.g. 'Most fans don't realise [Song B] borrowed this exact riff from [Song A]'). Then explain the specific riff, chord progression or motif that was borrowed, the genre lineage, and rate the similarity (subtle nod / clear influence / nearly identical). End with a question like 'Can you hear it?' or 'Inspiration or imitation?'",
-    slides: [
-      "Slide 1 — a bold hook naming both songs, max 80 chars. One emoji max.",
-      "Slide 2 — the specific riff or chord detail in plain language, max 100 chars. One emoji max.",
-      "Slide 3 — save-bait verdict e.g. 'Save this. Inspiration or imitation?' max 80 chars. One emoji max.",
-    ],
+    hook: "A bold promise naming both songs, max 55 chars. One emoji max.",
+    facts: "one beat of the connection each — the riff itself, where it came from, who borrowed it, how close it really is",
     imagePrompt: "Detailed prompt for an AI image generator: a photorealistic image evoking the atmosphere of both songs merging — instruments, studio gear, stage light, textures spanning both eras. No human faces or figures. Square format, cinematic, high contrast.",
     extraFields: `  "influenceSource": "Original artist — Song title (year)",
   "influencedWork": "Later artist — Song title (year)",
@@ -397,11 +398,8 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   sleeve_stories: {
     brief: (a) => `Generate a fascinating, lesser-known story about the album cover artwork or sleeve design of a specific ${a} record — the photographer, the art director, the visual concept, a hidden meaning, or how the artwork was actually made.`,
     caption: "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 hidden details in [Album] cover art most fans miss'). Then list each detail as a numbered item (1. ... 2. ... etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
-    slides: [
-      "Slide 1 — a numbered saves-bait hook, pick a number 3-7, e.g. '5 hidden details in [Album] cover art most fans miss' — max 80 chars. One emoji max.",
-      "Slide 2 — two of those hidden details as very short punchy sentences back-to-back, max 110 chars total. One emoji max.",
-      "Slide 3 — save-bait CTA e.g. 'Save this. Which detail surprised you most?' max 80 chars. One emoji max.",
-    ],
+    hook: "A numbered promise, e.g. 5 hidden details in [Album] cover art. Max 55 chars. The number MUST equal how many entries you put in facts. One emoji max.",
+    facts: "one hidden detail each, in the order a viewer would notice them",
     imagePrompt: "Detailed prompt for an AI image generator: a photorealistic still life evoking the aesthetic, colour palette, textures and mood of this album cover — objects, surfaces, light and shadow, without depicting any real person. Square format, editorial quality.",
     extraFields: `  "albumName": "Exact album title as it appears on the sleeve — e.g. The Dark Side of the Moon",
 `,
@@ -411,11 +409,8 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   band_at_war: {
     brief: (a) => `Generate a "Band At War" post about a real, documented conflict involving ${a} — a feud between members, a fight with a producer, manager or label, or a rivalry with another band — and what it cost the music. Be specific about what happened and roughly when. Only use conflicts that genuinely happened and are well documented. Never invent a feud.`,
     caption: "Instagram caption: open by naming who fell out and over what. Explain what triggered it, what it cost the record, the tour or the line-up, and whether it was ever resolved. Keep it factual rather than gossipy speculation. End with a question that invites people to take a side.",
-    slides: [
-      "Slide 1 — a hook naming who was at war and over what, max 80 chars. One emoji max.",
-      "Slide 2 — the flashpoint and its cost, two short punchy sentences, max 110 chars total. One emoji max.",
-      "Slide 3 — save-bait close e.g. 'Save this. Whose side are you on?' max 80 chars. One emoji max.",
-    ],
+    hook: "A promise naming who was at war and over what, max 55 chars. One emoji max.",
+    facts: "one beat of the feud each — the trigger, the escalation, what it cost, how it ended",
     imagePrompt: "Detailed prompt for an AI image generator: a photorealistic image evoking tension in a recording studio or backstage — separated gear, an empty chair, harsh light, cold colour palette. No human faces or figures. Square format, cinematic, high contrast.",
     hashtagHint: "include BandDrama RockFeuds",
   },
@@ -423,11 +418,8 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   happy_accident: {
     brief: (a) => `Generate a "Happy Accident" post about a specific ${a} recording that only exists in the form we know because something went wrong — broken gear, a mistake left in the take, a missed session, a wrong note kept, a studio mishap, a chance encounter. Be precise about what the accident was.`,
     caption: "Instagram caption: open with what went wrong. Explain how the mistake ended up on the finished record, and why it turned out better than the plan. End with a question to spark discussion.",
-    slides: [
-      "Slide 1 — a hook naming the accident, max 80 chars. One emoji max.",
-      "Slide 2 — what actually happened, two short punchy sentences, max 110 chars total. One emoji max.",
-      "Slide 3 — save-bait close e.g. 'Save this. Best mistake in music?' max 80 chars. One emoji max.",
-    ],
+    hook: "A promise naming the accident, max 55 chars. One emoji max.",
+    facts: "one beat each — what broke, what they tried, why the mistake stayed on the record",
     imagePrompt: "Detailed prompt for an AI image generator: a photorealistic still life of studio equipment caught mid-mishap — a snapped string, a spilled reel of tape, a blown speaker cone, warm accidental light. No human faces or figures. Square format, cinematic.",
     hashtagHint: "include StudioStories HappyAccident",
   },
@@ -435,11 +427,8 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   ten_minutes_flat: {
     brief: (a) => `Generate a "Ten Minutes Flat" post about a specific ${a} song written or recorded extraordinarily fast — in a single take, in one sitting, in a handful of minutes — or finished under absurd time pressure. Be precise about the timescale and say where the claim comes from.`,
     caption: "Instagram caption: open with the timescale itself, because the number is the hook. Explain the circumstances that forced or allowed it, and contrast it with how long the rest of the record took. End with a question to spark discussion.",
-    slides: [
-      "Slide 1 — a hook built around the number, e.g. 'Written in ten minutes. Still a classic.' max 80 chars. One emoji max.",
-      "Slide 2 — the circumstances, two short punchy sentences, max 110 chars total. One emoji max.",
-      "Slide 3 — save-bait close e.g. 'Save this. Fastest great song ever written?' max 80 chars. One emoji max.",
-    ],
+    hook: "A promise built around the number, e.g. Written in ten minutes. Max 55 chars. One emoji max.",
+    facts: "one beat each — the pressure, the session, what came out, how it compares to the rest of the record",
     imagePrompt: "Detailed prompt for an AI image generator: a photorealistic image evoking speed and pressure in a studio — a running tape reel, a clock, a scribbled lyric sheet, a single take light. No human faces or figures. Square format, cinematic.",
     hashtagHint: "include OneTake SongwritingStories",
   },
@@ -447,11 +436,8 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   banned: {
     brief: (a) => `Generate a "Banned" post about a specific ${a} song or record that was banned, censored, pulled, refused airplay, or forced to change — by a broadcaster, a label, a retailer or a government. Be accurate about who banned it, exactly why, and when.`,
     caption: "Instagram caption: open by naming who banned it and why. Explain the reaction at the time, and what happened to the song afterwards — bans usually made records bigger. End with a question to spark discussion.",
-    slides: [
-      "Slide 1 — a hook naming the song and who banned it, max 80 chars. One emoji max.",
-      "Slide 2 — the stated reason and the real one, two short punchy sentences, max 110 chars total. One emoji max.",
-      "Slide 3 — save-bait close e.g. 'Save this. Would it be banned today?' max 80 chars. One emoji max.",
-    ],
+    hook: "A promise naming the song and who banned it, max 55 chars. One emoji max.",
+    facts: "one beat each — who banned it, the stated reason, the real one, what happened next",
     imagePrompt: "Detailed prompt for an AI image generator: a photorealistic still life evoking censorship — a redacted sleeve, tape over a label, a struck-through master box, stark directional light. No human faces or figures. Square format, cinematic, high contrast.",
     hashtagHint: "include BannedSongs MusicCensorship",
   },
@@ -459,18 +445,24 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
   music_story: {
     brief: (a) => `Generate a fascinating, lesser-known story about ${a} — a specific song, album, recording session, or pivotal career moment.`,
     caption: "Instagram caption: open with the numbered hook from Slide 1 (e.g. '5 facts about [Song] most fans don't know'). Then list each fact as a numbered item (1. ... 2. ... etc.), one per line, 1-2 sentences each. End with a question to spark discussion.",
-    slides: [
-      "Slide 1 — a numbered saves-bait hook, pick a number 3-7, max 80 chars. One emoji max.",
-      "Slide 2 — two of those facts as very short punchy sentences back-to-back, max 110 chars total. One emoji max.",
-      "Slide 3 — save-bait CTA e.g. 'Save this. Which fact surprised you most?' max 80 chars. One emoji max.",
-    ],
+    hook: "A numbered promise, e.g. 5 things about [Song] most fans never knew. Max 55 chars. The number MUST equal how many entries you put in facts. One emoji max.",
+    facts: "one fact each, strongest first",
     imagePrompt: "Detailed AI image prompt specific to THIS artist and story — vary the setting creatively: a venue, a specific era's street scene, iconic instruments, sleeve objects, a tour bus, backstage equipment, or a symbolic still life tied to the story. Capture the decade's visual style and palette. No human face or figure. High contrast, cinematic, square format.",
   },
 };
 
+/**
+ * Rules for the fact list, shared by every series.
+ *
+ * The old shape was a fixed three-element array: a hook that promised "5 things",
+ * exactly two of them, and a CTA. The reel therefore broke its own promise on
+ * every listicle post, and the remaining facts existed only in the caption where
+ * almost nobody expands them. Facts is now the payoff itself, one line per slide.
+ */
+const FACTS_RULES = `3 to 5 short lines, one per slide, in the order they should be read. Use fewer when the story genuinely has less to say - three strong beats beat five padded ones. Each line MUST be under 45 characters, a single idea, readable at a glance in under three seconds. No numbering, no trailing punctuation beyond a full stop. One emoji max across the whole list.`;
+
 function buildSeriesPrompt(category: PostCategory, artist: string): string {
   const spec = SERIES_PROMPTS[category];
-  const slides = spec.slides.map((s) => JSON.stringify(s)).join(", ");
   const hashtags = spec.hashtagHint
     ? `["10", "relevant", "hashtags", "without", "hash", "symbol", "${spec.hashtagHint}"]`
     : `["10", "relevant", "hashtags", "without", "hash", "symbol"]`;
@@ -490,7 +482,8 @@ Return ONLY valid JSON with this exact structure:
   "imageCaption": "One short punchy line for the image overlay — max 55 characters, hooks the viewer instantly",
   "caption": "${spec.caption}",
 ${spec.extraFields ?? ""}  "imagePrompt": "${spec.imagePrompt}",
-  "carouselSlides": [${slides}],
+  "hook": "${spec.hook}",
+  "facts": ["${spec.facts}. ${FACTS_RULES}"],
   "hashtags": ${hashtags},
   "amazonSearchTerms": "3-6 words to search Amazon for the most relevant vinyl record or CD — e.g. Pink Floyd Dark Side Moon vinyl",
   "musicGenre": "heavy OR melodic — heavy for metal, hard rock, punk, grunge, thrash; melodic for classic rock, pop rock, alternative, indie, soft rock",
@@ -540,6 +533,49 @@ Titles that failed, and why:
 - "The Dulcimer That Built Blue" — the reader cannot tell what the story is
 
 Vary the grammatical shape from post to post. Do not settle into a new formula.`;
+
+/**
+ * Makes a numbered hook agree with the number of facts actually delivered.
+ *
+ * The reel used to promise "5 things" and show two, because the count was
+ * whatever the model felt like and the payoff was fixed at two slides. Deriving
+ * the count from the list makes that mismatch impossible rather than merely
+ * discouraged.
+ *
+ * Only rewrites a digit attached to a counting noun, so years and quantities in
+ * the prose survive untouched - "banned in 1970" and "written in ten minutes"
+ * are not counts.
+ */
+const COUNT_PHRASE = /\b(\d+)(\s+(?:\w+\s+)?(?:things?|facts?|details?|reasons?|moments?|secrets?|beats?))\b/i;
+
+export function syncHookCount(hook: string, factCount: number): string {
+  return hook.replace(COUNT_PHRASE, (_m, _digits, tail) => `${factCount}${tail}`);
+}
+
+/** Drops blanks, trims stray numbering the model may add, and caps the list at five. */
+function normaliseFacts(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((f): f is string => typeof f === "string")
+    .map((f) => f.trim().replace(/^\s*\d+[.)]\s*/, ""))
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+/**
+ * The beats a reel should render, and the line that closes it.
+ *
+ * Posts written before 2026-09-22 stored a fixed carouselSlides triple where only
+ * the first two entries were content and the third was the CTA. Reading that
+ * shape as a fact list would render the CTA as a story beat, so old posts are
+ * unpacked the way they were written.
+ */
+export function reelBeats(content: StoryContent): { slides: string[] } {
+  const legacy = content.carouselSlides ?? [];
+  // Legacy posts kept the CTA in the third slot, so it is dropped rather than
+  // rendered as a story beat. The closing frame is fixed copy now either way.
+  return { slides: content.facts?.length ? content.facts : legacy.slice(0, 2) };
+}
 
 /** Extracts the first complete JSON object from text, correctly tracking brace depth. */
 function extractFirstJson(text: string): string | null {
@@ -604,7 +640,7 @@ export async function generateStoryContent(
 
   // Append breaking news context — takes highest priority if present
   const newsSuffix = breakingNews
-    ? `\n\nBREAKING NEWS CONTEXT: The following music news just broke: "${breakingNews}". Make this the focus of your story — write about this event, the artist(s) involved, and why it matters. Make the post feel timely, relevant, and exciting. Adjust the artist and title fields to match the news subject. IMPORTANT: Only proceed if this news is about a rock, alternative, indie, punk, metal, classic rock artist, or a globally iconic pop/soul legend (e.g. Michael Jackson, Prince, Elton John, Madonna, Whitney Houston, Stevie Wonder). If the news is about a K-pop act, modern pop, hip-hop, R&B, or any artist without major international rock/pop legacy, ignore it and generate a regular vinyl_art post instead.`
+    ? `\n\nBREAKING NEWS CONTEXT: The following music news just broke: "${breakingNews}". Make this the focus of your story — write about this event, the artist(s) involved, and why it matters. Make the post feel timely, relevant, and exciting. Adjust the artist and title fields to match the news subject. Set artist to the name the story is actually about, not the best known name attached to that person. A story about a solo project belongs to that project, not to the band its member also plays in. The artist field sets the label on screen and drives the photo lookup, so a mismatch puts a band photo behind a solo story. IMPORTANT: Only proceed if this news is about a rock, alternative, indie, punk, metal, classic rock artist, or a globally iconic pop/soul legend (e.g. Michael Jackson, Prince, Elton John, Madonna, Whitney Houston, Stevie Wonder). If the news is about a K-pop act, modern pop, hip-hop, R&B, or any artist without major international rock/pop legacy, ignore it and generate a regular vinyl_art post instead.`
     : "";
 
   // Append event context only when the event artist is actually being used
@@ -668,6 +704,17 @@ export async function generateStoryContent(
 
   if (FORMULAIC_TITLE.test(content.title ?? "")) {
     console.warn(`[claude] formulaic title slipped through: "${content.title}"`);
+  }
+
+  // The payoff decides the promise, never the other way round.
+  content.facts = normaliseFacts(content.facts);
+  if (content.facts.length === 0) {
+    // Older stored shape, or a model that ignored the schema. The reel falls back
+    // to carouselSlides so a run still publishes rather than failing outright.
+    console.warn(`[claude] no facts returned for "${content.title}" - falling back to legacy slides`);
+  } else {
+    if (content.hook) content.hook = syncHookCount(content.hook, content.facts.length);
+    console.log(`[claude] ${content.facts.length} facts, hook="${content.hook ?? "(none)"}"`);
   }
 
   return content;

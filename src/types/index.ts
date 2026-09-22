@@ -31,7 +31,14 @@ export interface StoryContent {
   amazonSearchTerms: string;   // e.g. "Pink Floyd Dark Side Moon vinyl record"
   albumName?: string;          // exact album title (sleeve_stories only) — used for iTunes/Spotify lookup
   musicGenre?: "heavy" | "melodic"; // used to pick background audio track
-  carouselSlides?: string[];  // 3 slide texts for slides 2-4
+  // The reel's shape. The hook is the promise on the intro card and facts are
+  // one line per slide. Replaces carouselSlides,
+  // which was fixed at three entries and so could only ever deliver two beats —
+  // a hook promising "5 things" followed by two of them.
+  hook?: string;
+  facts?: string[];
+  /** Legacy shape on posts generated before 2026-09-22. Still rendered if facts is absent. */
+  carouselSlides?: string[];
   // Harmony-specific fields
   influenceSource?: string;    // e.g. "Led Zeppelin — Whole Lotta Love (1969)"
   influencedWork?: string;     // e.g. "The White Stripes — Seven Nation Army (2003)"
