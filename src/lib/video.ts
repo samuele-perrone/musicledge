@@ -774,7 +774,10 @@ export async function createKaraokeReelVideo(
         .addInput(audioPath).inputOptions(["-stream_loop -1"])
         .addInput(narration.audioPath)
         .complexFilter(
-          `[1:a]volume=${BED_VOLUME}[bed];[bed][2:a]amix=inputs=2:duration=longest:normalize=0[a]`,
+          // amix halves both inputs and "normalize=0" is absent from the Linux
+          // ffmpeg build, so the halving is undone after the mix — doing it
+          // beforehand clips. Bed lands at BED_VOLUME, voice at unity.
+          `[1:a]volume=${BED_VOLUME}[bed];[bed][2:a]amix=inputs=2:duration=longest,volume=2[a]`,
         )
         .outputOptions([
           "-map 0:v", "-map [a]", "-c:v copy", "-c:a aac", "-b:a 192k",

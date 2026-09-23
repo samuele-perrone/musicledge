@@ -129,16 +129,26 @@ export async function narrateReel(
     const audioPath = join("/tmp", `tts_${tmpId}_full.mp3`);
     const args: string[] = ["-y", "-loglevel", "error"];
     created.forEach((f) => args.push("-i", f));
-    let offset = 0;
-    const chains = created.map((_, i) => {
-      const ms = Math.round(offset * 1000);
-      offset += seg[i];
-      return `[${i}:a]adelay=${ms}|${ms}[v${i}]`;
-    });
-    const labels = created.map((_, i) => `[v${i}]`).join("");
+    // Lines never overlap, so they are concatenated with real silence between
+    // them rather than mixed.
+    //
+    // The first attempt used amix with normalize=0, which the ffmpeg build Vercel
+    // ships does not have — present locally on 4.4, absent on the Linux binary,
+    // so it passed every local test and failed on both production runs. Undoing
+    // the averaging with a fixed gain does not work either: amix renormalises as
+    // inputs drop out, so the factor is not constant, and compensating for it
+    // measurably clipped, pinning the peak at 0 dB.
+    //
+    // concat has no normalisation to undo. Levels come through untouched by
+    // construction, and anullsrc, asplit and concat are all old enough to exist
+    // in any build.
+    const n = created.length;
+    const silence = `[${n}:a]asplit=${n}` + Array.from({ length: n }, (_, i) => `[s${i}]`).join("");
+    const pieces = created.map((_, i) => `[${i}:a][s${i}]`).join("");
     args.push(
-      "-filter_complex",
-      `${chains.join(";")};${labels}amix=inputs=${created.length}:duration=longest:normalize=0[a]`,
+      "-f", "lavfi", "-t", String(PAD_SECONDS),
+      "-i", "anullsrc=channel_layout=mono:sample_rate=24000",
+      "-filter_complex", `${silence};${pieces}concat=n=${n * 2}:v=0:a=1[a]`,
       "-map", "[a]", audioPath,
     );
     await run(ffmpegInstaller.path, args);
