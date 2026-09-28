@@ -104,6 +104,10 @@ export async function getBreakingMusicNews(): Promise<string | null> {
 
   if (headlines.length === 0) return null;
 
+  // The same slice is shown to the model and indexed into afterwards, so a
+  // returned position can never point at a headline that was not offered.
+  const shown = headlines.slice(0, 15);
+
   const text = await generate(`Here are recent music news headlines from the last 48 hours. Is any of these significant breaking news that a rock and pop music history brand should feature immediately?
 
 The brand covers: classic rock, alternative, indie, punk, metal, grunge, and iconic internationally known pop/soul artists (e.g. Michael Jackson, Prince, David Bowie, Elton John, Madonna, Whitney Houston, Stevie Wonder, Marvin Gaye, Amy Winehouse).
@@ -113,13 +117,40 @@ Do NOT select headlines about: K-pop, modern pop acts, hip-hop, R&B, country, ED
 Look for: band reunions, surprise album drops, major artist deaths, landmark tours, major awards.
 
 Headlines:
-${headlines.slice(0, 15).map((h, i) => `${i + 1}. ${h}`).join("\n")}
+${shown.map((h, i) => `${i + 1}. ${h}`).join("\n")}
 
-If yes, return ONLY the single most significant headline as plain text. If nothing qualifies, return null.`, 256);
+Reply with ONLY a number: the position in the list above of the most significant headline, or 0 if none qualifies. No explanation, no other words.`, 64);
 
-  const trimmed = text.trim();
-  if (!trimmed || trimmed.toLowerCase() === "null") return null;
-  return trimmed;
+  const picked = pickHeadlineIndex(text, shown.length);
+  if (picked === null) return null;
+  return shown[picked - 1];
+}
+
+/**
+ * Reads the chosen position out of the model's reply.
+ *
+ * This used to take the reply as the headline itself. On 2026-09-24 the model
+ * ignored "return ONLY the headline", reasoned aloud about which act suited the
+ * brand, and hit the token ceiling mid-word — so the breaking-news string became
+ * a truncated paragraph of its own deliberation, which then went into the
+ * generation prompt as "the following music news just broke". It did no visible
+ * damage only because the artist-suppression check happened to catch it.
+ *
+ * Asking for a position instead means the headline is always one we actually
+ * fetched, never something the model composed. A reply that rambles past the
+ * ceiling now yields no number, which reads as no news and leaves the scheduled
+ * series in place — the safe direction to fail.
+ */
+export function pickHeadlineIndex(reply: string, available: number): number | null {
+  // The whole reply must be the number. Picking the first number out of a longer
+  // answer looks more forgiving but is worse: the reply that caused this bug
+  // opened "...in 26 years", and a headline mentioning "5 years" would have
+  // selected headline 5 with no sign anything was wrong. Refusing to read prose
+  // means a rambling reply is simply no news, and the scheduled series runs.
+  const cleaned = reply.replace(/^[\s"']+/, "").replace(/[\s."']+$/, "");
+  if (!/^\d{1,3}$/.test(cleaned)) return null;
+  const n = Number(cleaned);
+  return n >= 1 && n <= available ? n : null;
 }
 
 // How far back to look when blocking a recently used artist, widest window first.
