@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { unlink } from "fs/promises";
 import { generateStoryContent, buildAffiliateUrl, getTodaysMusicEvent, getBreakingMusicNews, reelBeats } from "@/lib/claude";
 import { generateImage, fetchImageAsBase64, ImageStyle } from "@/lib/imagegen";
-import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, collectSlideImages } from "@/lib/musicapi";
 import { composeImage, composeStorySlide, composeFollowSlideVertical } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createKaraokeReelVideo, findAudioTrack, FOLLOW_HEADLINE } from "@/lib/video";
@@ -134,18 +134,14 @@ export async function POST(request: Request) {
 
       // For sleeve_stories without artist photo: repeat the album cover (consistent look).
       // For other categories: fetch additional album arts for visual variety.
-      const albumArts = (!artistPhotoBuffer && content.category !== "sleeve_stories")
-        ? await searchAdditionalImages(content.artist, 2).catch(() => [] as Buffer[])
-        : ([] as Buffer[]);
 
-      console.log(`[generate] imageBuffers: primary=${isRealArtistPhoto ? "artistPhoto" : "albumArt"}, artistPhotoBuffer=${!!artistPhotoBuffer}, albumArtFallbacks=${albumArts.length}`);
 
-      const imageBuffers = [
-        primaryBuffer,                                      // intro
-        primaryBuffer,                                      // slide 1: same as intro
-        artistPhotoBuffer ?? albumArts[0] ?? primaryBuffer, // slide 2: artist photo
-        artistPhotoBuffer ?? albumArts[1] ?? primaryBuffer, // slide 3: artist photo
-      ];
+
+
+      // One image per slide plus the intro, same as the cron path.
+      const seeds: Buffer[] = [primaryBuffer];
+      if (artistPhotoBuffer) seeds.push(artistPhotoBuffer);
+      const imageBuffers = await collectSlideImages(content.artist, seeds, slides.length + 1);
 
         // Narration sets every slide's length, so it has to exist before the video does.
         // Any failure returns null and the reel publishes silent rather than not at all.

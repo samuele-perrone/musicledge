@@ -7,7 +7,7 @@ import { NextResponse } from "next/server";
 import { unlink } from "fs/promises";
 import { isAuthorized } from "@/lib/auth";
 import { generateStoryContent, buildAffiliateUrl, buildRelatedLinks, buildRelatedLinksCaption, getTodaysMusicEvent, getBreakingMusicNews, reelBeats } from "@/lib/claude";
-import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, searchAdditionalImages } from "@/lib/musicapi";
+import { searchAlbum, fetchAlbumArtAsBase64, searchArtistInfo, fetchImageAsBase64FromUrl, collectSlideImages } from "@/lib/musicapi";
 import { composeImage } from "@/lib/compose";
 import { uploadImageToBlob, uploadVideoToBlob } from "@/lib/blob";
 import { createKaraokeReelVideo, findAudioTrack, FOLLOW_HEADLINE, REEL_COVER_OFFSET_MS } from "@/lib/video";
@@ -196,18 +196,16 @@ async function runCron() {
       } catch {}
     }
 
-    // For sleeve_stories without artist photo: repeat the album cover (consistent look).
-    // For other categories: fetch additional album arts for visual variety.
-    const albumArts = (!artistPhotoBuffer && category !== "sleeve_stories")
-      ? await searchAdditionalImages(content.artist, 2).catch(() => [] as Buffer[])
-      : ([] as Buffer[]);
-
-    const imageBuffers = [
-      primaryBuffer,
-      primaryBuffer,
-      artistPhotoBuffer ?? albumArts[0] ?? primaryBuffer,
-      artistPhotoBuffer ?? albumArts[1] ?? primaryBuffer,
-    ];
+    // One image per slide plus the intro. The old assembly built four buffers from
+    // at most two distinct pictures, and where the hero already was the artist
+    // photo all four were identical — so a narrated reel held a single still for
+    // twenty to thirty seconds.
+    const seeds: Buffer[] = [primaryBuffer];
+    if (artistPhotoBuffer) seeds.push(artistPhotoBuffer);
+    const imageBuffers = await collectSlideImages(content.artist, seeds, slides.length + 1);
+    const distinct = new Set(imageBuffers.map((b) => b.length)).size;
+    console.log(`[cron] images: ${distinct} distinct across ${imageBuffers.length} slots`);
+    log.push(`Images: ${distinct} distinct`);
 
     console.log(`[cron] creating reel video`);
       // Narration sets every slide's length, so it has to exist before the video does.

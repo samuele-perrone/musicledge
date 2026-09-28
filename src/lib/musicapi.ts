@@ -432,7 +432,7 @@ export async function searchAdditionalImages(
 
     for (const r of results) {
       if (!artistNameMatches(r.artistName, artist)) continue;
-      const url = r.artworkUrl100?.replace("100x100bb", "600x600bb");
+      const url = r.artworkUrl100?.replace("100x100bb", "1200x1200bb");
       if (!url || seen.has(url)) continue;
       seen.add(url);
       urls.push(url);
@@ -453,6 +453,54 @@ export async function searchAdditionalImages(
   } catch {
     return [];
   }
+}
+
+/** Cheap content fingerprint — enough to spot the same artwork arriving twice. */
+function imageKey(b: Buffer): string {
+  return `${b.length}:${b.subarray(0, 24).toString("hex")}`;
+}
+
+/**
+ * One image per slide, as far as the sources allow.
+ *
+ * The reel used to build four buffers from at most two distinct pictures, and
+ * for music_story all four were the same one — so a narrated reel held a single
+ * still for twenty to thirty seconds. Album artwork is the only other imagery
+ * these APIs reliably return for an artist, and for a music account that is a
+ * feature: covers are strong images and on-brand.
+ *
+ * Seeds come first because they are the chosen hero images. Whatever is missing
+ * is topped up with album art, deduplicated, and only then does it fall back to
+ * cycling what it has — a repeated picture beats a blank slide.
+ */
+export async function collectSlideImages(
+  artist: string,
+  seeds: Buffer[],
+  want: number,
+): Promise<Buffer[]> {
+  const seen = new Set<string>();
+  const out: Buffer[] = [];
+  const add = (b: Buffer) => {
+    const k = imageKey(b);
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push(b);
+  };
+
+  for (const b of seeds) if (b?.length) add(b);
+  if (out.length === 0) return [];
+
+  if (out.length < want) {
+    const extra = await searchAdditionalImages(artist, want - out.length).catch(() => []);
+    for (const b of extra) {
+      add(b);
+      if (out.length >= want) break;
+    }
+  }
+
+  const distinct = out.length;
+  while (out.length < want) out.push(out[out.length % distinct]);
+  return out.slice(0, want);
 }
 
 export async function fetchImageAsBase64FromUrl(url: string): Promise<string> {
