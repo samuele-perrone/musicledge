@@ -16,7 +16,22 @@ export const maxDuration = 300;
 
 const BASE = "https://graph.facebook.com/v21.0";
 
-/** Measured end to end before and after the 2026-09-15 shortening. */
+/**
+ * Three things shipped in quick succession, so a single before/after cut blurs
+ * them together. Each era is reported separately.
+ *
+ * Reel length is only a fixed number for the first two. From 2026-09-24 the
+ * length is set by how long the narration takes, so it varies per post and a
+ * percentage-of-reel figure cannot be computed from a constant — seconds watched
+ * is the only comparable number across all three.
+ */
+const ERAS = [
+  { key: "original",  from: new Date(0),                          reelSeconds: 21.3 as number | null, note: "21.3s, hook plus two facts, silent" },
+  { key: "shortened", from: new Date("2026-09-15T15:23:00Z"),     reelSeconds: 13.6 as number | null, note: "13.6s, same content, silent" },
+  { key: "listicle",  from: new Date("2026-09-22T11:29:00Z"),     reelSeconds: null as number | null, note: "every fact delivered, numbered, silent" },
+  { key: "narrated",  from: new Date("2026-09-24T08:30:00Z"),     reelSeconds: null as number | null, note: "listicle plus fable voiceover, length varies" },
+];
+
 const REEL_SECONDS_LONG = 21.3;
 const REEL_SECONDS_SHORT = 13.6;
 const FORMAT_CHANGE = new Date("2026-09-15T15:23:00Z");
@@ -144,6 +159,29 @@ export async function GET(request: Request) {
           after: split((r) => new Date(r.timestamp) >= FORMAT_CHANGE, REEL_SECONDS_SHORT),
         };
       })(),
+      // The cut that actually matters now: one row per shipped change, with the
+      // saves rate that decides whether the content or the surface is the problem.
+      byEra: ERAS.map((era, i) => {
+        const next = ERAS[i + 1]?.from;
+        const rs = rows.filter((r) => {
+          const t = new Date(r.timestamp);
+          return t >= era.from && (!next || t < next);
+        });
+        if (rs.length === 0) return { era: era.key, note: era.note, posts: 0 };
+        const w = rs.map((r) => r.watchSeconds);
+        const saves = rs.reduce((a, r) => a + r.saved, 0);
+        return {
+          era: era.key,
+          note: era.note,
+          posts: rs.length,
+          medianWatchSeconds: r1(median(w)),
+          percentOfReel: era.reelSeconds ? r1((median(w) / era.reelSeconds) * 100) : null,
+          medianViews: Math.round(median(rs.map((r) => r.views))),
+          saves,
+          shares: rs.reduce((a, r) => a + r.shares, 0),
+          savesPerPost: r1((saves / rs.length) * 100) / 100,
+        };
+      }),
       distribution: Object.fromEntries(buckets),
       retentionVsReach: {
         topThird: { avgWatch: r1(mean(top.map((r) => r.watchSeconds))), avgViews: Math.round(mean(top.map((r) => r.views))) },
