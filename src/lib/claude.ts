@@ -458,8 +458,13 @@ const SERIES_PROMPTS: Record<PostCategory, SeriesSpec> = {
  * exactly two of them, and a CTA. The reel therefore broke its own promise on
  * every listicle post, and the remaining facts existed only in the caption where
  * almost nobody expands them. Facts is now the payoff itself, one line per slide.
+ *
+ * Fixed at three from 2026-09-28. The range was 3-5 and the model reached for 5
+ * nearly every time, which was tolerable while reels were silent but not once
+ * narration set the pace: five facts ran 29.6s, longer than the 21.3s format the
+ * shortening was meant to escape. Three lands around 19s.
  */
-const FACTS_RULES = `3 to 5 short lines, one per slide, in the order they should be read. Use fewer when the story genuinely has less to say - three strong beats beat five padded ones. Each line MUST be under 45 characters, a single idea, readable at a glance in under three seconds. No numbering, no trailing punctuation beyond a full stop. One emoji max across the whole list.`;
+const FACTS_RULES = `Exactly 3 short lines, one per slide, in the order they should be read. Choose the three strongest beats and drop the rest - the reel is not the place for completeness. Each line MUST be under 45 characters, a single idea, readable at a glance in under three seconds. No numbering, no trailing punctuation beyond a full stop. One emoji max across the whole list.`;
 
 function buildSeriesPrompt(category: PostCategory, artist: string): string {
   const spec = SERIES_PROMPTS[category];
@@ -559,7 +564,9 @@ function normaliseFacts(raw: unknown): string[] {
     .filter((f): f is string => typeof f === "string")
     .map((f) => f.trim().replace(/^\s*\d+[.)]\s*/, ""))
     .filter(Boolean)
-    .slice(0, 5);
+    // Enforced rather than requested: the prompt asked for a range before and the
+    // model took the top of it every time.
+    .slice(0, 3);
 }
 
 /**
